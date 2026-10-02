@@ -4,7 +4,7 @@
 
 use almanac_service::{ConsolidateError, ConsolidationInput, Consolidator, Draft};
 use porter_client::Transport;
-use recall::{EmbedError, Embedder, EmbedderCard, Urgency, Vector};
+use recall::{EmbedError, EmbedRole, Embedder, EmbedderCard, Urgency, Vector};
 use std::sync::Arc;
 
 /// Embeds through an inferd session: `Need::Embeddings`, `InferRequest::Embed` with
@@ -29,10 +29,15 @@ impl<T: Transport> Embedder for InferdEmbedder<T> {
         &self.card
     }
 
-    async fn embed(&self, texts: &[String], urgency: Urgency) -> Result<Vec<Vector>, EmbedError> {
-        let _ = (&self.transport, texts, urgency);
+    async fn embed(
+        &self,
+        texts: &[String],
+        role: EmbedRole,
+        urgency: Urgency,
+    ) -> Result<Vec<Vector>, EmbedError> {
+        let _ = (&self.transport, texts, role, urgency);
         todo!(
-            "Transport::open(Need embeddings, class, tier), send InferRequest::Embed, read the Finished(Embed) reply; Interactive vs Background maps to porter's Usage; a refusal is EmbedError::Refused, an absent engine Unavailable"
+            "Transport::open(Need embeddings, class, tier), send InferRequest::Embed with `EmbedRequest.role` mapped from `EmbedRole` (inferd puts the model's prefix in front; the card's prefixes are read from `EmbedCap.prompts`), read the Finished(Embed) reply; Interactive vs Background maps to porter's Usage; a refusal is EmbedError::Refused, an absent engine Unavailable, a rate limit or loading engine Busy"
         )
     }
 }

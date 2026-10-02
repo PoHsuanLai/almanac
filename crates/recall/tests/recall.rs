@@ -174,12 +174,16 @@ fn embedder_card_change_marks_stale() {
             model: "a".into(),
             dims: 4,
             max_tokens: 8,
+            max_batch: MaxBatch(4),
+            prompts: PromptPrefixes::default(),
             metric: Metric::Cosine,
         },
         EmbedderCard {
             model: "b".into(),
             dims: 4,
             max_tokens: 8,
+            max_batch: MaxBatch(4),
+            prompts: PromptPrefixes::default(),
             metric: Metric::Cosine,
         },
     );
@@ -317,7 +321,10 @@ async fn the_fake_embedder_is_deterministic_and_word_sensitive() {
         "lisbon receipts".to_owned(),
         "quarterly roadmap".to_owned(),
     ];
-    let v = e.embed(&texts, Urgency::Interactive).await.expect("embed");
+    let v = e
+        .embed(&texts, EmbedRole::Document, Urgency::Interactive)
+        .await
+        .expect("embed");
     assert_eq!(v[0], v[1]);
     assert_eq!(v[0].0.len(), usize::try_from(e.card().dims).expect("dims"));
     let near = Metric::Cosine.score(&v[0], &FakeEmbedder::vector("receipts from lisbon"));
@@ -325,7 +332,7 @@ async fn the_fake_embedder_is_deterministic_and_word_sensitive() {
     assert!(near > far, "{near} vs {far}");
     assert_eq!(
         FakeEmbedder::unavailable()
-            .embed(&texts, Urgency::Background)
+            .embed(&texts, EmbedRole::Query, Urgency::Background)
             .await,
         Err(EmbedError::Unavailable)
     );

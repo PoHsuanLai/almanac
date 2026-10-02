@@ -5,7 +5,7 @@
 //! `cargo check -p recall-fastembed`. A standalone or portable embedder; memoryd's default is
 //! `InferdEmbedder`, which shares inferd's GPU queue.
 
-use recall::{EmbedError, Embedder, EmbedderCard, Urgency, Vector};
+use recall::{EmbedError, EmbedRole, Embedder, EmbedderCard, Urgency, Vector};
 
 /// An embedder running a fastembed model in this process. A stub until the recall fill.
 #[derive(Debug, Clone)]
@@ -31,8 +31,15 @@ impl Embedder for FastembedEmbedder {
         &self.card
     }
 
-    async fn embed(&self, texts: &[String], urgency: Urgency) -> Result<Vec<Vector>, EmbedError> {
-        let _ = (texts, urgency);
-        todo!("TextEmbedding::embed on a blocking thread; Background yields to Interactive")
+    async fn embed(
+        &self,
+        texts: &[String],
+        role: EmbedRole,
+        urgency: Urgency,
+    ) -> Result<Vec<Vector>, EmbedError> {
+        let _ = (texts, role, urgency);
+        todo!(
+            "TextEmbedding::embed on a blocking thread, the card's prefix for the role in front, at most max_batch texts; Background yields to Interactive"
+        )
     }
 }

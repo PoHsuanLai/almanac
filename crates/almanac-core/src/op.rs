@@ -21,6 +21,10 @@ pub enum ReadScope {
     Provenance,
     /// The primer.
     Primer,
+    /// An automatic, budgeted recall (`InjectQuery`).
+    Inject,
+    /// Recent activity (`RecentQuery`).
+    Recent,
 }
 
 /// What a forget removed.

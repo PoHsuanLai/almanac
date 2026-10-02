@@ -13,9 +13,13 @@ slug_enum!(
     RecallOver {
         /// Facts only.
         Facts => "facts",
-        /// Event bodies with searchable text only.
+        /// Every event document with text: thing and search text, messages, episodes.
         Events => "events",
-        /// Both.
+        /// Messages only.
+        Messages => "messages",
+        /// Episodes (skeletons and narratives) only.
+        Episodes => "episodes",
+        /// Facts and every event document.
         Both => "both"
     }
 );

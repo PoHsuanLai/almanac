@@ -16,7 +16,7 @@ trait), section 5 (what is built), section 6 (copy the recipe).
 
 | Crate | Purpose | I/O |
 | --- | --- | --- |
-| `almanac-core` | the vocabulary: ids and their grammars (`FactId`, `TopicPath`, `KindTag`, `KindPattern`, `SpacePath`), things (`ThingRef` = `prov::EntityId`), `Record`, `EventBody`, `AreaPayload`, facts, remember rules and the pure `admit`, the wire (`MemoryRequest`, `MemoryReply`, `Refusal`, `Caller`), the timeline, forget-plan, draft and status views, the export manifest, `Dirs`; re-exports the porter and `prov` names the other crates use | none |
+| `almanac-core` | the vocabulary: ids and their grammars (`FactId`, `TopicPath`, `KindTag`, `KindPattern`, `SpacePath`), things (`ThingRef` = `prov::EntityId`), `Record`, `EventBody` (with `Message` and `Episode`), `AreaPayload`, `Episode` and its skeleton, `InjectQuery`/`RecentQuery`, facts, remember rules and the pure `admit`, the wire (`MemoryRequest`, `MemoryReply`, `Refusal`, `Caller`), the timeline, forget-plan, draft and status views, the export manifest, `Dirs`; re-exports the porter and `prov` names the other crates use | none |
 | `almanac-seal` | `SpaceKey`, purpose subkeys (`derive`), `DbKey`, `seal`/`unseal` for files, the `KeyStore` seam, `MemoryKeys` (feature `testing`), `Oo7Keys` (feature `oo7`, stubbed) | none (oo7 behind its feature) |
 | `eventlog` | the header's canonical bytes, `link`, `verify_chain`, `LogRead`/`LogWrite`, `SqliteLog` (SQLCipher, stubbed), `MemoryLog` (feature `testing`), the schema | rusqlite |
 | `memfiles` | the topic file format (`parse_topic`, `render_topic`, the trailer), `VaultPath`, the `Vault` seam, `PlainDir`/`SealedDir` (stubbed), `MemoryVault` (feature `testing`), `Store`, `Primer` | the filesystem through `Vault` |
@@ -132,8 +132,11 @@ pub trait Vault: Send + Sync {
 // recall: FakeEmbedder, FastembedEmbedder, memoryd's InferdEmbedder.
 pub trait Embedder: Send + Sync {
     fn card(&self) -> &EmbedderCard;
-    fn embed(&self, texts: &[String], urgency: Urgency)
+    /// `role` is Query or Document (asymmetric models); at most `card().max_batch` texts.
+    fn embed(&self, texts: &[String], role: EmbedRole, urgency: Urgency)
         -> impl Future<Output = Result<Vec<Vector>, EmbedError>> + Send;
+    // EmbedderCard { model, dims, max_tokens, max_batch: MaxBatch, prompts: PromptPrefixes, metric }
+    // EmbedError::retry_class() -> RetryClass { Retry, Fatal }
 }
 // recall: ExactScan now; a sqlite-vec backend later (only if the no-unsafe rule is relaxed).
 pub trait VectorIndex: Send { fn card(&self) -> &EmbedderCard; fn upsert(..); fn remove(..); fn nearest(..); fn clear(..); }
@@ -241,7 +244,28 @@ introspection test; the failure prints the new text.
 `EventBody` and its arm in `kind()` and `things()`; a sample in `tests/wire.rs` (the exhaustive
 index function breaks until it has one); its row in `allowed` (who may record it); its default
 retention in `RuleSet::standard`; a fixture in `almanac-fake` if specs name it. Another area's
-payload is never a variant: it is an `AreaPayload` with its owner's `KindTag`.
+payload is never a variant: it is an `AreaPayload` with its owner's `KindTag`. The two
+exceptions are types almanac may name because they live in `prov` or in almanac itself:
+`Message` (prov's one message model) and `Episode`. Their text is a pure function of the body
+(`EventBody::index_texts`), so the index stays rebuildable from the log.
+
+**Messages and episodes in the log.** `Record.actor` is the stamped sender and `Record.label` is
+the message's own label (for an episode, the join of its parts'); only the router records them,
+except that cuad may record a run's own `Message` (the run is the sender). Both are audit
+class: a pause or a `Never` rule keeps the header and drops the body, and retention is
+`companion.*`, 30 days. Recall indexes a message as one document (`e:<replica>:<seq>`, facet
+`message`) and an episode as up to two: its trusted skeleton (`e:`, facet `episode`) and its
+narrative (`n:`, facet `narrative`), each with its own label, so a tainted narrative never
+taints the skeleton's hit. A narrated episode is a second `Episode` event with the same id and
+skeleton (`Episode::narrates`); recall indexes only the newest event per id. A message carries
+no authority and grants no read in another Space: `Search`, `Inject` and `Recent` take the
+Space of the invocation.
+
+**The router's reads for the working set.** `Inject(InjectQuery)` is automatic top-k recall cut
+to a token budget (answered with `Hits`, ranked, labelled; `fit_budget` is the arithmetic) and
+`Recent(SpaceId, RecentQuery)` is recent activity, newest first, with labels and text
+(`Recent` reply). Both are `Router` or `ShellUi`, both audited as `Memory.Read`
+(`ReadScope::Inject`, `Recent`); `Timeline` stays the shell's alone.
 
 **Add a rule scope**: its variant in `RuleScope` with a `specificity` (the order is
 `Thing > Path > Kind > App > Actor > Space`), its arm in `admit::applies`, a row in

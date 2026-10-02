@@ -4,6 +4,7 @@
 use crate::event::{EventRef, Record};
 use crate::fact::{FactDraft, Settlement};
 use crate::ids::{FactId, KindPattern, PlanToken, RuleId, SpacePath};
+use crate::inject::{InjectQuery, RecentQuery};
 use crate::query::{ExportOptions, FactQuery, FileWhyClaim, MarkRequest, RecallQuery};
 use crate::rules::RememberRule;
 use crate::thing::ThingRef;
@@ -57,6 +58,11 @@ pub enum MemoryRequest {
     Related(SpaceId, ThingRef),
     /// Where a file came from.
     Provenance(SpaceId, SpacePath),
+    /// Automatic recall for one turn: a search cut to a token budget (Q3).
+    Inject(InjectQuery),
+    /// Recent activity in a Space, newest first, with labels (the router's read; the shell's
+    /// `Timeline` is the full, filtered UI view).
+    Recent(SpaceId, RecentQuery),
     /// The primer: the index of what is known, for the start of a session.
     Primer(SpaceId),
     /// Propose a fact.
@@ -109,9 +115,11 @@ impl MemoryRequest {
             MemoryRequest::Mark(m) => Some(&m.space),
             MemoryRequest::Search(q) => Some(&q.space),
             MemoryRequest::Facts(q) => Some(&q.space),
+            MemoryRequest::Inject(q) => Some(&q.space),
             MemoryRequest::Related(s, _)
             | MemoryRequest::Provenance(s, _)
             | MemoryRequest::Primer(s)
+            | MemoryRequest::Recent(s, _)
             | MemoryRequest::Propose(s, _)
             | MemoryRequest::Status(s)
             | MemoryRequest::Timeline(s, _)

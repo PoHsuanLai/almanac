@@ -3,9 +3,9 @@
 use crate::transport::{Transport, TransportError};
 use almanac_core::{
     EventRef, FactDraft, FactId, FactQuery, FactState, FactView, FileWhyClaim, ForgetPlanView,
-    ForgetReport, ForgetScope, MarkRequest, MemoryReply, MemoryRequest, PlanToken, RecallHit,
-    RecallQuery, Record, Refusal, Settlement, SpaceId, SpaceStatus, SpaceSummary, TimelinePage,
-    TimelineQuery,
+    ForgetReport, ForgetScope, InjectQuery, MarkRequest, MemoryReply, MemoryRequest, PlanToken,
+    RecallHit, RecallQuery, RecentEntry, RecentQuery, Record, Refusal, Settlement, SpaceId,
+    SpaceStatus, SpaceSummary, TimelinePage, TimelineQuery,
 };
 
 /// Why a call failed.
@@ -89,6 +89,26 @@ impl<T: Transport> Memory<T> {
     pub async fn search(&self, query: RecallQuery) -> Result<Vec<RecallHit>, ClientError> {
         match self.ask(MemoryRequest::Search(query)).await? {
             MemoryReply::Hits(hits) => Ok(hits),
+            _ => Err(ClientError::Unexpected),
+        }
+    }
+
+    /// Automatic recall for one turn: ranked hits whose text costs at most the query's budget.
+    pub async fn inject(&self, query: InjectQuery) -> Result<Vec<RecallHit>, ClientError> {
+        match self.ask(MemoryRequest::Inject(query)).await? {
+            MemoryReply::Hits(hits) => Ok(hits),
+            _ => Err(ClientError::Unexpected),
+        }
+    }
+
+    /// Recent activity in a Space, newest first, with labels.
+    pub async fn recent(
+        &self,
+        space: SpaceId,
+        query: RecentQuery,
+    ) -> Result<Vec<RecentEntry>, ClientError> {
+        match self.ask(MemoryRequest::Recent(space, query)).await? {
+            MemoryReply::Recent(entries) => Ok(entries),
             _ => Err(ClientError::Unexpected),
         }
     }

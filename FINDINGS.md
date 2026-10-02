@@ -42,6 +42,127 @@ almanac-service (the authorisation matrix, the Space, fact, plan and consolidati
 almanac-watch (`join`), almanac-dbus (skeletons, proxies, introspection XML, `MemoryError`),
 almanac-client (`Memory`, `Absent`, `InProcess`), almanac-fake, memoryd (`xdg`, `SystemClock`).
 
+## The companion amendment (2026-10-03)
+
+Interface changes made before any fill wave, from QUESTIONS "Persistent companion" and "One
+message model", `research-persistent-agent.md` sections C, D and E, and `research-rig.md`
+section 7 item 9. It builds against the amended porter (branch `m-amend-comp`: `prov::Message`,
+`AgentRef`, `Address`, `AgentRole::Worker`). Types, traits, signatures, docs, pure tables and
+tests; no new `todo!()` (the count and the list above are unchanged; three stub bodies,
+`FastembedEmbedder::embed`, `InferdEmbedder::embed` and the `Index` methods, only have longer
+doc text).
+
+**Rig item 9 (recall).** `Embedder::embed(texts, role, urgency)` with `EmbedRole { Query,
+Document }`; `EmbedderCard` gained `max_batch: MaxBatch` and `prompts: PromptPrefixes { query,
+document }` (recall names no porter type, so memoryd maps them to porter-infer `EmbedRequest.role`
+and porter-core `EmbedCap.{max_batch, prompts}`); `EmbedderCard::{prefixed, batch_sizes,
+space_vs}` are pure and table-tested (a different prefix or model is a different vector space, a
+different batch size is not); `EmbedError` gained `Busy` and `Failed { class, why }` with
+`retry_class() -> RetryClass { Retry, Fatal }` (`Unavailable` and `Busy` retry; `Refused` and
+`TooLong` are fatal). Only one side applies the prefix: inferd does, from `EmbedCap.prompts`;
+`FastembedEmbedder` does it itself. The card carries the prefixes so the index can tell when it
+went stale.
+
+**Messages: an `EventBody::Message` variant, not a text field on `AreaPayload`.** The research
+(G4) asked for both a searchable-text hook on `AreaPayload` and a `RecallOver` option. We chose
+the typed variant, and `RecallOver::{Messages, Episodes}` beside the existing `Events`, because:
+(1) the message is `prov`'s type and almanac may name it (an `AreaPayload` exists only to keep
+other areas' types out of almanac); (2) with a typed body the searchable text and the label of
+each part are pure functions of the body (`EventBody::index_texts`), so the index is rebuildable
+from the log and the text cannot drift from the stored value; with an owner-supplied
+`AreaPayload.text` the owner could index text its JSON does not contain, and the label of that
+text would be unchecked; (3) cascade-forget gets the entities a message names
+(`EventBody::thing_refs`) with no extra field; (4) `AreaPayload` stays frozen, so docket's and
+cua's payloads are unaffected. The cost is a variant: `kind()` is `companion.message`, the
+`wire.rs` request/reply samples and the auth matrix gained rows, and `EventBody` boxes both new
+payloads (`Message`, `Episode`) to keep the enum small. `AreaPayload` has no searchable text; if
+docket later wants its own payloads searchable it adds a field then.
+
+**Episodes** (`episode.rs`): `Episode { id, agent: AgentRef, kind: EpisodeKind { Task, Side },
+parent, space, started, ended, outcome: EpisodeOutcome, skeleton, narrative }`. `Skeleton`
+(trusted by construction, no model) holds `asked: Vec<MessageText>`, typed `StepLine`s (action,
+target things, effect, `StepOutcome`, undo handle), `touched` things (for cascade-forget) and
+typed `ResultLine`s (count, thing or outcome ref; text only by reference). `Narrative` is the
+model-written text with its own `Label` and the `ModelRole` that wrote it. The type is almanac's
+(not docket's, as research C.2 first drew it) because almanac stores and recalls it and may name
+only `prov` types; docket builds the skeleton and the idle pass writes the narrative. Events are
+immutable, so a narrated episode is a second `Episode` event with the same id and skeleton
+(`Episode::narrates`), and the service indexes only the newest event per id. Rollups stay plain
+topic files under `journal/` (Q10): no `Hunk`, no layer.
+
+**Recent and Inject.** `MemoryRequest::Recent(SpaceId, RecentQuery { since, kinds, trust, limit })`
+answered with `MemoryReply::Recent(Vec<RecentEntry>)` (summary, effect, label, text) and
+`MemoryRequest::Inject(InjectQuery { space, text, budget: Tokens, k, over, trust })` answered
+with `Hits` cut by `fit_budget` (in ranked order, an item that does not fit is skipped; the
+estimate is characters over 4 until the assembler measures the real tokenizer). Allowed for
+`Router` and `ShellUi`; `ReadScope` gained `Inject` and `Recent`; D-Bus `Recall.Inject` and
+`Recall.Recent` (28 methods became 30) and `Memory::{inject, recent}` in the client.
+
+**What changed that tests pin (and what was added, not changed).** `RuleSet::standard()` gained
+`days("companion.*", 30)`; `is_audit_class` now includes `Message` and `Episode` bodies;
+`wire.rs` appended `Inject`/`Recent` (request indexes 28, 29) and `Recent` (reply index 20), nothing
+renumbered; the introspection test expects 30 methods and the XML gained the two members;
+`recall`'s card-literal test gained the two fields and the embed calls gained the role.
+
+**For the almanac fill (service) waves.** `Record` admission checks that `Record.label` is at
+least as restrictive as the join of `index_texts()` labels and, for a message, that `Record.actor`
+matches `from` (`Message::sender_matches`) and that `Message::check` passes; a skeleton with an
+untrusted label is refused (`Invalid`). `Propose` into the `desktop` Space must call
+`prov::desktop_admits` and refuse anything but `Admit` (Q9). The `things` rows come from
+`thing_refs()`. A `Message` whose `to.space` differs from the Space it is recorded in is
+recorded in the receiving Space with the sender's label (it never grants a read; taint travels).
+`Inject` over `Both` merges facts and event documents by `fuse_rrf`, then `fit_budget`; the
+`trust` filter applies to the document label, not the event's.
+
+### Docket-bound list (for the docket freeze brief)
+
+Everything `research-persistent-agent.md` section D assigns to docket, which does not exist yet.
+Nothing below is built; the interfaces it will use are.
+
+1. **Companion identity over tasks and Sessions** (G1). One identity (`AgentRef::Companion`),
+   many tasks, each its own docket `Session` for taint, budget and `TaskPolicy`; the launcher
+   returns to the front task; companiond owns the front pointer; `parent` on
+   `SessionRecord::Opened`. `TaskId` now lives in `prov` (SPEC section 2 names docket-core).
+2. **Persisting the user's turns** (G2). `SessionRecord::Asked` carries the turn and the target
+   agent; the user's direct turn to a subagent is a `prov::Message` from `AgentRef::User` recorded
+   verbatim as `Trusted` by the router (retention row `companion.*`, 30 days, in design/22).
+3. **The working-set assembler** (G11). `assemble(&Budget, &Sources) -> PlannerView` in
+   `agent-loop`: sections in the stable-first order of research C.3, budgets in
+   `companion.budget.*`, masking of old outcomes, split-instead-of-summarise on overflow;
+   `PlannerView` gains `primer`, `profile`, `roster`, `episodes`, `recalled`. It reads recent
+   episodes with `Recent`, the recall section with `Inject` (`trust: TrustedOnly`), the active
+   Space plus `desktop`, and logs each injection as `Memory.Read`.
+4. **The roster** (G12). `Roster { entries }`, `RosterLine { agent: AgentRef, space, state,
+   goal: Reveal<String>, last: StepLine, told: Option<first 80 chars of the user's turn> }`,
+   derived by companiond from its tasks, `Cua1` signals and `Recent` messages; a line for another
+   Space shows presence only, no goal text (Q8); exposed to sill's Runs filter.
+5. **Side-episode capture** (C.6). When the person's side conversation with a worker or run ends
+   (row closed, or 2 minutes idle) write an `Episode { kind: Side }` from the user's turns and
+   the subagent's typed steps since; a goal change narrows the subagent's `TaskPolicy` through
+   the `PolicyWriter` path (widening confirms, S4).
+6. **Episode builder and idle pass** (G3, G6, G10). Deterministic skeleton at task end, recorded
+   by the router (option (a): a docket `Intents1.Session.Note(episode)` member, no new
+   `Caller`); the narrative at idle (`Usage::Background`, readerd when the task read untrusted
+   content, `ModelRole::Consolidator`), as a second `Episode` event; fact candidates to `Propose`.
+7. **The task-spawn action** (G13). `companion.task.start { goal, kind }` in the built-in
+   provider manifest, `Effect::Read`, child `TaskPolicy` never wider than the parent's; records
+   `Area{Companion}` `task.started` with `Cause::Event` of the spawning step.
+8. **Message delivery** (new with the one message model). The router stamps `from` from the
+   caller and checks `Message::sender_matches` and `Message::check`; mints `MessageId` and
+   `ThreadId`; delivers a `Request` to the receiver as input evaluated under the receiver's own
+   `TaskPolicy` and the gating pipeline (no authority); joins the message's label into the
+   receiver's taint; a cross-Space message lands in the receiving Space's task as an inbound
+   item and shows on the roster; a computer-use run's final result is a `Report` (no separate
+   return type exists).
+9. **Completion notifications** (C.5.5). A one-line event in the front thread's current task
+   when a worker or run reports `Done`, `Failed` or `Cancelled`; the orb shows Waiting only when
+   the result needs the person.
+10. **Restart rebuild** (G16). companiond rebuilds the roster and the front task from
+    `Area{Companion}`, `Area{Cua}`, message and episode events (via `Recent`) on start.
+11. **Settings and rows** (D.2 G2, G11): `companion.budget.*`, the retention row for
+    `companion.*`, and the Space-scope rule that desktop-scope reads join through
+    `Confidentiality::join` so they do not widen a Space task.
+
 ## Open
 
 - **Spec conflicts and their resolutions** (SPEC.md wins over memory.md; items below are where the two

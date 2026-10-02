@@ -10,8 +10,8 @@ use crate::rules::{
 use crate::space::SpaceState;
 use prov::{Actor, ActorKind, SystemPart};
 
-/// Whether the record is part of the audit trail: the companion's, the router's and every
-/// other area's payloads. Such records are never dropped for policy reasons (pause, `Never`
+/// Whether the record is part of the audit trail: the companion's, the router's, every
+/// other area's payloads, and every message and episode (so a pause keeps headers only). Such records are never dropped for policy reasons (pause, `Never`
 /// rules, marks); at worst they keep their header.
 pub fn is_audit_class(record: &Record) -> bool {
     let by_actor = matches!(record.actor.kind(), ActorKind::Companion | ActorKind::Cua)
@@ -21,7 +21,11 @@ pub fn is_audit_class(record: &Record) -> bool {
                 part: SystemPart::Router | SystemPart::Cua
             }
         );
-    by_actor || matches!(record.body, EventBody::Area(_))
+    by_actor
+        || matches!(
+            record.body,
+            EventBody::Area(_) | EventBody::Message(_) | EventBody::Episode(_)
+        )
 }
 
 /// Decides what to do with `record`. Pure.

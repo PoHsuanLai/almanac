@@ -5,6 +5,7 @@ use crate::event::EventRef;
 use crate::export::ExportManifest;
 use crate::fact::{FactState, Link, MemoryItem};
 use crate::ids::FactId;
+use crate::inject::RecentEntry;
 use crate::op::ForgetCounts;
 use crate::rules::RuleSet;
 use crate::space::{SpaceStatus, SpaceSummary};
@@ -102,8 +103,10 @@ pub enum MemoryReply {
     RecordedBatch(EventRef, Count),
     /// Done.
     Ok,
-    /// Search hits.
+    /// Search hits (also the answer to `Inject`, ranked and within its budget).
     Hits(Vec<RecallHit>),
+    /// Recent activity, newest first.
+    Recent(Vec<RecentEntry>),
     /// Facts.
     Facts(Vec<FactView>),
     /// Related events.

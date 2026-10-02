@@ -2,13 +2,14 @@
 //! from.
 
 use crate::area::AreaPayload;
+use crate::episode::Episode;
 use crate::file::{FileChange, FileView, FileWhy};
 use crate::ids::{KindTag, ReplicaId, Seq};
 use crate::op::MemoryOp;
 use crate::text::UserText;
 use crate::thing::{ThingRef, ThingRole, ThingView, Verb};
 use porter_core::{AppName, Count, SpaceId, UnixSeconds};
-use prov::{Actor, Effect, Label, SessionId};
+use prov::{Actor, Effect, Label, Message, Part, SessionId};
 use serde::{Deserialize, Serialize};
 
 /// One event in one Space: the log's own address.
@@ -94,6 +95,14 @@ pub enum EventBody {
         /// What it did.
         op: MemoryOp,
     },
+    /// A message between agents (prov's one message model): a request, a report, the person's
+    /// turn to a subagent, a note, possibly across Spaces. Stored as input with its label; it
+    /// grants nothing. `Record.label` is the message's own label and `Record.actor` is the
+    /// stamped sender.
+    Message(Box<Message>),
+    /// What happened in one task, run or side conversation: a trusted skeleton and an optional
+    /// narrative with its own label. `Record.label` is the join of both parts' labels.
+    Episode(Box<Episode>),
     /// An opaque payload from another area.
     Area(AreaPayload),
 }
@@ -106,6 +115,8 @@ impl EventBody {
             EventBody::File { change, .. } => KindTag::of("file", change.slug()),
             EventBody::Search { .. } => KindTag::of("search", "performed"),
             EventBody::Memory { op } => KindTag::of("memory", op.slug()),
+            EventBody::Message(_) => KindTag::of("companion", "message"),
+            EventBody::Episode(_) => KindTag::of("companion", "episode"),
             EventBody::Area(payload) => payload.kind.clone(),
         }
     }
@@ -117,14 +128,40 @@ impl EventBody {
                 .chain(sources.iter().map(|s| (s, ThingRole::Source)))
                 .collect(),
             EventBody::Area(payload) => payload.things.iter().map(|(t, r)| (t, *r)).collect(),
-            EventBody::File { .. } | EventBody::Search { .. } | EventBody::Memory { .. } => {
-                Vec::new()
-            }
+            EventBody::Episode(episode) => episode
+                .skeleton
+                .touched
+                .iter()
+                .map(|(t, r)| (t, *r))
+                .collect(),
+            EventBody::File { .. }
+            | EventBody::Search { .. }
+            | EventBody::Memory { .. }
+            | EventBody::Message(_) => Vec::new(),
         }
+    }
+
+    /// Every thing the body names, with or without a view: [`EventBody::things`] plus the
+    /// entities a message's parts reference (as sources). The service writes the log's `things`
+    /// rows from this, so forgetting a thing also forgets the messages that name it.
+    pub fn thing_refs(&self) -> Vec<(ThingRef, ThingRole)> {
+        let viewed = self.things().into_iter().map(|(v, r)| (v.thing.clone(), r));
+        let named = match self {
+            EventBody::Message(m) => m
+                .parts
+                .iter()
+                .filter_map(|p| match p {
+                    Part::Entity(id) => Some((id.clone(), ThingRole::Source)),
+                    Part::Text(_) | Part::Outcome(_) | Part::Undo(_) => None,
+                })
+                .collect(),
+            _ => Vec::new(),
+        };
+        viewed.chain(named).collect()
     }
 
     /// Whether the event names `thing`, in either role.
     pub fn names(&self, thing: &ThingRef) -> bool {
-        self.things().iter().any(|(view, _)| &view.thing == thing)
+        self.thing_refs().iter().any(|(named, _)| named == thing)
     }
 }

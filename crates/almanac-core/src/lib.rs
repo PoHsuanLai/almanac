@@ -10,11 +10,14 @@ mod area;
 mod caller;
 mod chain;
 mod dirs;
+mod episode;
 mod event;
 mod export;
 mod fact;
 mod file;
 mod ids;
+mod indexed;
+mod inject;
 mod op;
 mod query;
 mod reply;
@@ -32,6 +35,10 @@ pub use area::{AreaPayload, AreaTag};
 pub use caller::Caller;
 pub use chain::{Break, ChainReport, Checkpoint, Head};
 pub use dirs::Dirs;
+pub use episode::{
+    Episode, EpisodeId, EpisodeKind, EpisodeOutcome, Narrative, ResultLine, ResultName,
+    ResultValue, Skeleton, StepLine, StepOutcome, Succession,
+};
 pub use event::{Cause, EventBody, EventRef, Record};
 pub use export::{EXPORT_FORMAT, EXPORT_ROOT, ExportManifest, ExportedSpace};
 pub use fact::{Fact, FactDraft, FactState, Link, MemoryItem, Settlement, Validity};
@@ -39,6 +46,10 @@ pub use file::{FileChange, FileView, FileWhy};
 pub use ids::{
     Cursor, DayCount, FactId, FactText, KindPattern, KindTag, PathGlob, PlanToken, ReplicaId,
     RuleId, Seq, SpacePath, TopicPath, UseCount,
+};
+pub use indexed::{IndexPart, IndexText};
+pub use inject::{
+    CHARS_PER_TOKEN, InjectQuery, RecentEntry, RecentQuery, estimate_tokens, fit_budget,
 };
 pub use op::{ExportCounts, ForgetCounts, MemoryOp, ReadScope};
 pub use query::{
@@ -73,9 +84,11 @@ pub const MEMORY_WIRE_VERSION: u32 = 1;
 /// The other crates of this repo reach porter and `prov` through almanac-core, so the allowed
 /// edges stay exactly the crate map's.
 pub use porter_core::{
-    AppId, AppName, Bytes, Count, DataClass, Isolation, SpaceId, SpaceScope, UnixSeconds,
+    AppId, AppName, Bytes, Count, DataClass, Isolation, SpaceId, SpaceScope, Tokens, UnixSeconds,
 };
 pub use prov::{
-    Actor, ActorKind, AgentRole, Channel, ClientName, Confidentiality, ConfirmId, ConfirmReceipt,
-    Effect, InputProof, Integrity, Label, ModelRole, RunId, SessionId, Source, SystemPart,
+    ActionName, Actor, ActorKind, Address, AgentRef, AgentRole, Channel, ClientName,
+    Confidentiality, ConfirmId, ConfirmReceipt, Effect, InputProof, Integrity, Label, Message,
+    MessageId, MessageKind, MessageText, ModelRole, OutcomeRef, Part, ReportStatus, RunId,
+    SessionId, Source, SystemPart, TaskId, ThreadId, UndoHandle,
 };

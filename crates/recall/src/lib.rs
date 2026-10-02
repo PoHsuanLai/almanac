@@ -16,7 +16,7 @@ mod state;
 mod vector;
 
 pub use doc::{Allow, Chunk, Count, Doc, DocId, Facets, Ranked, TopK, TrustTier};
-pub use embed::{EmbedError, Embedder};
+pub use embed::{EmbedError, Embedder, RetryClass};
 pub use exact::{ExactScan, VectorIndex};
 #[cfg(feature = "testing")]
 pub use fake::{FAKE_DIMS, FakeEmbedder};
@@ -24,4 +24,7 @@ pub use fts::{Fts5, SCHEMA_V1, match_expression};
 pub use fuse::{CHARS_PER_TOKEN, Fused, HitWhy, RrfK, chunk, fuse_rrf};
 pub use index::{Index, IndexError, SearchQuery};
 pub use state::{DegradedWhy, IndexEvent, IndexState, StaleWhy, step};
-pub use vector::{EmbedderCard, Metric, Urgency, Vector, nearest_exact};
+pub use vector::{
+    EmbedRole, EmbedderCard, MaxBatch, Metric, PromptPrefixes, SpaceCheck, Urgency, Vector,
+    nearest_exact,
+};

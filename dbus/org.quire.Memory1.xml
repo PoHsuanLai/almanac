@@ -31,6 +31,16 @@
      <arg name="query" type="s" direction="in"/>
      <arg type="s" direction="out"/>
    </method>
+   <method name="Inject">
+     <arg name="space" type="s" direction="in"/>
+     <arg name="query" type="s" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="Recent">
+     <arg name="space" type="s" direction="in"/>
+     <arg name="query" type="s" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
    <method name="Related">
      <arg name="space" type="s" direction="in"/>
      <arg name="thing" type="s" direction="in"/>

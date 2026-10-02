@@ -85,7 +85,7 @@ impl<V: VectorIndex> Index<V> {
     ) -> Result<(), IndexError> {
         let _ = (docs, e);
         todo!(
-            "clear both halves, chunk, embed in batches (Urgency::Background), upsert, step the state"
+            "clear both halves, chunk, embed in batches of card.max_batch (EmbedRole::Document, Urgency::Background), upsert, step the state"
         )
     }
 
@@ -93,7 +93,7 @@ impl<V: VectorIndex> Index<V> {
     pub async fn upsert(&mut self, docs: &[Doc], e: &impl Embedder) -> Result<(), IndexError> {
         let _ = (docs, e);
         todo!(
-            "fts upsert; embed and vector upsert, or mark LexicalOnly when the embedder is unavailable"
+            "fts upsert; embed (EmbedRole::Document) and vector upsert; on a Retry-class EmbedError mark LexicalOnly and queue a retry, on Fatal report the document"
         )
     }
 
@@ -111,7 +111,7 @@ impl<V: VectorIndex> Index<V> {
     ) -> Result<Vec<Fused>, IndexError> {
         let _ = (q, e);
         todo!(
-            "fts search; embed the query; vector nearest; fuse_rrf; lexical only when Unavailable"
+            "fts search; embed the query (EmbedRole::Query); vector nearest; fuse_rrf; lexical only on a Retry-class EmbedError"
         )
     }
 

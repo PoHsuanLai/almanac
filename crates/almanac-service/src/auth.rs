@@ -2,19 +2,24 @@
 //!
 //! | Request | App | Router | Cuad | ShellUi |
 //! |---|---|---|---|---|
-//! | Record, RecordBatch | own things; actor `User{via: self}` or `App{self}` | any actor, never `Memory` bodies | `Area(Cua)` bodies with a `Cua` run actor | no |
+//! | Record, RecordBatch | own things; actor `User{via: self}` or `App{self}` | any actor, never `Memory` bodies | `Area(Cua)` bodies with a `Cua` run actor; `Message` bodies sent by that same run | no |
 //! | ExplainFile, Mark | own | yes | no | yes |
-//! | Search, Facts, Related, Provenance, Primer | no | yes (audited as `Memory.Read`) | no | yes |
+//! | Search, Facts, Related, Provenance, Primer, Inject, Recent | no | yes (audited as `Memory.Read`) | no | yes |
 //! | Propose, PlanForget | no | yes | no | yes |
 //! | everything else | no | no | no | yes |
+//!
+//! `Message` and `Episode` bodies are the router's to record (it stamps the sender); an app never
+//! records either, and `Timeline` stays the shell's alone: the router reads recent activity
+//! through `Recent`. A message grants no read in the other Space: `Search`, `Inject` and `Recent`
+//! take the Space of the invocation, whoever wrote to the task.
 //!
 //! The companion has no column: it reaches memory through the router, which calls as `Router`
 //! with the Space of the invocation. Untrusted-labelled proposals always land in `pending/`
 //! (the fact machine), whoever sends them.
 
 use almanac_core::{
-    Actor, AgentRole, AppName, AreaTag, Caller, EventBody, FileWhyClaim, MemoryRequest, Record,
-    Refusal,
+    Actor, AgentRef, AgentRole, AppName, AreaTag, Caller, EventBody, FileWhyClaim, MemoryRequest,
+    Record, Refusal,
 };
 
 /// The answer of [`allowed`].
@@ -46,20 +51,33 @@ fn app_may_record(app: &AppName, record: &Record) -> bool {
             .iter()
             .all(|(view, _)| &view.thing.app == app),
         EventBody::Search { app: searched, .. } => searched == app,
-        EventBody::File { .. } | EventBody::Memory { .. } | EventBody::Area(_) => false,
+        EventBody::File { .. }
+        | EventBody::Memory { .. }
+        | EventBody::Message(_)
+        | EventBody::Episode(_)
+        | EventBody::Area(_) => false,
     };
     own_body && is_own_actor(&record.actor, app)
 }
 
 fn cuad_may_record(record: &Record) -> bool {
-    matches!(&record.body, EventBody::Area(p) if p.area == AreaTag::Cua)
-        && matches!(
-            &record.actor,
-            Actor::Companion {
-                role: AgentRole::Cua { .. },
-                ..
-            }
-        )
+    let run = match &record.actor {
+        Actor::Companion {
+            role: AgentRole::Cua { run },
+            ..
+        } => run,
+        _ => return false,
+    };
+    match &record.body {
+        EventBody::Area(p) => p.area == AreaTag::Cua,
+        // A run's own report, as itself.
+        EventBody::Message(m) => m.from.agent == AgentRef::Cua { run: run.clone() },
+        EventBody::Thing { .. }
+        | EventBody::File { .. }
+        | EventBody::Search { .. }
+        | EventBody::Memory { .. }
+        | EventBody::Episode(_) => false,
+    }
 }
 
 fn router_may_record(record: &Record) -> bool {
@@ -104,6 +122,8 @@ pub fn allowed(caller: &Caller, request: &MemoryRequest) -> Allowed {
         | R::Related(..)
         | R::Provenance(..)
         | R::Primer(_)
+        | R::Inject(_)
+        | R::Recent(..)
         | R::Propose(..)
         | R::PlanForget(..) => yes_if(router_or_shell),
         R::Spaces

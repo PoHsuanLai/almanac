@@ -24,6 +24,51 @@ pub enum Urgency {
     Background,
 }
 
+/// What a text is for: asymmetric models (nomic, e5, Qwen3-embedding) embed a search query and
+/// an indexed passage differently. Mirrors `porter-infer`'s `EmbedRole`; recall names no porter
+/// type, so memoryd maps the two.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum EmbedRole {
+    /// A search query.
+    Query,
+    /// A passage that is indexed.
+    Document,
+}
+
+/// The most texts one `embed` call takes. Callers batch to it. Mirrors `EmbedCap.max_batch`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct MaxBatch(pub u32);
+
+/// The text a model wants in front of an input of each role (`search_query: `); both empty for a
+/// symmetric model. It lives on the card so an index and its queries cannot disagree. Mirrors
+/// `EmbedCap.prompts`.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
+pub struct PromptPrefixes {
+    /// Before a search query.
+    pub query: String,
+    /// Before an indexed passage.
+    pub document: String,
+}
+
+impl PromptPrefixes {
+    /// The prefix for `role`.
+    pub fn of(&self, role: EmbedRole) -> &str {
+        match role {
+            EmbedRole::Query => &self.query,
+            EmbedRole::Document => &self.document,
+        }
+    }
+}
+
+/// Whether two cards produce vectors that can be compared.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SpaceCheck {
+    /// An index built with one works with the other.
+    Same,
+    /// It does not: rebuild.
+    Different,
+}
+
 /// Which vector space an embedder produces: an index built in one is useless in another.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EmbedderCard {
@@ -33,8 +78,42 @@ pub struct EmbedderCard {
     pub dims: u32,
     /// The longest input in tokens.
     pub max_tokens: u32,
+    /// The most texts one call takes.
+    pub max_batch: MaxBatch,
+    /// What goes in front of a query and of a passage.
+    pub prompts: PromptPrefixes,
     /// How vectors are compared.
     pub metric: Metric,
+}
+
+impl EmbedderCard {
+    /// Whether `other` produces the same vectors: the model, length, metric and prompt prefixes
+    /// decide (a different prefix is a different space); `max_tokens` and `max_batch` do not.
+    pub fn space_vs(&self, other: &EmbedderCard) -> SpaceCheck {
+        let same = self.model == other.model
+            && self.dims == other.dims
+            && self.metric == other.metric
+            && self.prompts == other.prompts;
+        if same {
+            SpaceCheck::Same
+        } else {
+            SpaceCheck::Different
+        }
+    }
+
+    /// `text` as the embedder wants it for `role`: the model's prefix, then the text.
+    pub fn prefixed(&self, role: EmbedRole, text: &str) -> String {
+        format!("{}{text}", self.prompts.of(role))
+    }
+
+    /// The batch sizes that cover `total` texts: full batches of `max_batch`, then the rest. A
+    /// card with `max_batch` 0 is treated as 1.
+    pub fn batch_sizes(&self, total: usize) -> Vec<usize> {
+        let step = usize::try_from(self.max_batch.0.max(1)).unwrap_or(1);
+        (0..total.div_ceil(step))
+            .map(|i| step.min(total - i * step))
+            .collect()
+    }
 }
 
 impl Vector {

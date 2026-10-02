@@ -156,11 +156,28 @@ fn requests() -> Vec<MemoryRequest> {
         MemoryRequest::Pause(w.clone(), NOW),
         MemoryRequest::Resume(w.clone()),
         MemoryRequest::Verify(w.clone()),
-        MemoryRequest::Rebuild(w),
+        MemoryRequest::Rebuild(w.clone()),
         MemoryRequest::Export(ExportOptions {
             spaces: vec![],
             verification_key: VerificationKey::Omit,
         }),
+        MemoryRequest::Inject(InjectQuery {
+            space: w.clone(),
+            text: "lisbon receipts".into(),
+            budget: Tokens(1500),
+            k: Count(8),
+            over: RecallOver::Both,
+            trust: TrustFilter::TrustedOnly,
+        }),
+        MemoryRequest::Recent(
+            w,
+            RecentQuery {
+                since: NOW,
+                kinds: vec![KindPattern::parse("companion.*").expect("pattern")],
+                trust: TrustFilter::Any,
+                limit: Count(20),
+            },
+        ),
     ]
 }
 
@@ -195,6 +212,8 @@ fn request_index(r: &MemoryRequest) -> usize {
         MemoryRequest::Verify(_) => 25,
         MemoryRequest::Rebuild(_) => 26,
         MemoryRequest::Export(_) => 27,
+        MemoryRequest::Inject(_) => 28,
+        MemoryRequest::Recent(..) => 29,
     }
 }
 
@@ -205,7 +224,7 @@ fn wire_round_trip_every_request() {
     let covered: std::collections::BTreeSet<usize> = all.iter().map(request_index).collect();
     assert_eq!(
         covered,
-        (0..=27).collect(),
+        (0..=29).collect(),
         "a request variant has no sample"
     );
 }
@@ -234,6 +253,18 @@ fn replies() -> Vec<MemoryReply> {
         MemoryReply::RecordedBatch(event_ref(1), Count(2)),
         MemoryReply::Ok,
         MemoryReply::Hits(vec![hit]),
+        MemoryReply::Recent(vec![RecentEntry {
+            summary: EventSummary {
+                event: event_ref(5),
+                occurred: NOW,
+                kind: KindTag::parse("companion.episode").expect("k"),
+                actor: companion(),
+                things: vec![],
+            },
+            effect: Effect::Read,
+            label: user_label(),
+            text: Some("asked: archive the Lisbon receipts".into()),
+        }]),
         MemoryReply::Facts(vec![fact_view()]),
         MemoryReply::Related(vec![EventSummary {
             event: event_ref(2),
@@ -363,6 +394,7 @@ fn reply_index(r: &MemoryReply) -> usize {
         MemoryReply::Verified(_) => 17,
         MemoryReply::Exported(_) => 18,
         MemoryReply::Refused(_) => 19,
+        MemoryReply::Recent(_) => 20,
     }
 }
 
@@ -371,7 +403,7 @@ fn wire_round_trip_every_reply() {
     let all = replies();
     round_trips(&all);
     let covered: std::collections::BTreeSet<usize> = all.iter().map(reply_index).collect();
-    assert_eq!(covered, (0..=19).collect(), "a reply variant has no sample");
+    assert_eq!(covered, (0..=20).collect(), "a reply variant has no sample");
 }
 
 #[test]

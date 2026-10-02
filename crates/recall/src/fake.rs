@@ -1,7 +1,7 @@
 //! `FakeEmbedder`: a deterministic embedder for tests and almanac-fake.
 
 use crate::embed::{EmbedError, Embedder};
-use crate::vector::{EmbedderCard, Metric, Urgency, Vector};
+use crate::vector::{EmbedRole, EmbedderCard, MaxBatch, Metric, PromptPrefixes, Urgency, Vector};
 
 /// Whether the fake answers.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -29,6 +29,8 @@ impl FakeEmbedder {
                 model: "fake-hash-64".to_owned(),
                 dims: FAKE_DIMS,
                 max_tokens: 512,
+                max_batch: MaxBatch(32),
+                prompts: PromptPrefixes::default(),
                 metric: Metric::Cosine,
             },
             mode: Mode::Working,
@@ -86,7 +88,12 @@ impl Embedder for FakeEmbedder {
         &self.card
     }
 
-    async fn embed(&self, texts: &[String], _urgency: Urgency) -> Result<Vec<Vector>, EmbedError> {
+    async fn embed(
+        &self,
+        texts: &[String],
+        _role: EmbedRole,
+        _urgency: Urgency,
+    ) -> Result<Vec<Vector>, EmbedError> {
         match self.mode {
             Mode::Unavailable => Err(EmbedError::Unavailable),
             Mode::Working => Ok(texts.iter().map(|t| Self::vector(t)).collect()),

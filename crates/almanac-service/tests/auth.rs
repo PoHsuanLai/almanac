@@ -202,6 +202,23 @@ fn reading_proposing_and_planning_belong_to_the_router_and_the_shell() {
             },
         ),
         MemoryRequest::PlanForget(w.clone(), ForgetScope::Space),
+        MemoryRequest::Inject(InjectQuery {
+            space: w.clone(),
+            text: "x".into(),
+            budget: Tokens(1500),
+            k: Count(8),
+            over: RecallOver::Both,
+            trust: TrustFilter::TrustedOnly,
+        }),
+        MemoryRequest::Recent(
+            w.clone(),
+            RecentQuery {
+                since: NOW,
+                kinds: vec![],
+                trust: TrustFilter::Any,
+                limit: Count(10),
+            },
+        ),
     ];
     for request in &reads {
         for (who, caller) in callers() {
@@ -258,6 +275,106 @@ fn control_is_the_shells_alone() {
                 who == "shell",
                 "{request:?} by {who}"
             );
+        }
+    }
+}
+
+fn message_from(agent: AgentRef) -> EventBody {
+    EventBody::Message(Box::new(Message {
+        id: MessageId::parse("m-2").expect("id"),
+        thread: ThreadId::parse("m-1").expect("id"),
+        in_reply_to: None,
+        from: Address::new(agent, space("work")),
+        to: Address::new(AgentRef::Companion, space("home")),
+        kind: MessageKind::Report {
+            status: ReportStatus::Done,
+        },
+        parts: vec![Part::Text(MessageText::new("done"))],
+        label: label(Integrity::Untrusted),
+        sent: NOW,
+    }))
+}
+
+fn episode_body() -> EventBody {
+    EventBody::Episode(Box::new(Episode {
+        id: EpisodeId::parse("r-1").expect("id"),
+        agent: AgentRef::Cua {
+            run: RunId::parse("r-1").expect("r"),
+        },
+        kind: EpisodeKind::Task,
+        parent: None,
+        space: space("work"),
+        started: NOW,
+        ended: NOW,
+        outcome: EpisodeOutcome::Done,
+        skeleton: Skeleton {
+            label: label(Integrity::Trusted),
+            asked: vec![],
+            steps: vec![],
+            touched: vec![],
+            results: vec![],
+        },
+        narrative: None,
+    }))
+}
+
+#[test]
+fn messages_and_episodes_are_recorded_by_the_router_and_a_run_reports_for_itself() {
+    let run = AgentRef::Cua {
+        run: RunId::parse("r-1").expect("r"),
+    };
+    let other_run = AgentRef::Cua {
+        run: RunId::parse("r-2").expect("r"),
+    };
+    // (name, request, [app, router, cuad, shell])
+    let cases: Vec<(&str, MemoryRequest, [bool; 4])> = vec![
+        (
+            "a run's report, by the run",
+            MemoryRequest::Record(record(message_from(run.clone()), cua_actor())),
+            [false, true, true, false],
+        ),
+        (
+            "a run's report claiming to be another run",
+            MemoryRequest::Record(record(message_from(other_run), cua_actor())),
+            [false, true, false, false],
+        ),
+        (
+            "a report from the companion, as the run",
+            MemoryRequest::Record(record(message_from(AgentRef::Companion), cua_actor())),
+            [false, true, false, false],
+        ),
+        (
+            "a run's report by another actor",
+            MemoryRequest::Record(record(message_from(run), planner())),
+            [false, true, false, false],
+        ),
+        (
+            "the user's turn to a subagent",
+            MemoryRequest::Record(record(
+                message_from(AgentRef::User),
+                user("org.quire.Shell"),
+            )),
+            [false, true, false, false],
+        ),
+        (
+            "an episode, by the router",
+            MemoryRequest::Record(record(episode_body(), planner())),
+            [false, true, false, false],
+        ),
+        (
+            "an episode, by cuad",
+            MemoryRequest::Record(record(episode_body(), cua_actor())),
+            [false, true, false, false],
+        ),
+        (
+            "an episode, by an app",
+            MemoryRequest::Record(record(episode_body(), user(MAIL))),
+            [false, true, false, false],
+        ),
+    ];
+    for (name, request, want) in cases {
+        for ((who, caller), want) in callers().into_iter().zip(want) {
+            assert_eq!(yes(allowed(&caller, &request)), want, "{name} by {who}");
         }
     }
 }

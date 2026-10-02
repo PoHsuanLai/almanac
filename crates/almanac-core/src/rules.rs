@@ -124,6 +124,7 @@ impl RuleSet {
                 while_source("thing.*"),
                 while_source("file.*"),
                 days("session.*", 30),
+                days("companion.*", 30),
                 days("cua.*", 30),
                 days("policy.*", 90),
                 days("consent.*", 90),
