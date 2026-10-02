@@ -11,6 +11,11 @@ publish.workspace = true
 [dependencies]
 recall = { workspace = true }
 fastembed = { workspace = true }
+tokio = { workspace = true }
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+recall = { workspace = true, features = ["testing"] }
+tokio = { workspace = true }

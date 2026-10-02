@@ -44,7 +44,6 @@ fn query(text: &str) -> SearchQuery {
 }
 
 #[tokio::test]
-#[ignore = "Index and ExactScan SQLite bodies are todo!() until the recall fill (FINDINGS.md)"]
 async fn rebuild_equals_incremental() {
     let e = FakeEmbedder::new();
     let mut rebuilt = fresh_index();
@@ -67,7 +66,6 @@ async fn rebuild_equals_incremental() {
 }
 
 #[tokio::test]
-#[ignore = "Index and ExactScan SQLite bodies are todo!() until the recall fill (FINDINGS.md)"]
 async fn search_degrades_to_lexical() {
     let mut index = fresh_index();
     index
@@ -87,7 +85,6 @@ async fn search_degrades_to_lexical() {
 }
 
 #[tokio::test]
-#[ignore = "Index and ExactScan SQLite bodies are todo!() until the recall fill (FINDINGS.md)"]
 async fn remove_drops_from_both_indexes() {
     let e = FakeEmbedder::new();
     let mut index = fresh_index();
