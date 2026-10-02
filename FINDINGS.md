@@ -90,13 +90,18 @@ immutable, so a narrated episode is a second `Episode` event with the same id an
 (`Episode::narrates`), and the service indexes only the newest event per id. Rollups stay plain
 topic files under `journal/` (Q10): no `Hunk`, no layer.
 
-**Recent and Inject.** `MemoryRequest::Recent(SpaceId, RecentQuery { since, kinds, trust, limit })`
-answered with `MemoryReply::Recent(Vec<RecentEntry>)` (summary, effect, label, text) and
+**Recent and Inject.** `MemoryRequest::Recent(SpaceId, RecentQuery { since, kinds, trust, limit, bodies })`
+answered with `MemoryReply::Recent(Vec<RecentEntry>)` (summary, effect, label, text, body) and
 `MemoryRequest::Inject(InjectQuery { space, text, budget: Tokens, k, over, trust })` answered
 with `Hits` cut by `fit_budget` (in ranked order, an item that does not fit is skipped; the
 estimate is characters over 4 until the assembler measures the real tokenizer). Allowed for
 `Router` and `ShellUi`; `ReadScope` gained `Inject` and `Recent`; D-Bus `Recall.Inject` and
 `Recall.Recent` (28 methods became 30) and `Memory::{inject, recent}` in the client.
+
+**Upstream asks (m-asks).** `RecentQuery.bodies: BodyMode { Without, Json }` and
+`RecentEntry.body: Option<JsonText>` (None unless asked and present; the label always travels in
+the entry); the D-Bus method takes the query as JSON, so the XML is unchanged. `almanac-client`'s
+`almanac-service` dependency is behind the default-off feature `in_process` (`InProcess`).
 
 **What changed that tests pin (and what was added, not changed).** `RuleSet::standard()` gained
 `days("companion.*", 30)`; `is_audit_class` now includes `Message` and `Episode` bodies;

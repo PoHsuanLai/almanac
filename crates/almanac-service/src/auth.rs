@@ -10,7 +10,9 @@
 //!
 //! `Message` and `Episode` bodies are the router's to record (it stamps the sender); an app never
 //! records either, and `Timeline` stays the shell's alone: the router reads recent activity
-//! through `Recent`. A message grants no read in the other Space: `Search`, `Inject` and `Recent`
+//! through `Recent`, with `BodyMode::Json` the same read plus each body, which travels in its
+//! entry beside the entry's label (no extra authority: the caller already reads text and labels).
+//! A message grants no read in the other Space: `Search`, `Inject` and `Recent`
 //! take the Space of the invocation, whoever wrote to the task.
 //!
 //! The companion has no column: it reaches memory through the router, which calls as `Router`

@@ -10,7 +10,7 @@ publish.workspace = true
 
 [dependencies]
 almanac-core = { workspace = true }
-almanac-service = { workspace = true }
+almanac-service = { workspace = true, optional = true }
 almanac-dbus = { workspace = true, optional = true }
 thiserror = { workspace = true }
 
@@ -19,6 +19,9 @@ almanac-fake = { workspace = true }
 tokio = { workspace = true }
 
 [features]
+# Hosting the service in the app (`InProcess`, tests, single-process embedders). Off by default,
+# so a D-Bus client does not link SQLCipher or OpenSSL.
+in_process = ["dep:almanac-service"]
 # The D-Bus transport (Linux, the desktop's memoryd).
 dbus = ["dep:almanac-dbus"]
 

@@ -13,7 +13,8 @@ cd "$(dirname "$0")/.."
 # embedding library. rusqlite is allowed to eventlog, recall and everything above them (it is
 # their storage), but never to almanac-core, almanac-seal or memfiles; notify only to
 # almanac-watch. almanac-seal reaches oo7 only through its `oo7` feature, almanac-client reaches
-# zbus only through its `dbus` feature, and almanac-dbus reaches tokio only through zbus's
+# zbus only through its `dbus` feature and rusqlite and openssl-sys (SQLCipher, vendored OpenSSL)
+# only through its `in_process` feature, and almanac-dbus reaches tokio only through zbus's
 # `tokio` feature. recall-fastembed and memoryd are the places that reach fastembed and the
 # daemon's runtime, so they have no rule.
 EFFECTS="zbus zvariant tokio reqwest hyper oo7 ort fastembed"
@@ -26,7 +27,7 @@ RULES=(
   "almanac-service: $EFFECTS notify"
   "almanac-watch: $EFFECTS rusqlite"
   "almanac-dbus: reqwest hyper oo7 ort fastembed rusqlite notify"
-  "almanac-client: $EFFECTS notify"
+  "almanac-client: $EFFECTS rusqlite openssl-sys notify"
   "almanac-fake: $EFFECTS notify"
 )
 fail=0
@@ -56,7 +57,9 @@ done
 
 # The allowed edges between our own crates (and porter's): each crate's DIRECT normal and build
 # path dependencies (all features), and nothing else. A dependency not listed is a leak; so is
-# one the crate no longer has, so the table stays exact. Dev dependencies are outside it.
+# one the crate no longer has, so the table stays exact. Dev dependencies are outside it. The
+# check passes --all-features, so `almanac-client`'s optional `almanac-service` (feature
+# `in_process`) and `almanac-dbus` (feature `dbus`) both belong to its row.
 # almanac depends on porter (porter-core, prov, and memoryd's porter-infer and porter-client),
 # never on stoker, docket or cua: other areas' payloads are opaque `EventBody::Area`.
 EDGES=(

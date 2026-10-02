@@ -176,6 +176,7 @@ fn requests() -> Vec<MemoryRequest> {
                 kinds: vec![KindPattern::parse("companion.*").expect("pattern")],
                 trust: TrustFilter::Any,
                 limit: Count(20),
+                bodies: BodyMode::Without,
             },
         ),
     ]
@@ -264,6 +265,7 @@ fn replies() -> Vec<MemoryReply> {
             effect: Effect::Read,
             label: user_label(),
             text: Some("asked: archive the Lisbon receipts".into()),
+            body: Some(JsonText::parse(r#"{"asked":"archive"}"#).expect("json")),
         }]),
         MemoryReply::Facts(vec![fact_view()]),
         MemoryReply::Related(vec![EventSummary {

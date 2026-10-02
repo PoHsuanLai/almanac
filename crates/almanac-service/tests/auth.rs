@@ -217,6 +217,17 @@ fn reading_proposing_and_planning_belong_to_the_router_and_the_shell() {
                 kinds: vec![],
                 trust: TrustFilter::Any,
                 limit: Count(10),
+                bodies: BodyMode::Without,
+            },
+        ),
+        MemoryRequest::Recent(
+            w.clone(),
+            RecentQuery {
+                since: NOW,
+                kinds: vec![],
+                trust: TrustFilter::Any,
+                limit: Count(11),
+                bodies: BodyMode::Json,
             },
         ),
     ];

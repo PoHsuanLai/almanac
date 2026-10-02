@@ -340,6 +340,7 @@ fn recent_and_inject_name_their_space_and_the_scopes_are_audited() {
             kinds: vec![],
             trust: TrustFilter::Any,
             limit: Count(5),
+            bodies: BodyMode::Without,
         },
     );
     assert_eq!(inject.space(), Some(&w));
@@ -359,4 +360,47 @@ fn recent_and_inject_name_their_space_and_the_scopes_are_audited() {
         json.starts_with(r#"{"kind":"inject","v":{"space":"work""#),
         "{json}"
     );
+}
+
+fn untrusted_entry(body: Option<JsonText>) -> RecentEntry {
+    RecentEntry {
+        summary: EventSummary {
+            event: event_ref(7),
+            occurred: NOW,
+            kind: KindTag::parse("companion.message").expect("kind"),
+            actor: companion(),
+            things: vec![],
+        },
+        effect: Effect::Read,
+        label: mail_label("work"),
+        text: None,
+        body,
+    }
+}
+
+#[test]
+fn recent_bodies_are_a_named_mode_and_always_travel_with_their_label() {
+    let query = RecentQuery {
+        since: NOW,
+        kinds: vec![],
+        trust: TrustFilter::Any,
+        limit: Count(5),
+        bodies: BodyMode::Json,
+    };
+    assert_eq!(
+        serde_json::to_string(&query).expect("json"),
+        r#"{"since":1790000000,"kinds":[],"trust":"any","limit":5,"bodies":"json"}"#
+    );
+    round_trips(BodyMode::ALL);
+    assert_eq!(BodyMode::ALL.len(), 2);
+
+    let with = untrusted_entry(Some(JsonText::parse(r#"{"x":1}"#).expect("json")));
+    let json = serde_json::to_string(&with).expect("json");
+    assert!(
+        json.contains(r#""body":"{\"x\":1}""#) && json.contains(r#""label":"#),
+        "an untrusted body is never sent without its label: {json}"
+    );
+    let without = serde_json::to_string(&untrusted_entry(None)).expect("json");
+    assert!(without.contains(r#""body":null"#), "{without}");
+    round_trips(&[with, untrusted_entry(None)]);
 }

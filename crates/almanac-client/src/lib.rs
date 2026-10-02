@@ -1,6 +1,7 @@
-//! The app-facing memory API: `Memory` over a `Transport` (`InProcess`, `Absent`, and
-//! `DbusTransport` behind the `dbus` feature). Apps record what happened; the shell UI reads
-//! the timeline and controls. Without the `dbus` feature it builds wherever the service does.
+//! The app-facing memory API: `Memory` over a `Transport` (`Absent`; `DbusTransport` behind the
+//! `dbus` feature; `InProcess` behind the default-off `in_process` feature, the only one that
+//! links `almanac-service`, SQLCipher and OpenSSL). Apps record what happened; the shell UI reads
+//! the timeline and controls.
 
 mod memory;
 mod transport;
@@ -8,4 +9,6 @@ mod transport;
 pub use memory::{ClientError, Memory, Recorded};
 #[cfg(feature = "dbus")]
 pub use transport::DbusTransport;
-pub use transport::{Absent, InProcess, Transport, TransportError};
+#[cfg(feature = "in_process")]
+pub use transport::InProcess;
+pub use transport::{Absent, Transport, TransportError};

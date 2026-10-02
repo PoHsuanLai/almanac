@@ -3,7 +3,8 @@
 
 use crate::ids::KindPattern;
 use crate::query::RecallOver;
-use crate::text::UserText;
+use crate::slug::slug_enum;
+use crate::text::{JsonText, UserText};
 use crate::timeline::TrustFilter;
 use crate::views::EventSummary;
 use porter_core::{Count, SpaceId, Tokens, UnixSeconds};
@@ -66,6 +67,16 @@ pub struct InjectQuery {
     pub trust: TrustFilter,
 }
 
+slug_enum!(
+    /// Whether `Recent` carries each event's body.
+    BodyMode {
+        /// Summary, effect, label and text only (the default for the roster and the working set).
+        Without => "without",
+        /// Also the body's serde JSON, for a daemon that rebuilds its state from the log.
+        Json => "json"
+    }
+);
+
 /// "What happened lately": newest first, for the roster and the recent-episodes section.
 /// Answered with `MemoryReply::Recent`; allowed for the router and the shell, unlike
 /// `Timeline`, which is the shell's alone.
@@ -79,10 +90,14 @@ pub struct RecentQuery {
     pub trust: TrustFilter,
     /// How many at most.
     pub limit: Count,
+    /// Whether each entry carries its body.
+    pub bodies: BodyMode,
 }
 
 /// One recent event with what the router needs to show or inject it. It carries its label: the
-/// planner applies taint from it.
+/// planner applies taint from it. The label always travels, and it covers the body too: a body is
+/// only ever returned in the entry whose `label` says where it came from, never alone, so an
+/// untrusted body cannot reach a reader unlabelled.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct RecentEntry {
     /// Which event, when, what kind, who, about what.
@@ -94,4 +109,8 @@ pub struct RecentEntry {
     /// Its searchable text, when it has any and its body is present (a message's words, an
     /// episode's skeleton lines).
     pub text: Option<UserText>,
+    /// The body's serde JSON, only when the query asked for [`BodyMode::Json`] and the body is
+    /// present (erased or header-only events have none): the owner's form of an `Area` payload,
+    /// or the serde form of a `Message` or `Episode`. Its provenance is `label`.
+    pub body: Option<JsonText>,
 }

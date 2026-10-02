@@ -25,7 +25,7 @@ trait), section 5 (what is built), section 6 (copy the recipe).
 | `almanac-service` | memoryd's core over seams: `allowed`, the Space, fact, forget-plan and consolidation machines, retention, timeline rows, the export writer, the config files, `Backend` and `MemoryService` | none (seams are passed in) |
 | `almanac-watch` | `FileWatch`, `InotifyWatch` (notify 8.2, stubbed), the pure `join` of observed changes and app-supplied reasons | inotify |
 | `almanac-dbus` | `org.quire.Memory1` (`Record`, `Recall`, `Control`) as zbus proxies and skeletons, `MemoryError`, introspection, the argument codec (stubbed) | zbus |
-| `almanac-client` | the app-facing `Memory` over a `Transport`: `InProcess`, `Absent` (no-op on other desktops), `DbusTransport` (feature `dbus`) | through its transport |
+| `almanac-client` | the app-facing `Memory` over a `Transport`: `Absent` (no-op on other desktops), `DbusTransport` (feature `dbus`), `InProcess` (feature `in_process`, off by default: only it links `almanac-service`, SQLCipher and OpenSSL) | through its transport |
 | `almanac-fake` | test-only: `fake_service`, `FakeBackend`, `FixedClock`, `ScriptedConsolidator`, `Scratch`, the five fixtures | none |
 | `memoryd` | the daemon and its library: `SystemBackend`, `SystemClock`, `InferdEmbedder`, `InferdConsolidator`, the XDG roots. The binary is a skeleton that exits | everything |
 
@@ -40,7 +40,7 @@ Allowed direct edges (checked by `scripts/check-boundary.sh`; dev-dependencies a
 | `recall-fastembed` | `recall` |
 | `almanac-service` | `almanac-core`, `almanac-seal`, `eventlog`, `memfiles`, `recall` |
 | `almanac-watch`, `almanac-dbus` | `almanac-core` |
-| `almanac-client` | `almanac-core`, `almanac-service`; `almanac-dbus` with feature `dbus` |
+| `almanac-client` | `almanac-core`; `almanac-service` with feature `in_process`; `almanac-dbus` with feature `dbus` |
 | `almanac-fake` | `almanac-core`, `almanac-seal`, `eventlog`, `memfiles`, `recall`, `almanac-service` |
 | `memoryd` | every crate above except `almanac-client`, `almanac-fake`, `recall-fastembed`; and `porter-core`, `porter-infer`, `porter-client` |
 
@@ -52,10 +52,10 @@ fails if any of their crates enters the tree. Other crates reach porter's names 
 External boundaries (default features): `almanac-core` never reaches `zbus zvariant tokio
 reqwest hyper oo7 ort fastembed rusqlite notify toml`; `almanac-seal`, `memfiles`: the same
 minus `toml`/with `rusqlite` forbidden; `eventlog`, `recall`, `almanac-service`, `almanac-fake`,
-`almanac-client` never reach the effect list (`zbus ... fastembed`) or `notify`; `almanac-watch`
+`almanac-client` (default features) never reach the effect list (`zbus ... fastembed`) or `notify`; `almanac-watch`
 may reach `notify` and never `rusqlite`; `almanac-dbus` reaches `tokio` only through zbus's
 `tokio` feature. `oo7` is behind `almanac-seal`'s `oo7` feature only; `zbus` behind
-`almanac-client`'s `dbus` feature only.
+`almanac-client`'s `dbus` feature only; `rusqlite` and `openssl-sys` behind its `in_process` feature only.
 
 ## 2. Modules
 
@@ -152,7 +152,7 @@ pub trait Backend: Send + Sync { type Keys; type Log; type Files; type Vectors; 
 // almanac-watch: InotifyWatch (fanotify later).
 pub trait FileWatch: Send { fn watch(..); fn unwatch(..); fn next(&mut self) -> impl Future<Output = Option<Observed>> + Send; }
 
-// almanac-client: InProcess, Absent, DbusTransport.
+// almanac-client: InProcess (feature in_process), Absent, DbusTransport.
 pub trait Transport: Send + Sync { fn call(&self, request: MemoryRequest) -> impl Future<Output = Result<MemoryReply, TransportError>> + Send; }
 ```
 
@@ -264,7 +264,9 @@ Space of the invocation.
 **The router's reads for the working set.** `Inject(InjectQuery)` is automatic top-k recall cut
 to a token budget (answered with `Hits`, ranked, labelled; `fit_budget` is the arithmetic) and
 `Recent(SpaceId, RecentQuery)` is recent activity, newest first, with labels and text
-(`Recent` reply). Both are `Router` or `ShellUi`, both audited as `Memory.Read`
+(`Recent` reply); `RecentQuery.bodies: BodyMode { Without, Json }` adds `RecentEntry.body` (the owner's
+serde JSON), which always travels in the entry beside its label, so a daemon can rebuild from the
+log on restart. Both are `Router` or `ShellUi`, both audited as `Memory.Read`
 (`ReadScope::Inject`, `Recent`); `Timeline` stays the shell's alone.
 
 **Add a rule scope**: its variant in `RuleScope` with a `specificity` (the order is

@@ -3,7 +3,6 @@
 use almanac_client::*;
 use almanac_core::*;
 use almanac_fake::*;
-use std::sync::Arc;
 
 #[tokio::test]
 async fn absent_transport_is_noop() {
@@ -78,10 +77,11 @@ async fn replies_map_to_results() {
     assert_eq!(pending, Ok(vec![]));
 }
 
+#[cfg(feature = "in_process")]
 #[tokio::test]
 #[ignore = "MemoryService::handle is a todo!() until fill wave 2 (FINDINGS.md)"]
 async fn in_process_end_to_end() {
-    let service = Arc::new(fake_service(ScriptedConsolidator::default()));
+    let service = std::sync::Arc::new(fake_service(ScriptedConsolidator::default()));
     let app = Memory::over(InProcess::new(
         service.clone(),
         Caller::App(AppId {

@@ -49,7 +49,7 @@ pub use ids::{
 };
 pub use indexed::{IndexPart, IndexText};
 pub use inject::{
-    CHARS_PER_TOKEN, InjectQuery, RecentEntry, RecentQuery, estimate_tokens, fit_budget,
+    BodyMode, CHARS_PER_TOKEN, InjectQuery, RecentEntry, RecentQuery, estimate_tokens, fit_budget,
 };
 pub use op::{ExportCounts, ForgetCounts, MemoryOp, ReadScope};
 pub use query::{

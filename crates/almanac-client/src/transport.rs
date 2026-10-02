@@ -1,9 +1,7 @@
 //! How a request reaches memoryd: in process, nowhere (other desktops), or over D-Bus.
 
-use almanac_core::{Caller, MemoryReply, MemoryRequest};
-use almanac_service::{Backend, MemoryService};
+use almanac_core::{MemoryReply, MemoryRequest};
 use std::future::Future;
-use std::sync::Arc;
 
 /// Why a request did not get an answer.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -29,30 +27,41 @@ pub trait Transport: Send + Sync {
     ) -> impl Future<Output = Result<MemoryReply, TransportError>> + Send;
 }
 
-/// The app hosts the service itself (tests, single-process embedders).
-pub struct InProcess<B: Backend> {
-    service: Arc<MemoryService<B>>,
-    caller: Caller,
-}
+#[cfg(feature = "in_process")]
+pub use in_process::InProcess;
 
-impl<B: Backend> std::fmt::Debug for InProcess<B> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("InProcess")
-            .field("caller", &self.caller)
-            .finish_non_exhaustive()
+#[cfg(feature = "in_process")]
+mod in_process {
+    use super::{Transport, TransportError};
+    use almanac_core::{Caller, MemoryReply, MemoryRequest};
+    use almanac_service::{Backend, MemoryService};
+    use std::sync::Arc;
+
+    /// The app hosts the service itself (tests, single-process embedders). Feature `in_process`.
+    pub struct InProcess<B: Backend> {
+        service: Arc<MemoryService<B>>,
+        caller: Caller,
     }
-}
 
-impl<B: Backend> InProcess<B> {
-    /// Calls `service` as `caller`.
-    pub fn new(service: Arc<MemoryService<B>>, caller: Caller) -> Self {
-        Self { service, caller }
+    impl<B: Backend> std::fmt::Debug for InProcess<B> {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.debug_struct("InProcess")
+                .field("caller", &self.caller)
+                .finish_non_exhaustive()
+        }
     }
-}
 
-impl<B: Backend> Transport for InProcess<B> {
-    async fn call(&self, request: MemoryRequest) -> Result<MemoryReply, TransportError> {
-        Ok(self.service.handle(&self.caller, request).await)
+    impl<B: Backend> InProcess<B> {
+        /// Calls `service` as `caller`.
+        pub fn new(service: Arc<MemoryService<B>>, caller: Caller) -> Self {
+            Self { service, caller }
+        }
+    }
+
+    impl<B: Backend> Transport for InProcess<B> {
+        async fn call(&self, request: MemoryRequest) -> Result<MemoryReply, TransportError> {
+            Ok(self.service.handle(&self.caller, request).await)
+        }
     }
 }
 
