@@ -118,18 +118,18 @@ fn memory_log_meets_the_contract() {
 }
 
 #[test]
-#[ignore = "SqliteLog is a todo!() until the eventlog fill (FINDINGS.md)"]
 fn sqlite_and_memory_logs_agree() {
-    let dir = std::env::temp_dir().join("almanac-eventlog-contract");
+    let scratch = tempfile::tempdir().expect("scratch");
+    let dir = scratch.path();
     let key = almanac_seal::DbKey::of(&digest_key());
     let log = SqliteLog::open(&dir.join("events.db"), &key).expect("open");
     contract(log, &digest_key());
 }
 
 #[test]
-#[ignore = "SqliteLog is a todo!() until the eventlog fill (FINDINGS.md)"]
 fn wrong_key_is_locked() {
-    let dir = std::env::temp_dir().join("almanac-eventlog-locked");
+    let scratch = tempfile::tempdir().expect("scratch");
+    let dir = scratch.path();
     let right = almanac_seal::DbKey::of(&digest_key());
     drop(SqliteLog::open(&dir.join("events.db"), &right).expect("create"));
     let other = almanac_seal::derive(

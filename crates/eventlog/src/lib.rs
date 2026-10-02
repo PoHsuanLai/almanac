@@ -9,6 +9,7 @@ mod filter;
 mod header;
 #[cfg(feature = "testing")]
 mod memory;
+mod rows;
 mod sqlite;
 mod traits;
 

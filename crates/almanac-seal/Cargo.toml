@@ -24,7 +24,7 @@ tokio = { workspace = true }
 [features]
 # `MemoryKeys`, for tests and almanac-fake.
 testing = []
-# `Oo7Keys`, the Secret Service key store. Its body is stubbed.
+# `Oo7Keys`, the Secret Service key store.
 oo7 = ["dep:oo7"]
 
 [lints]

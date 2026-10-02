@@ -21,6 +21,7 @@ thiserror = { workspace = true }
 eventlog = { path = ".", features = ["testing"] }
 almanac-seal = { workspace = true, features = ["testing"] }
 rusqlite = { workspace = true }
+tempfile = { workspace = true }
 
 [features]
 # `MemoryLog`, for tests and almanac-fake.
