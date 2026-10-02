@@ -10,9 +10,12 @@ publish.workspace = true
 
 [dependencies]
 almanac-core = { workspace = true }
+blake3 = { workspace = true }
 notify = { workspace = true }
 thiserror = { workspace = true }
 
+[dev-dependencies]
+tempfile = { workspace = true }
 
 [lints]
 workspace = true

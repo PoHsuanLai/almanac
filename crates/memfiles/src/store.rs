@@ -1,12 +1,14 @@
-//! `Store`: the facts of one Space over a vault. Frozen signatures; the bodies are `todo!()`
-//! until the memfiles fill (FINDINGS.md).
+//! `Store`: the facts of one Space over a vault. Journal rollups (`journal/2026-10-03`,
+//! `journal/2026-w40`) are ordinary topics, so nothing here treats them specially (Q10).
 
-use crate::topic::{ParseError, TopicFile};
-use crate::vault::{Vault, VaultError, VaultPath};
+use crate::topic::{Block, ParseError, TopicFile, parse_topic, render_topic};
+use crate::vault::{FACTS_DIR, Vault, VaultError, VaultPath};
 use almanac_core::{
-    Count, Fact, FactId, Link, PlanDigest, Settlement, SpaceId, TopicPath, UserText,
+    Count, Fact, FactId, Integrity, Link, PlanDigest, Settlement, Source, SpaceId, TopicPath,
+    UserText,
 };
 use jiff::tz::TimeZone;
+use std::collections::BTreeSet;
 
 /// Why a store operation failed.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -99,56 +101,200 @@ impl<V: Vault> Store<V> {
 
     /// Every topic that has a file.
     pub fn topics(&self) -> Result<Vec<TopicPath>, MemfilesError> {
-        todo!("list `facts/`, strip `.md`, skip INDEX.md")
+        let primer = VaultPath::primer();
+        let files = self.vault.list(&VaultPath::facts_dir())?;
+        Ok(files
+            .iter()
+            .filter(|p| **p != primer)
+            .filter_map(|p| {
+                p.as_str()
+                    .strip_prefix(FACTS_DIR)?
+                    .strip_prefix('/')?
+                    .strip_suffix(".md")
+            })
+            .filter_map(|text| TopicPath::parse(text).ok())
+            .collect())
     }
 
     /// One topic file, parsed.
     pub fn read(&self, t: &TopicPath) -> Result<TopicFile, MemfilesError> {
-        let _ = t;
-        todo!("read, parse_topic; NoSuchTopic when the file is absent")
+        self.load(&VaultPath::topic(t))?
+            .ok_or_else(|| MemfilesError::NoSuchTopic(t.clone()))
     }
 
     /// Appends a fact to a topic (creating the file): add-only, existing blocks unchanged.
     pub fn append(&self, t: &TopicPath, fact: Fact) -> Result<(), MemfilesError> {
-        let _ = (t, fact);
-        todo!("read or create, push Block::Fact, render_topic, write_atomic")
+        let mut file = match self.read(t) {
+            Err(MemfilesError::NoSuchTopic(_)) => new_file(t),
+            other => other?,
+        };
+        file.blocks.push(Block::Fact(fact));
+        self.save(&VaultPath::topic(t), &file)
     }
 
     /// Puts a fact derived from untrusted text in `pending/` until the person keeps it.
     pub fn stage(&self, fact: Fact, topic: TopicPath) -> Result<(), MemfilesError> {
-        let _ = (fact, topic);
-        todo!("write `pending/<fact-id>.md` as a one-fact topic file")
+        let path = VaultPath::pending(&fact.id);
+        let mut file = new_file(&topic);
+        file.blocks.push(Block::Fact(fact));
+        self.save(&path, &file)
     }
 
     /// The facts waiting for the person.
     pub fn pending(&self) -> Result<Vec<(TopicPath, Fact)>, MemfilesError> {
-        todo!("list `pending/`, parse each")
+        let mut out = Vec::new();
+        for (_, file) in self.load_all(&VaultPath::pending_dir())? {
+            out.extend(file.blocks.into_iter().filter_map(|block| match block {
+                Block::Fact(fact) => Some((file.topic.clone(), fact)),
+                _ => None,
+            }));
+        }
+        Ok(out)
     }
 
     /// Keeps or discards a pending fact. `Keep` carries the confirmation receipt, which only
     /// the shell's own UI path can mint.
     pub fn settle(&self, id: &FactId, settlement: Settlement) -> Result<(), MemfilesError> {
-        let _ = (id, settlement);
-        todo!(
-            "Keep: declassify the label with the receipt and append to its topic; Discard: remove; NotPending otherwise"
-        )
+        let path = VaultPath::pending(id);
+        let file = self
+            .load(&path)?
+            .ok_or_else(|| MemfilesError::NotPending(id.clone()))?;
+        match settlement {
+            Settlement::Discard => {}
+            Settlement::Keep(_receipt) => {
+                // Appended before the pending copy goes, so a crash between the two leaves
+                // the fact in both places rather than nowhere; settling again does not
+                // append it twice.
+                let kept = self
+                    .read(&file.topic)
+                    .ok()
+                    .map(|t| t.blocks)
+                    .unwrap_or_default();
+                for block in file.blocks {
+                    let Block::Fact(fact) = block else { continue };
+                    let there = kept
+                        .iter()
+                        .any(|b| matches!(b, Block::Fact(f) if f.id == fact.id));
+                    if !there {
+                        self.append(&file.topic, endorsed(fact))?;
+                    }
+                }
+            }
+        }
+        Ok(self.vault.remove(&path)?)
     }
 
-    /// Every fact derived from `links`, transitively through `Link::Fact`.
+    /// Every fact derived from `links`, transitively through `Link::Fact`. Strict: a fact with
+    /// any one of the links is derived, however many other sources it has (QUESTIONS Me2).
     pub fn derived_from(&self, links: &[Link]) -> Result<Vec<FactId>, MemfilesError> {
-        let _ = links;
-        todo!("scan topics and pending; breadth-first over Link::Fact")
+        let facts: Vec<Fact> = self
+            .load_every()?
+            .into_iter()
+            .flat_map(|(_, file)| file.blocks)
+            .filter_map(|block| match block {
+                Block::Fact(fact) => Some(fact),
+                _ => None,
+            })
+            .collect();
+        let mut seen: BTreeSet<FactId> = BTreeSet::new();
+        let mut frontier: Vec<Link> = links.to_vec();
+        while !frontier.is_empty() {
+            let next: Vec<FactId> = facts
+                .iter()
+                .filter(|f| !seen.contains(&f.id) && f.links.iter().any(|l| frontier.contains(l)))
+                .map(|f| f.id.clone())
+                .collect();
+            seen.extend(next.iter().cloned());
+            frontier = next.into_iter().map(Link::Fact).collect();
+        }
+        Ok(seen.into_iter().collect())
     }
 
     /// Removes facts; only with the digest of a plan that contains them.
     pub fn remove(&self, ids: &[FactId], plan: &PlanDigest) -> Result<Count, MemfilesError> {
-        let _ = (ids, plan);
-        todo!("drop the blocks from topic files and pending/, rewrite atomically")
+        // The plan is the caller's proof; the planner that made the digest lives above.
+        let _ = plan;
+        let doomed: BTreeSet<&FactId> = ids.iter().collect();
+        let mut removed = 0u32;
+        for (path, mut file) in self.load_every()? {
+            let before = file.blocks.len();
+            file.blocks
+                .retain(|b| !matches!(b, Block::Fact(f) if doomed.contains(&f.id)));
+            let dropped = before - file.blocks.len();
+            if dropped == 0 {
+                continue;
+            }
+            removed += u32::try_from(dropped).unwrap_or(u32::MAX);
+            if path.is_under(&VaultPath::pending_dir()) && file.blocks.is_empty() {
+                self.vault.remove(&path)?;
+            } else {
+                self.save(&path, &file)?;
+            }
+        }
+        Ok(Count(removed))
     }
 
     /// Writes `facts/INDEX.md`.
     pub fn write_primer(&self, primer: &Primer) -> Result<(), MemfilesError> {
-        let _ = primer;
-        todo!("write_atomic(VaultPath::primer(), primer.render())")
+        Ok(self
+            .vault
+            .write_atomic(&VaultPath::primer(), primer.render().as_bytes())?)
     }
+
+    /// A parsed file, or `None` when it is absent.
+    fn load(&self, path: &VaultPath) -> Result<Option<TopicFile>, MemfilesError> {
+        let bytes = match self.vault.read(path) {
+            Ok(bytes) => bytes,
+            Err(VaultError::NotFound(_)) => return Ok(None),
+            Err(err) => return Err(err.into()),
+        };
+        let parse_err = |err| MemfilesError::Parse {
+            path: path.clone(),
+            err,
+        };
+        let text =
+            String::from_utf8(bytes).map_err(|_| parse_err(ParseError::MissingFrontMatter))?;
+        parse_topic(&text).map(Some).map_err(parse_err)
+    }
+
+    /// Every parsed file under `dir` (the primer excluded), with its path.
+    fn load_all(&self, dir: &VaultPath) -> Result<Vec<(VaultPath, TopicFile)>, MemfilesError> {
+        let primer = VaultPath::primer();
+        let mut out = Vec::new();
+        for path in self.vault.list(dir)?.into_iter().filter(|p| *p != primer) {
+            out.extend(self.load(&path)?.map(|file| (path, file)));
+        }
+        Ok(out)
+    }
+
+    /// Topic files and pending files.
+    fn load_every(&self) -> Result<Vec<(VaultPath, TopicFile)>, MemfilesError> {
+        let mut all = self.load_all(&VaultPath::facts_dir())?;
+        all.extend(self.load_all(&VaultPath::pending_dir())?);
+        Ok(all)
+    }
+
+    fn save(&self, path: &VaultPath, file: &TopicFile) -> Result<(), MemfilesError> {
+        Ok(self
+            .vault
+            .write_atomic(path, render_topic(file, &self.tz).as_bytes())?)
+    }
+}
+
+/// An empty topic file; the title is the last path segment until consolidation names it.
+fn new_file(topic: &TopicPath) -> TopicFile {
+    let title = topic.to_string();
+    TopicFile {
+        topic: topic.clone(),
+        title: title.rsplit('/').next().unwrap_or(&title).to_owned(),
+        blocks: Vec::new(),
+    }
+}
+
+/// The fact as the person's confirmation leaves it: trusted, with the person among its sources.
+/// What `prov::endorse` does; memfiles may not depend on `prov`, so it is spelled out here.
+fn endorsed(mut fact: Fact) -> Fact {
+    fact.label.integrity = Integrity::Trusted;
+    fact.label.sources.insert(Source::User);
+    fact
 }

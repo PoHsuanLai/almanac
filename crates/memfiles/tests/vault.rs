@@ -83,20 +83,75 @@ fn vault_contract_memory() {
 }
 
 #[test]
-#[ignore = "PlainDir is a todo!() until the memfiles fill (FINDINGS.md)"]
 fn vault_contract_plain_dir() {
-    let dir = std::env::temp_dir().join("almanac-memfiles-plain");
-    contract(&PlainDir::new(dir));
+    let dir = tempfile::tempdir().expect("scratch");
+    contract(&PlainDir::new(dir.path().to_owned()));
+}
+
+fn sealed(dir: &std::path::Path, space: &str, key: u8) -> SealedDir {
+    use almanac_seal::{Purpose, SpaceKey, derive};
+    let space = almanac_core::SpaceId::parse(space).expect("space");
+    let key = derive(&SpaceKey::from_bytes([key; 32]), &space, Purpose::Files);
+    SealedDir::new(PlainDir::new(dir.to_owned()), space, key)
 }
 
 #[test]
-#[ignore = "SealedDir is a todo!() until the memfiles fill (FINDINGS.md)"]
 fn vault_contract_sealed_dir() {
-    use almanac_seal::{Purpose, SpaceKey, derive};
-    let space = almanac_core::SpaceId::parse("work").expect("space");
-    let key = derive(&SpaceKey::from_bytes([1; 32]), &space, Purpose::Files);
-    let dir = std::env::temp_dir().join("almanac-memfiles-sealed");
-    contract(&SealedDir::new(PlainDir::new(dir), space, key));
+    let dir = tempfile::tempdir().expect("scratch");
+    contract(&sealed(dir.path(), "work", 1));
+}
+
+#[test]
+fn sealed_files_are_not_plain_and_are_bound_to_space_and_path() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let work = sealed(dir.path(), "work", 1);
+    work.write_atomic(&p("facts/a.md"), b"secret")
+        .expect("write");
+    let on_disk = work.inner().read(&p("facts/a.md")).expect("raw");
+    assert!(on_disk.starts_with(b"QMEM"));
+    assert!(!on_disk.windows(6).any(|w| w == b"secret"));
+    // Moved to another path: refused.
+    work.inner()
+        .write_atomic(&p("facts/b.md"), &on_disk)
+        .expect("copy");
+    assert!(matches!(
+        work.read(&p("facts/b.md")),
+        Err(VaultError::Sealed(_))
+    ));
+    // Opened as another Space, or with another key: refused.
+    assert!(matches!(
+        sealed(dir.path(), "home", 1).read(&p("facts/a.md")),
+        Err(VaultError::Sealed(_))
+    ));
+    assert!(matches!(
+        sealed(dir.path(), "work", 2).read(&p("facts/a.md")),
+        Err(VaultError::Sealed(_))
+    ));
+    // Two seals of the same bytes differ (random nonce).
+    work.write_atomic(&p("facts/c.md"), b"secret")
+        .expect("write");
+    assert_ne!(on_disk, work.inner().read(&p("facts/c.md")).expect("raw"));
+}
+
+#[test]
+fn plain_dir_leaves_no_temporaries_and_hides_nothing_else() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let vault = PlainDir::new(dir.path().to_owned());
+    vault.write_atomic(&p("facts/a.md"), b"one").expect("write");
+    vault
+        .write_atomic(&p("facts/a.md"), b"two")
+        .expect("rewrite");
+    let names: Vec<_> = std::fs::read_dir(dir.path().join("facts"))
+        .expect("dir")
+        .map(|e| e.expect("entry").file_name())
+        .collect();
+    assert_eq!(names, ["a.md"]);
+    // A stray temporary from a crash is not a vault file.
+    std::fs::write(dir.path().join("facts/.almanac-tmp-1-0-a.md"), b"x").expect("stray");
+    assert_eq!(
+        vault.list(&p("facts")).expect("list"),
+        vec![p("facts/a.md")]
+    );
 }
 
 #[test]

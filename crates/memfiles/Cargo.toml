@@ -18,6 +18,8 @@ thiserror = { workspace = true }
 
 [dev-dependencies]
 memfiles = { path = ".", features = ["testing"] }
+tempfile = { workspace = true }
+proptest = { workspace = true }
 
 [features]
 # `MemoryVault`, for tests and almanac-fake.
