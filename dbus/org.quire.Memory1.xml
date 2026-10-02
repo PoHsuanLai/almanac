@@ -1,0 +1,146 @@
+<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN"
+ "http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
+<node>
+ <interface name="org.quire.Memory1.Record">
+   <method name="Record">
+     <arg name="space" type="s" direction="in"/>
+     <arg name="record" type="s" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="RecordBatch">
+     <arg name="space" type="s" direction="in"/>
+     <arg name="records" type="s" direction="in"/>
+     <arg name="first_ref" type="s" direction="out"/>
+     <arg name="count" type="u" direction="out"/>
+   </method>
+   <method name="ExplainFile">
+     <arg name="why" type="s" direction="in"/>
+   </method>
+   <method name="Mark">
+     <arg name="mark" type="s" direction="in"/>
+   </method>
+ </interface>
+ <interface name="org.quire.Memory1.Recall">
+   <method name="Search">
+     <arg name="space" type="s" direction="in"/>
+     <arg name="query" type="s" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="Facts">
+     <arg name="space" type="s" direction="in"/>
+     <arg name="query" type="s" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="Related">
+     <arg name="space" type="s" direction="in"/>
+     <arg name="thing" type="s" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="Provenance">
+     <arg name="space" type="s" direction="in"/>
+     <arg name="path" type="s" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="Primer">
+     <arg name="space" type="s" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="Propose">
+     <arg name="space" type="s" direction="in"/>
+     <arg name="draft" type="s" direction="in"/>
+     <arg name="fact_id" type="s" direction="out"/>
+     <arg name="state" type="s" direction="out"/>
+   </method>
+ </interface>
+ <interface name="org.quire.Memory1.Control">
+   <method name="Spaces">
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="Status">
+     <arg name="space" type="s" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="Timeline">
+     <arg name="space" type="s" direction="in"/>
+     <arg name="query" type="s" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="PlanForget">
+     <arg name="space" type="s" direction="in"/>
+     <arg name="scope" type="s" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="Forget">
+     <arg name="token" type="s" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="Pending">
+     <arg name="space" type="s" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="Settle">
+     <arg name="fact" type="s" direction="in"/>
+     <arg name="verdict" type="s" direction="in"/>
+   </method>
+   <method name="Consolidation">
+     <arg name="space" type="s" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="RunConsolidation">
+     <arg name="space" type="s" direction="in"/>
+   </method>
+   <method name="Revert">
+     <arg name="run" type="s" direction="in"/>
+   </method>
+   <method name="Rules">
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="SetRule">
+     <arg name="rule" type="s" direction="in"/>
+   </method>
+   <method name="RemoveRule">
+     <arg name="id" type="s" direction="in"/>
+   </method>
+   <method name="Pause">
+     <arg name="space" type="s" direction="in"/>
+     <arg name="until" type="t" direction="in"/>
+   </method>
+   <method name="Resume">
+     <arg name="space" type="s" direction="in"/>
+   </method>
+   <method name="Verify">
+     <arg name="space" type="s" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="Rebuild">
+     <arg name="space" type="s" direction="in"/>
+   </method>
+   <method name="Export">
+     <arg name="options" type="s" direction="in"/>
+     <arg name="out" type="h" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
+   <signal name="Recorded">
+     <arg name="space" type="s"/>
+     <arg name="event_ref" type="s"/>
+     <arg name="kind" type="s"/>
+   </signal>
+   <signal name="Forgotten">
+     <arg name="space" type="s"/>
+     <arg name="report" type="s"/>
+   </signal>
+   <signal name="PendingChanged">
+     <arg name="space" type="s"/>
+     <arg name="count" type="u"/>
+   </signal>
+   <signal name="ConsolidationReady">
+     <arg name="space" type="s"/>
+     <arg name="run" type="s"/>
+   </signal>
+   <signal name="StatusChanged">
+     <arg name="space" type="s"/>
+     <arg name="status" type="s"/>
+   </signal>
+   <property name="Version" type="u" access="read"/>
+ </interface>
+</node>

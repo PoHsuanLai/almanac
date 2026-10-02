@@ -1,0 +1,26 @@
+[package]
+name = "almanac-client"
+description = "The app-facing memory API: Memory over a Transport (in process, absent, or D-Bus)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+almanac-core = { workspace = true }
+almanac-service = { workspace = true }
+almanac-dbus = { workspace = true, optional = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+almanac-fake = { workspace = true }
+tokio = { workspace = true }
+
+[features]
+# The D-Bus transport (Linux, the desktop's memoryd).
+dbus = ["dep:almanac-dbus"]
+
+[lints]
+workspace = true

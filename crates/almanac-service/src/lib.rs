@@ -1,0 +1,42 @@
+//! memoryd's core over seams: the authorisation matrix, the pure state machines (Space
+//! lifecycle, facts, forget plans, consolidation runs), retention, timeline assembly, the
+//! export writer, the config files, and `MemoryService` over a `Backend`.
+//!
+//! Pure over its seams (`Clock`, `KeyStore`, `Vault`, `LogWrite`, `Embedder`, `Consolidator`):
+//! it builds wherever the stores do. The machines return effects as values.
+
+mod auth;
+mod backend;
+mod clock;
+mod config;
+pub mod consolidation;
+mod export;
+pub mod fact;
+pub mod forget;
+mod retention;
+mod service;
+pub mod space;
+mod timeline;
+
+pub use auth::{Allowed, allowed};
+pub use backend::{Backend, BackendError};
+pub use clock::Clock;
+pub use config::{
+    ConfigError, SpacesFile, rules_from_toml, rules_to_toml, spaces_from_toml, spaces_to_toml,
+};
+pub use consolidation::{
+    CheckedDraft, ConsolidateError, ConsolidationInput, Consolidator, Desktop, Draft, HunkFault,
+    InputEvent, Power, check_draft,
+};
+pub use export::{
+    ErasedTag, EventLine, ExportWriter, ExportedBody, events_path, file_path, manifest_path,
+    rules_path,
+};
+pub use forget::{
+    ApplyStep, FactGraph, FactNode, PLAN_TTL_SECONDS, Plan, PlanEffect, PlanEvent, PlanState,
+    plan_forget, plan_step, token_for,
+};
+pub use retention::{SourceState, Sweep, header_expired, sweep_body};
+pub use service::{MemoryService, SpaceRuntime};
+pub use space::{BUFFER_LIMIT, SpaceEffect, SpaceEvent};
+pub use timeline::timeline_entry;

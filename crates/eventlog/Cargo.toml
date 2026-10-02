@@ -1,0 +1,30 @@
+[package]
+name = "eventlog"
+description = "almanac's typed, append-only, hash-chained per-Space event log (also the audit log)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+almanac-core = { workspace = true }
+almanac-seal = { workspace = true }
+blake3 = { workspace = true }
+rusqlite = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+eventlog = { path = ".", features = ["testing"] }
+almanac-seal = { workspace = true, features = ["testing"] }
+rusqlite = { workspace = true }
+
+[features]
+# `MemoryLog`, for tests and almanac-fake.
+testing = []
+
+[lints]
+workspace = true

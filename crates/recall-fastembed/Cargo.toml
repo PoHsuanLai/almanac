@@ -1,0 +1,16 @@
+[package]
+name = "recall-fastembed"
+description = "FastembedEmbedder: in-process ONNX embeddings for recall. Kept out of recall and out of the gate because ort downloads binaries at build time."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+recall = { workspace = true }
+fastembed = { workspace = true }
+
+[lints]
+workspace = true

@@ -1,0 +1,24 @@
+[package]
+name = "recall"
+description = "A rebuildable search index: FTS5 lexical search, Embedder and VectorIndex traits, exact-scan vectors and reciprocal-rank fusion. Generic: knows nothing of almanac."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+rusqlite = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+recall = { path = ".", features = ["testing"] }
+tokio = { workspace = true }
+
+[features]
+# `FakeEmbedder`, for tests and almanac-fake.
+testing = []
+
+[lints]
+workspace = true

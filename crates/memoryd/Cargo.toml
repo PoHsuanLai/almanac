@@ -1,0 +1,28 @@
+[package]
+name = "memoryd"
+description = "almanac's memory daemon: serves org.quire.Memory1 over almanac-service. A skeleton: it builds the service and exits."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+almanac-core = { workspace = true }
+almanac-seal = { workspace = true, features = ["oo7"] }
+eventlog = { workspace = true }
+memfiles = { workspace = true }
+recall = { workspace = true }
+almanac-service = { workspace = true }
+almanac-watch = { workspace = true }
+almanac-dbus = { workspace = true }
+porter-core = { workspace = true }
+porter-infer = { workspace = true }
+porter-client = { workspace = true }
+clap = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+
+[lints]
+workspace = true

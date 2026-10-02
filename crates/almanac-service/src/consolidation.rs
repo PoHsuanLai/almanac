@@ -1,0 +1,203 @@
+//! Consolidation: the model seam, the run machine (memory section 4.4) and the draft check.
+
+use almanac_core::{
+    ConsolidateFailure, EventRef, Fact, Hunk, KindTag, Label, RunId, RunState, SpaceId, ThingView,
+};
+use std::future::Future;
+
+/// One event as the consolidator sees it: no bodies beyond what the person saw.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InputEvent {
+    /// Which event (a `Link::Event` target).
+    pub event: EventRef,
+    /// What kind.
+    pub kind: KindTag,
+    /// What it was about.
+    pub things: Vec<ThingView>,
+    /// Its provenance: a promoted fact's label is the join of its sources'.
+    pub label: Label,
+}
+
+/// What a run reads: the active facts and the events since the last run's cut.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConsolidationInput {
+    /// The Space (a draft never touches another).
+    pub space: SpaceId,
+    /// This run.
+    pub run: RunId,
+    /// Active facts.
+    pub facts: Vec<Fact>,
+    /// Events since the last cut.
+    pub events: Vec<InputEvent>,
+}
+
+/// What the model proposes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Draft {
+    /// The proposed changes.
+    pub hunks: Vec<Hunk>,
+}
+
+/// Why the consolidator failed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+pub enum ConsolidateError {
+    /// The model could not be reached or refused.
+    #[error("the consolidation model is unavailable")]
+    Unavailable,
+    /// Its answer could not be read.
+    #[error("the consolidation draft is unreadable")]
+    Unparseable,
+    /// The embedder or GPU was busy.
+    #[error("busy")]
+    Busy,
+}
+
+impl From<ConsolidateError> for ConsolidateFailure {
+    fn from(e: ConsolidateError) -> Self {
+        match e {
+            ConsolidateError::Unavailable => ConsolidateFailure::ModelUnavailable,
+            ConsolidateError::Unparseable => ConsolidateFailure::Unparseable,
+            ConsolidateError::Busy => ConsolidateFailure::EmbedderBusy,
+        }
+    }
+}
+
+/// The model that drafts a consolidation. Implementations: `ScriptedConsolidator`
+/// (almanac-fake), `InferdConsolidator` (memoryd: inferd chat, `Task::Extract`, background).
+pub trait Consolidator: Send + Sync {
+    /// Drafts hunks for `input`.
+    fn draft(
+        &self,
+        input: ConsolidationInput,
+    ) -> impl Future<Output = Result<Draft, ConsolidateError>> + Send;
+}
+
+/// Why a hunk was dropped by the check.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HunkFault {
+    /// A promotion cites links outside the input.
+    CitesOutsideInput,
+    /// The new label is not the join of the cited sources' labels (untrusted laundered).
+    LabelLaundered,
+    /// The draft removes a fact (a draft never does).
+    RemovesFact,
+    /// The hunk touches a topic outside the Space.
+    OutsideSpace,
+}
+
+/// A draft after the check.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CheckedDraft {
+    /// The hunks that passed.
+    pub kept: Vec<Hunk>,
+    /// The index (in the draft) and fault of each dropped hunk.
+    pub dropped: Vec<(usize, HunkFault)>,
+}
+
+/// Checks a draft against its input: every `Promote` cites links inside the input; its label is
+/// the join of the cited sources' labels (so untrusted content cannot be laundered); no hunk
+/// removes a fact; none reaches outside the Space. Invalid hunks are dropped, not repaired.
+pub fn check_draft(input: &ConsolidationInput, draft: Draft) -> CheckedDraft {
+    let _ = (input, draft);
+    todo!(
+        "the four invariants; the join is prov::Label::join, itself a stub in porter until its fill"
+    )
+}
+
+/// Whether the person is at the desktop.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Desktop {
+    /// In use.
+    Busy,
+    /// Idle.
+    Idle,
+}
+
+/// Where the power comes from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Power {
+    /// A battery.
+    Battery,
+    /// The mains.
+    Ac,
+}
+
+/// What happened to a run.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RunEvent {
+    /// The nightly tick, with the desktop's state.
+    Tick {
+        /// Whether the person is away.
+        desktop: Desktop,
+        /// Where the power comes from.
+        power: Power,
+    },
+    /// Start gathering.
+    Start,
+    /// The facts and events are collected.
+    InputReady,
+    /// The consolidator answered.
+    DraftOk,
+    /// The consolidator failed.
+    DraftFailed(ConsolidateFailure),
+    /// Invalid hunks were dropped.
+    ChecksDone,
+    /// Apply the proposal.
+    Proceed,
+    /// The person reverted the run.
+    Revert,
+    /// The failure was logged.
+    Reported,
+}
+
+/// What the service must do.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RunEffect {
+    /// Collect active facts and events since the last cut.
+    Gather,
+    /// Ask the consolidator.
+    Draft,
+    /// Run `check_draft`.
+    Check,
+    /// Auto-apply Tidy, Stamp, Supersede and trusted Promote hunks, keeping pre-images;
+    /// untrusted Promote hunks go to `pending/`.
+    ApplyHunks,
+    /// Emit `ConsolidationReady`.
+    EmitReady,
+    /// Log `Memory.Consolidated`.
+    LogConsolidated,
+    /// Put the pre-images back.
+    RestorePreImages,
+    /// Log `Memory.Reverted`.
+    LogReverted,
+    /// Retry at the next nightly tick.
+    RetryNextNight,
+}
+
+/// The next state and effects.
+pub fn step(state: RunState, event: RunEvent) -> (RunState, Vec<RunEffect>) {
+    use RunEffect as E;
+    use RunEvent as V;
+    use RunState as S;
+    let tonight = V::Tick {
+        desktop: Desktop::Idle,
+        power: Power::Ac,
+    };
+    match (state, event) {
+        (S::Idle | S::Applied | S::Reverted, e) if e == tonight => (S::Due, vec![]),
+        (S::Due, V::Start) => (S::Gathering, vec![E::Gather]),
+        (S::Gathering, V::InputReady) => (S::Drafting, vec![E::Draft]),
+        (S::Drafting, V::DraftOk) => (S::Checking, vec![E::Check]),
+        (S::Drafting | S::Gathering, V::DraftFailed(why)) => {
+            (S::Failed(why), vec![E::RetryNextNight])
+        }
+        (S::Checking, V::ChecksDone) => (S::Proposed, vec![]),
+        (S::Proposed, V::Proceed) => (
+            S::Applied,
+            vec![E::ApplyHunks, E::EmitReady, E::LogConsolidated],
+        ),
+        (S::Applied, V::Revert) => (S::Reverted, vec![E::RestorePreImages, E::LogReverted]),
+        (S::Failed(_), V::Reported) => (S::Idle, vec![]),
+        (unchanged, _) => (unchanged, vec![]),
+    }
+}

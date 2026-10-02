@@ -1,0 +1,26 @@
+[package]
+name = "almanac-fake"
+description = "Test-only: a fake MemoryService over in-memory seams, a fixed clock, a scripted consolidator and fixtures."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+almanac-core = { workspace = true }
+almanac-seal = { workspace = true, features = ["testing"] }
+eventlog = { workspace = true, features = ["testing"] }
+memfiles = { workspace = true, features = ["testing"] }
+recall = { workspace = true, features = ["testing"] }
+almanac-service = { workspace = true }
+rusqlite = { workspace = true }
+tempfile = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+
+[lints]
+workspace = true

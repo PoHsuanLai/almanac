@@ -1,0 +1,18 @@
+[package]
+name = "almanac-dbus"
+description = "almanac's D-Bus API: org.quire.Memory1 as zbus proxies and interface skeletons, and its introspection."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+almanac-core = { workspace = true }
+zbus = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[lints]
+workspace = true

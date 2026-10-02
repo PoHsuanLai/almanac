@@ -1,0 +1,77 @@
+[workspace]
+resolver = "3"
+members = [
+  "crates/almanac-core",
+  "crates/almanac-seal",
+  "crates/eventlog",
+  "crates/memfiles",
+  "crates/recall",
+  "crates/recall-fastembed",
+  "crates/almanac-service",
+  "crates/almanac-watch",
+  "crates/almanac-dbus",
+  "crates/almanac-client",
+  "crates/almanac-fake",
+  "crates/memoryd",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+# What quire declares; the toolchain itself is pinned in rust-toolchain.toml.
+rust-version = "1.92"
+repository = "https://github.com/PoHsuanLai/almanac"
+publish = false
+
+[workspace.dependencies]
+almanac-core    = { path = "crates/almanac-core" }
+almanac-seal    = { path = "crates/almanac-seal" }
+eventlog        = { path = "crates/eventlog" }
+memfiles        = { path = "crates/memfiles" }
+recall          = { path = "crates/recall" }
+almanac-service = { path = "crates/almanac-service" }
+almanac-watch   = { path = "crates/almanac-watch" }
+almanac-dbus    = { path = "crates/almanac-dbus" }
+almanac-client  = { path = "crates/almanac-client" }
+almanac-fake    = { path = "crates/almanac-fake" }
+
+# porter's frozen interfaces (master 4623e18), by sibling path until the pinned git rev replaces
+# them in fill wave 1 (quire CONSUMING.md section 1). porter has no almanac dependency, so there
+# is no cycle. memoryd reaches inferd through porter-client; almanac never names stoker itself
+# (porter-infer does, by its own sibling path).
+porter-core     = { path = "../porter/crates/porter-core" }
+prov            = { path = "../porter/crates/prov" }
+porter-infer    = { path = "../porter/crates/porter-infer" }
+porter-client   = { path = "../porter/crates/porter-client" }
+
+# From quire's pinned block (`docs/workspace-deps.toml`), copied verbatim: only the lines almanac
+# names itself.
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros", "net", "io-util", "process"] }
+thiserror = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+zbus = { version = "5.19", default-features = false, features = ["tokio"] }  # shell repos only; they also enable ds-settings/tokio. quire itself builds zbus with its async-io default so app consumers keep their own executor.
+toml = "1"
+clap = { version = "4", features = ["derive"] }
+jiff = "0.2"
+notify = "8.2"
+blake3 = "1"
+# almanac-seal.
+chacha20poly1305 = "0.10"
+zeroize = "1"
+getrandom = "0.3"
+# eventlog, recall: SQLCipher built from source with a vendored OpenSSL (spike S-SQL: FTS5 works
+# in an encrypted DB, a wrong key fails, licences pass the allow-list).
+rusqlite = { version = "0.40", features = ["bundled-sqlcipher-vendored-openssl"] }
+tar = "0.4"
+oo7 = "0.6"
+# recall-fastembed only; excluded from the gate.
+fastembed = "7.1"
+# Dev-dependencies.
+proptest = "1"
+tempfile = "3"
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+missing_debug_implementations = "warn"

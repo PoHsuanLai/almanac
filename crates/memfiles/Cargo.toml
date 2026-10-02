@@ -1,0 +1,27 @@
+[package]
+name = "memfiles"
+description = "almanac's agent memory as plain markdown files: the topic file format, the vault seam and the fact store."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+almanac-core = { workspace = true }
+almanac-seal = { workspace = true }
+jiff = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+memfiles = { path = ".", features = ["testing"] }
+
+[features]
+# `MemoryVault`, for tests and almanac-fake.
+testing = []
+
+[lints]
+workspace = true
