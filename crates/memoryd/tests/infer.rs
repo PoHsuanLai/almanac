@@ -36,6 +36,8 @@ struct Scripted {
     opened: Mutex<Vec<Opened>>,
     sent: Arc<Mutex<Vec<ClientFrame>>>,
     unreachable: bool,
+    /// inferd refuses the caller, with this text.
+    denied: Option<String>,
 }
 
 impl Scripted {
@@ -49,6 +51,13 @@ impl Scripted {
     fn down() -> Arc<Self> {
         Arc::new(Self {
             unreachable: true,
+            ..Self::default()
+        })
+    }
+
+    fn denying(why: &str) -> Arc<Self> {
+        Arc::new(Self {
+            denied: Some(why.to_owned()),
             ..Self::default()
         })
     }
@@ -98,6 +107,9 @@ impl Transport for Scripted {
     ) -> Result<Session, TransportError> {
         if self.unreachable {
             return Err(TransportError::Unreachable);
+        }
+        if let Some(why) = &self.denied {
+            return Err(TransportError::Denied(why.clone()));
         }
         self.opened.lock().expect("lock").push(Opened {
             need: need.clone(),
@@ -319,6 +331,24 @@ async fn an_absent_daemon_or_a_closed_session_is_unavailable() {
             .embed(&texts(1), EmbedRole::Query, Urgency::Interactive)
             .await,
         Err(EmbedError::Unavailable)
+    );
+}
+
+#[tokio::test]
+async fn a_caller_inferd_refuses_is_a_fatal_failure_with_the_daemons_text() {
+    let denied = InferdEmbedder::new(
+        Scripted::denying("inferd: the caller is not in its caller table"),
+        card(),
+    );
+    let got = denied
+        .embed(&texts(1), EmbedRole::Query, Urgency::Interactive)
+        .await;
+    assert_eq!(
+        got,
+        Err(EmbedError::Failed {
+            class: RetryClass::Fatal,
+            why: "inferd: the caller is not in its caller table".to_owned()
+        })
     );
 }
 

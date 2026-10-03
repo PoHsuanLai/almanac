@@ -189,7 +189,9 @@ pub(crate) fn vectors_of(
 fn transport_failure(error: TransportError) -> EmbedError {
     match error {
         TransportError::Unreachable | TransportError::Closed => EmbedError::Unavailable,
-        TransportError::Malformed(why) => fatal(why),
+        // A caller inferd's table does not name, or one without the grant: asking again does not
+        // help until someone changes who may call, so it is fatal with the daemon's own text.
+        TransportError::Denied(why) | TransportError::Malformed(why) => fatal(why),
     }
 }
 
