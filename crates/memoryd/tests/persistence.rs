@@ -10,7 +10,7 @@ use common::{SharedKeys, TestBackend, backend, dirs_in, service, space};
 use eventlog::LogError;
 use memoryd::{Daemon, TablePeers};
 use recall::{
-    Doc, DocId, Embedder, Facets, FakeEmbedder, SearchQuery, TopK, TrustTier, VectorIndex,
+    ClassTag, Doc, DocId, Embedder, Facets, FakeEmbedder, SearchQuery, TopK, TrustTier, VectorIndex,
 };
 use std::path::{Path, PathBuf};
 
@@ -384,6 +384,7 @@ fn doc(id: &str, text: &str) -> Doc {
             app: None,
             trust: TrustTier::Trusted,
         },
+        class: ClassTag::default(),
     }
 }
 

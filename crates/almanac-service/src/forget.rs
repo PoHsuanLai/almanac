@@ -175,7 +175,13 @@ fn involves_app(actor: &Actor, body: &EventBody, app: &AppName) -> bool {
         Actor::User { via: a } | Actor::App { app: a } | Actor::ThirdParty { app: a, .. } => {
             a == app
         }
-        _ => false,
+        // A terminal (`Cli`) is no app: forgetting an app leaves what a terminal did unless the
+        // event is about that app's things; `Forget` by Space or Kind reaches it.
+        Actor::Companion { .. }
+        | Actor::Mcp { .. }
+        | Actor::Cli
+        | Actor::System { .. }
+        | Actor::Unknown => false,
     };
     let searched = matches!(body, EventBody::Search { app: a, .. } if a == app);
     acting || searched || body.thing_refs().iter().any(|(thing, _)| &thing.app == app)

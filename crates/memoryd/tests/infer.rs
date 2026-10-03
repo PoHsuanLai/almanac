@@ -548,7 +548,7 @@ fn the_class_of_a_request_is_the_most_sensitive_of_its_labels() {
         label.classes = classes.iter().copied().collect();
         label
     };
-    let table: [(Vec<Label>, DataClass); 6] = [
+    let table: [(Vec<Label>, DataClass); 7] = [
         (vec![], DataClass::AppOwn),
         (vec![with(&[])], DataClass::AppOwn),
         (vec![with(&[DataClass::Public])], DataClass::Public),
@@ -563,6 +563,10 @@ fn the_class_of_a_request_is_the_most_sensitive_of_its_labels() {
         (
             vec![with(&[DataClass::Mail]), with(&[DataClass::Voice])],
             DataClass::Voice,
+        ),
+        (
+            vec![with(&[DataClass::Mail, DataClass::Prompt])],
+            DataClass::Prompt,
         ),
     ];
     for (labels, expected) in table {
@@ -647,4 +651,45 @@ async fn the_consolidator_maps_every_refusal_and_failure() {
     );
     let down = InferdConsolidator::new(Scripted::down());
     assert_eq!(down.draft(input()).await, Err(Unavailable));
+}
+
+#[test]
+fn a_class_tag_is_the_slug_and_every_class_round_trips() {
+    use almanac_service::{class_from_tag, class_tag};
+    // The exhaustive match makes a new class a compile error here, so it gets a row.
+    let slug = |class: DataClass| match class {
+        DataClass::AppOwn => "app_own",
+        DataClass::Mail => "mail",
+        DataClass::Calendar => "calendar",
+        DataClass::Contacts => "contacts",
+        DataClass::Notes => "notes",
+        DataClass::Files => "files",
+        DataClass::Photos => "photos",
+        DataClass::Clipboard => "clipboard",
+        DataClass::Screen => "screen",
+        DataClass::Voice => "voice",
+        DataClass::Prompt => "prompt",
+        DataClass::Public => "public",
+    };
+    let all = [
+        DataClass::AppOwn,
+        DataClass::Mail,
+        DataClass::Calendar,
+        DataClass::Contacts,
+        DataClass::Notes,
+        DataClass::Files,
+        DataClass::Photos,
+        DataClass::Clipboard,
+        DataClass::Screen,
+        DataClass::Voice,
+        DataClass::Prompt,
+        DataClass::Public,
+    ];
+    for class in all {
+        let tag = class_tag(class);
+        assert_eq!(tag.0, slug(class));
+        assert_eq!(class_from_tag(&tag), Some(class));
+    }
+    assert_eq!(class_from_tag(&recall::ClassTag::default()), None);
+    assert_eq!(class_from_tag(&recall::ClassTag("later".into())), None);
 }

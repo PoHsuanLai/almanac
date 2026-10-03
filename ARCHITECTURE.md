@@ -135,6 +135,8 @@ pub trait Embedder: Send + Sync {
     /// `role` is Query or Document (asymmetric models); at most `card().max_batch` texts.
     fn embed(&self, texts: &[String], role: EmbedRole, urgency: Urgency)
         -> impl Future<Output = Result<Vec<Vector>, EmbedError>> + Send;
+    /// Texts that carry a data class (`Doc.class`, a `ClassTag`); defaults to `embed` without it.
+    fn embed_classed(&self, texts: &[Classed], role: EmbedRole, urgency: Urgency) -> impl Future<..> + Send;
     // EmbedderCard { model, dims, max_tokens, max_batch: MaxBatch, prompts: PromptPrefixes, metric }
     // EmbedError::retry_class() -> RetryClass { Retry, Fatal }
 }
@@ -185,7 +187,7 @@ interface other work builds on; a change is a format bump (section 6) or a SPEC 
 | D-Bus codec, `invoke`, the served objects, `DbusTransport` | built; `almanac-dbus/tests/codec.rs` (every wire sample, both directions) |
 | `Memory`, `Absent`, `InProcess` | built, tested |
 | `fake_service`, fixtures, scratch dirs | built |
-| `SystemBackend`, `SystemClock`, XDG roots, `InferdEmbedder`, `InferdConsolidator` | built; the models are tested over a scripted inferd session |
+| `SystemBackend`, `SystemClock`, XDG roots, `InferdEmbedder`, `InferdConsolidator`, `inferd_link` | built; the models are tested over a scripted inferd session and over a fake inferd on a private bus |
 | `Serialised`, `Peers`, `Daemon`, the `memoryd` binary | built; `memoryd/tests/bus.rs` is the end-to-end test on a private bus |
 
 ## 6. File formats (frozen)

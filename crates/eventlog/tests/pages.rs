@@ -111,6 +111,61 @@ fn contract<L: LogWrite>(mut log: L, digest: &almanac_seal::SubKey) {
     assert_eq!(log.head().expect("head").seq, Seq(3));
 }
 
+/// Each actor filter against one of every actor kind, in append order: person, companion, run,
+/// MCP client, terminal, app, observed app, system part, unexplained.
+#[test]
+fn each_actor_filter_picks_its_own_kinds_and_the_terminal_has_a_bucket() {
+    let mut log = new_log();
+    let companion = |role| Actor::Companion {
+        session: SessionId::parse("s-1").expect("session"),
+        role,
+    };
+    let actors = [
+        user(),
+        companion(AgentRole::Planner),
+        companion(AgentRole::Cua {
+            run: RunId::parse("r-1").expect("run"),
+        }),
+        Actor::Mcp {
+            client: ClientName::parse("Claude Desktop").expect("client"),
+        },
+        Actor::Cli,
+        Actor::App {
+            app: app("org.quire.Mail"),
+        },
+        Actor::ThirdParty {
+            app: app("com.example.Notes"),
+            channel: Channel::Atspi,
+        },
+        Actor::System {
+            part: SystemPart::Router,
+        },
+        Actor::Unknown,
+    ];
+    for actor in actors {
+        put(&mut log, &record("7f3a", Verb::Viewed, actor));
+    }
+    let picks = |actors| {
+        let filter = TimelineFilter {
+            actors,
+            ..everyone()
+        };
+        let mut found = seqs(&log.page(&query(None, 20, filter)).expect("page"));
+        found.sort_unstable();
+        found
+    };
+    assert_eq!(picks(ActorFilter::Everyone), (1..=9).collect::<Vec<_>>());
+    assert_eq!(picks(ActorFilter::You), vec![1]);
+    assert_eq!(picks(ActorFilter::Companion), vec![2, 3]);
+    assert_eq!(
+        picks(ActorFilter::Terminal),
+        vec![5],
+        "the terminal's own bucket"
+    );
+    assert_eq!(picks(ActorFilter::Apps), vec![6, 7]);
+    assert_eq!(picks(ActorFilter::Unknown), vec![9]);
+}
+
 #[test]
 fn memory_log_meets_the_contract() {
     let log = new_log();

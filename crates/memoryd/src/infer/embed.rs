@@ -1,6 +1,7 @@
 //! `InferdEmbedder`: embeddings through an inferd session.
 
 use super::turn;
+use almanac_service::class_from_tag;
 use porter_client::{Transport, TransportError};
 use porter_core::capability::Modality;
 use porter_core::consent::Usage;
@@ -10,37 +11,72 @@ use porter_infer::{
     EmbedReply, EmbedRequest, EmbedRole as WireRole, InferRefusal, InferReply, InferRequest,
     ModelError,
 };
-use recall::{EmbedError, EmbedRole, Embedder, EmbedderCard, RetryClass, Urgency, Vector};
-use std::collections::BTreeSet;
+use recall::{Classed, EmbedError, EmbedRole, Embedder, EmbedderCard, RetryClass, Urgency, Vector};
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
-/// Embeds through an inferd session: `Need::Embeddings` for the card's vector length,
-/// `InferRequest::Embed` with `Usage::Background` for indexing, and the document class this
-/// embedder was built for (the on-device floor of that class applies, so mail text stays
-/// local). inferd puts the model's query and document prefixes in front itself (the card
-/// carries them only so the index can tell when they changed), and the vectors must have the
-/// card's length: a model that answers otherwise is another vector space.
+/// Embeds through inferd: `Need::Embeddings` for the card's vector length, `InferRequest::Embed`
+/// with `Usage::Background` for indexing. inferd puts the model's query and document prefixes in
+/// front itself (the card carries them only so the index can tell when they changed), and the
+/// vectors must have the card's length: a model that answers otherwise is another vector space.
+///
+/// **Data classes.** A session and an `EmbedRequest` carry one data class, and inferd applies
+/// that class's floor (mail, voice and prompts stay on this computer). [`Embedder::embed_classed`]
+/// therefore partitions a batch by the class each text carries, opens one session per class
+/// (for that call; a session is not kept), sends each class's texts in one request and returns
+/// the vectors in input order.
+///
+/// **Strictest-class pinning.** One index is one model: a document's class cannot change *which*
+/// model embeds it, only whether that model may receive it. The card therefore names a model
+/// that satisfies the strictest class the Space holds, which on this computer means an
+/// on-device model; an index whose model were a cloud one would have its `Mail` and `Voice`
+/// documents refused by inferd (`Refused`, Fatal) and stay lexical. Texts that carry no class,
+/// and every search query (the person's words may quote anything), are sent as the embedder's
+/// *pin*: [`DataClass::Mail`] from [`InferdEmbedder::new`], the strictest class memory holds in
+/// quantity, or the class given to [`InferdEmbedder::for_class`].
 #[derive(Debug)]
 pub struct InferdEmbedder<T: Transport> {
     transport: Arc<T>,
     card: EmbedderCard,
-    class: DataClass,
+    pin: DataClass,
 }
 
 impl<T: Transport> InferdEmbedder<T> {
-    /// Embeds over `transport` with `card`, treating every text as mail (the strictest class
-    /// memory holds in quantity; see [`InferdEmbedder::for_class`]).
+    /// Embeds over `transport` with `card`, pinned to mail (see [`InferdEmbedder::for_class`]).
     pub fn new(transport: Arc<T>, card: EmbedderCard) -> Self {
         Self::for_class(transport, card, DataClass::Mail)
     }
 
-    /// Embeds texts of `class`.
-    pub fn for_class(transport: Arc<T>, card: EmbedderCard, class: DataClass) -> Self {
+    /// Embeds over `transport` with `card`; queries and texts with no class are sent as `pin`.
+    pub fn for_class(transport: Arc<T>, card: EmbedderCard, pin: DataClass) -> Self {
         Self {
             transport,
             card,
-            class,
+            pin,
         }
+    }
+
+    /// One session of `class`, one request over all of `texts`.
+    async fn embed_as(
+        &self,
+        class: DataClass,
+        texts: &[String],
+        role: EmbedRole,
+        urgency: Urgency,
+    ) -> Result<Vec<Vector>, EmbedError> {
+        if texts.is_empty() {
+            return Ok(Vec::new());
+        }
+        let mut session = self
+            .transport
+            .open(&need_for(&self.card), class, Tier::Fast)
+            .await
+            .map_err(transport_failure)?;
+        let request = request_for(&self.card, class, texts, role, urgency);
+        let reply = turn(&mut session, request)
+            .await
+            .map_err(|_| EmbedError::Unavailable)?;
+        vectors_of(reply, texts.len(), &self.card)
     }
 }
 
@@ -157,6 +193,19 @@ fn transport_failure(error: TransportError) -> EmbedError {
     }
 }
 
+/// The positions of each class in `texts`, classes in their own order; a text with no known
+/// class goes with `pin`.
+pub(crate) fn by_class(texts: &[Classed], pin: DataClass) -> BTreeMap<DataClass, Vec<usize>> {
+    let mut groups: BTreeMap<DataClass, Vec<usize>> = BTreeMap::new();
+    for (at, t) in texts.iter().enumerate() {
+        groups
+            .entry(class_from_tag(&t.class).unwrap_or(pin))
+            .or_default()
+            .push(at);
+    }
+    groups
+}
+
 impl<T: Transport> Embedder for InferdEmbedder<T> {
     fn card(&self) -> &EmbedderCard {
         &self.card
@@ -168,18 +217,25 @@ impl<T: Transport> Embedder for InferdEmbedder<T> {
         role: EmbedRole,
         urgency: Urgency,
     ) -> Result<Vec<Vector>, EmbedError> {
-        if texts.is_empty() {
-            return Ok(Vec::new());
+        self.embed_as(self.pin, texts, role, urgency).await
+    }
+
+    async fn embed_classed(
+        &self,
+        texts: &[Classed],
+        role: EmbedRole,
+        urgency: Urgency,
+    ) -> Result<Vec<Vector>, EmbedError> {
+        let mut out: Vec<Option<Vector>> = vec![None; texts.len()];
+        for (class, at) in by_class(texts, self.pin) {
+            let group: Vec<String> = at.iter().map(|&i| texts[i].text.clone()).collect();
+            let vectors = self.embed_as(class, &group, role, urgency).await?;
+            at.into_iter()
+                .zip(vectors)
+                .for_each(|(slot, v)| out[slot] = Some(v));
         }
-        let mut session = self
-            .transport
-            .open(&need_for(&self.card), self.class, Tier::Fast)
-            .await
-            .map_err(transport_failure)?;
-        let request = request_for(&self.card, self.class, texts, role, urgency);
-        let reply = turn(&mut session, request)
-            .await
-            .map_err(|_| EmbedError::Unavailable)?;
-        vectors_of(reply, texts.len(), &self.card)
+        out.into_iter()
+            .map(|v| v.ok_or_else(|| fatal("a text was left without a vector")))
+            .collect()
     }
 }

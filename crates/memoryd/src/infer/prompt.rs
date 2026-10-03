@@ -7,40 +7,12 @@
 //! `check_draft` holds every promotion to. A hunk that cites nothing in the input, or whose text
 //! is not fact text, is dropped; an answer that is not the JSON object at all is `Unparseable`.
 
-use almanac_core::{
-    Actor, DataClass, Fact, FactId, FactText, Hunk, Label, Link, SystemPart, UserText, Validity,
-};
+use almanac_core::{Actor, Fact, FactId, FactText, Hunk, Link, SystemPart, UserText, Validity};
 use almanac_service::{ConsolidateError, ConsolidationInput, Draft, cited_label};
 use serde::Deserialize;
 
 /// The most hunks one answer may hold; the rest are ignored.
 const MAX_HUNKS: usize = 64;
-
-/// The data class a request carries when its input mixes several: the most sensitive present, in
-/// this order (the grant and the on-device floor are per class, so the request takes the
-/// strictest of them). Nothing classed at all is the app's own data.
-const BY_SENSITIVITY: [DataClass; 11] = [
-    DataClass::Voice,
-    DataClass::Mail,
-    DataClass::Contacts,
-    DataClass::Calendar,
-    DataClass::Notes,
-    DataClass::Files,
-    DataClass::Photos,
-    DataClass::Clipboard,
-    DataClass::Screen,
-    DataClass::AppOwn,
-    DataClass::Public,
-];
-
-/// The class a request over `labels` is sent as.
-pub fn class_of<'a>(labels: impl IntoIterator<Item = &'a Label>) -> DataClass {
-    let present: Vec<&Label> = labels.into_iter().collect();
-    BY_SENSITIVITY
-        .into_iter()
-        .find(|class| present.iter().any(|l| l.classes.contains(class)))
-        .unwrap_or(DataClass::AppOwn)
-}
 
 fn line<T: serde::Serialize>(value: &T) -> String {
     serde_json::to_string(value).unwrap_or_default()

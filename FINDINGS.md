@@ -326,12 +326,37 @@ rebuild), and runs on the multi-thread runtime (an export writes to the caller's
 `ProtectSystem=strict`, `ProtectHome=read-only`, `ReadWritePaths` for the memory directories only)
 and the activation file. Landlock is not applied.
 
-**The inferd link is `NoInference` until porter's transports exist.** `porter-client`'s
-`DbusTransport::open` and `Accounts::connect` are still `todo!()`, so `main` builds the embedder
-and consolidator over a transport that answers `Unreachable`: recall is lexical-only and
-consolidation is unavailable. When porter fills them, `main` switches to `SystemBackend::new` with
-the transport `Accounts::connect` picks; nothing else changes. `default_card()` is the card of the
-default embedding model (768 numbers, nomic prefixes) and must match what inferd serves.
+**The inferd link is `AnyTransport::Dbus(DbusTransport::over(connection))`** (`memoryd::inferd_link`,
+asks 71 and 80 closed). `main` builds the session-bus connection first and gives the same
+transport to the embedder and the consolidator; porter-client is built with its `dbus` feature.
+Nothing is called at start: inferd is found, and started by activation, at the first `open`, so a
+daemon that starts before inferd or without it still starts. While inferd is unreachable `open`
+answers `Unreachable`: the embedder answers `Unavailable` (recall is lexical-only and the index
+retries), and a consolidation run is refused as `Busy` and retried the next night. Both halves are
+tested on a private bus (`memoryd/tests/inferd_bus.rs`): a fake `org.quire.Inference1` up, none, and
+one that appears after the first failure. `NoInference` and `NoSession` are gone. `default_card()` is
+the card of the default embedding model (768 numbers, nomic prefixes) and must match what inferd
+serves.
+
+**Embedding by data class (ask 70/80).** `recall::Doc.class` is a `ClassTag` (the data-class slug;
+recall names no porter type; empty means "no class"). `almanac-service` sets it from the strictest
+class of the document's label (`class_of`, which now also ranks `Prompt` after `Voice`; the tag is
+`class_tag`/`class_from_tag`). `recall::Embedder::embed_classed` (defaulted to `embed`) receives
+each batch with its texts' classes, and `InferdEmbedder` partitions the batch by class, opens one
+session per class for that call (sessions are not kept), and returns the vectors in input order.
+Strictest-class pinning: one index is one model, so a class can only decide whether the model may
+receive the text, not which model embeds it. The card's model must satisfy the strictest class the
+Space holds (on this computer, in practice); a cloud model would have its `Mail` and `Voice`
+documents refused (`Refused`, Fatal). Queries and untagged or unknown-tag texts go as the
+embedder's pin (`Mail` for `InferdEmbedder::new`). A refused class fails the whole batch.
+
+**Terminals (ask 91).** `ActorKind::Cli` is audit class (`is_audit_class`: a terminal cannot tell the
+person from an agent typing in it, so its acts are audited like the companion's and a pause or a
+`Never` rule keeps the header). It is no app: `app_of` (admission) and `involves_app` (forget) name
+it explicitly and match nothing by actor, so an app rule or an app forget reaches a terminal's
+events only through their things; `Forget` by Space or Kind reaches them. `ActorFilter::Terminal`
+(slug `terminal`) is the timeline's own bucket for it (`You` is the person only; `Mcp` still has no
+bucket but `Everyone`).
 
 **Interface ask 26 (cua `HandedBack.user_events`): decided, and done on this side.** Option taken:
 `cua-bus` depends on `almanac-core` and carries `almanac_core::EventRef`; no memory call at record

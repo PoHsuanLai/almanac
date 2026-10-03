@@ -1,7 +1,7 @@
 //! `Index`: lexical and vector search together, rebuildable from the truth.
 
 use crate::doc::{Allow, Count, Doc, DocId, Ranked, TopK};
-use crate::embed::{EmbedError, Embedder, RetryClass};
+use crate::embed::{Classed, EmbedError, Embedder, RetryClass};
 use crate::exact::VectorIndex;
 use crate::fts::Fts5;
 use crate::fuse::{Fused, RrfK, chunk, fuse_rrf};
@@ -244,13 +244,20 @@ async fn embed_docs(
     urgency: Urgency,
 ) -> Result<Vec<(DocId, Vector)>, EmbedError> {
     let card = e.card();
-    let pieces: Vec<(usize, String)> = docs
+    let pieces: Vec<(usize, Classed)> = docs
         .iter()
         .enumerate()
         .flat_map(|(slot, d)| {
-            chunk(&d.text, card.max_tokens)
-                .into_iter()
-                .map(move |c| (slot, c.text))
+            chunk(&d.text, card.max_tokens).into_iter().map(move |c| {
+                let class = d.class.clone();
+                (
+                    slot,
+                    Classed {
+                        class,
+                        text: c.text,
+                    },
+                )
+            })
         })
         .collect();
     let width = usize::try_from(card.dims).unwrap_or(usize::MAX);
@@ -258,8 +265,10 @@ async fn embed_docs(
     let mut from = 0usize;
     for size in card.batch_sizes(pieces.len()) {
         let batch = &pieces[from..from + size];
-        let texts: Vec<String> = batch.iter().map(|(_, t)| t.clone()).collect();
-        let vectors = e.embed(&texts, EmbedRole::Document, urgency).await?;
+        let texts: Vec<Classed> = batch.iter().map(|(_, t)| t.clone()).collect();
+        let vectors = e
+            .embed_classed(&texts, EmbedRole::Document, urgency)
+            .await?;
         if vectors.len() != batch.len() || vectors.iter().any(|v| v.0.len() != width) {
             return Err(EmbedError::Failed {
                 class: RetryClass::Fatal,

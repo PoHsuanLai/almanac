@@ -38,12 +38,14 @@ almanac-fake    = { path = "crates/almanac-fake" }
 
 # porter's frozen interfaces (master 4623e18), by sibling path until the pinned git rev replaces
 # them in fill wave 1 (quire CONSUMING.md section 1). porter has no almanac dependency, so there
-# is no cycle. memoryd reaches inferd through porter-client; almanac never names stoker itself
+# is no cycle. memoryd reaches inferd through porter-client (and its tests serve a fake inferd with
+# porter-dbus); almanac never names stoker itself
 # (porter-infer does, by its own sibling path).
 porter-core     = { path = "../porter/crates/porter-core" }
 prov            = { path = "../porter/crates/prov" }
 porter-infer    = { path = "../porter/crates/porter-infer" }
 porter-client   = { path = "../porter/crates/porter-client" }
+porter-dbus     = { path = "../porter/crates/porter-dbus" }
 
 # From quire's pinned block (`docs/workspace-deps.toml`), copied verbatim: only the lines almanac
 # names itself.

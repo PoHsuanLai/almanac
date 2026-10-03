@@ -51,6 +51,8 @@ fn receipt() -> ConfirmReceipt {
         id: ConfirmId::parse("01j9zk3m0q8h2v6x4c1b7ncnf0").expect("confirm id"),
         input: InputProof::ShellCaller,
         at: UnixSeconds(1_790_900_000),
+        // A keep endorses; it opens nothing.
+        covers: Confidentiality::Secret,
     }
 }
 

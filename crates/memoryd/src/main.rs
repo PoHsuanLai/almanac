@@ -1,7 +1,8 @@
 //! memoryd: serves `org.quire.Memory1` on the session bus over almanac-service. Keys are in the
 //! Secret Service, the logs and the index in SQLCipher, the files sealed per Space; who is
-//! calling comes from `callers.toml`; inferd is not linked yet (`NoInference`), so recall is
-//! lexical-only and consolidation unavailable until porter-client's transports are filled.
+//! calling comes from `callers.toml`; inferd is reached over the same session bus
+//! (`AnyTransport::Dbus`), and while it is not running recall is lexical-only and consolidation is
+//! off, as the embedder and the consolidator answer `Unavailable`.
 
 use almanac_core::{Dirs, RuleSet};
 use almanac_dbus::serve_on;
@@ -9,8 +10,8 @@ use almanac_seal::Oo7Keys;
 use almanac_service::{MemoryService, rules_from_toml, spaces_from_toml};
 use clap::Parser;
 use memoryd::{
-    CallerTable, Daemon, InferdConsolidator, InferdEmbedder, NoInference, ProcPeers, SystemBackend,
-    default_card, dirs_from_env,
+    CallerTable, Daemon, InferdConsolidator, InferdEmbedder, ProcPeers, SystemBackend,
+    default_card, dirs_from_env, inferd_link,
 };
 use std::process::ExitCode;
 use std::sync::Arc;
@@ -58,7 +59,12 @@ fn read_callers(dirs: &Dirs) -> CallerTable {
 
 async fn run() -> Result<(), String> {
     let dirs = dirs_from_env().map_err(|e| e.to_string())?;
-    let inferd = Arc::new(NoInference);
+    let connection = zbus::connection::Builder::session()
+        .map_err(|e| e.to_string())?
+        .build()
+        .await
+        .map_err(|e| e.to_string())?;
+    let inferd = inferd_link(&connection);
     let backend = SystemBackend::with(
         dirs.clone(),
         Oo7Keys,
@@ -72,11 +78,6 @@ async fn run() -> Result<(), String> {
             .into_iter()
             .for_each(|meta| service.register(meta));
     }
-    let connection = zbus::connection::Builder::session()
-        .map_err(|e| e.to_string())?
-        .build()
-        .await
-        .map_err(|e| e.to_string())?;
     let peers = ProcPeers::new(connection.clone(), read_callers(&dirs));
     let daemon = Arc::new(Daemon::new(service, peers, dirs));
     serve_on(&connection, daemon.clone())

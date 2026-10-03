@@ -15,8 +15,8 @@ mod index;
 mod state;
 mod vector;
 
-pub use doc::{Allow, Chunk, Count, Doc, DocId, Facets, Ranked, TopK, TrustTier};
-pub use embed::{EmbedError, Embedder, RetryClass};
+pub use doc::{Allow, Chunk, ClassTag, Count, Doc, DocId, Facets, Ranked, TopK, TrustTier};
+pub use embed::{Classed, EmbedError, Embedder, RetryClass};
 pub use exact::{ExactScan, VectorIndex};
 #[cfg(feature = "testing")]
 pub use fake::{FAKE_DIMS, FakeEmbedder};

@@ -23,6 +23,14 @@ pub enum TrustTier {
     Untrusted,
 }
 
+/// A document's data class, as an opaque tag. recall names no porter type, so it carries the tag
+/// from the caller to the embedder untouched and never reads it: the caller that builds the
+/// documents and the embedder that receives them agree on its spelling (almanac uses the
+/// data-class slug, `mail`, `notes`, and so on). The empty tag, the default, says "no class": an
+/// embedder treats it as its own strictest pin.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
+pub struct ClassTag(pub String);
+
 /// What a search can filter on.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Facets {
@@ -45,6 +53,9 @@ pub struct Doc {
     pub at: i64,
     /// What to filter on.
     pub facets: Facets,
+    /// The data class of its text: the embedder keeps documents of different classes in
+    /// different sessions, so a class's on-device floor holds for exactly its own texts.
+    pub class: ClassTag,
 }
 
 /// Which documents a query may return.

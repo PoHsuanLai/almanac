@@ -16,6 +16,7 @@ fn doc(id_text: &str, text: &str) -> Doc {
             app: None,
             trust: TrustTier::Trusted,
         },
+        class: ClassTag::default(),
     }
 }
 

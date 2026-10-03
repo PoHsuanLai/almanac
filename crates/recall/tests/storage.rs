@@ -20,6 +20,7 @@ fn doc_of(id_text: &str, kind: &str, trust: TrustTier, text: &str) -> Doc {
             app: Some("mail".into()),
             trust,
         },
+        class: ClassTag::default(),
     }
 }
 

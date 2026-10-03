@@ -5,6 +5,7 @@
 #![allow(dead_code)]
 
 pub mod bus;
+pub mod inferd;
 
 use almanac_core::{Caller, Dirs, SpaceId};
 use almanac_dbus::serve_on;

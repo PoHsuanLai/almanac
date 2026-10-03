@@ -7,6 +7,7 @@
 
 mod auth;
 mod backend;
+mod class;
 mod clock;
 mod config;
 pub mod consolidation;
@@ -32,6 +33,7 @@ mod timeline;
 
 pub use auth::{Allowed, allowed};
 pub use backend::{Backend, BackendError};
+pub use class::{class_from_tag, class_of, class_tag};
 pub use clock::Clock;
 pub use config::{
     ConfigError, SpacesFile, rules_from_toml, rules_to_toml, spaces_from_toml, spaces_to_toml,

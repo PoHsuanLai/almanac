@@ -17,6 +17,9 @@ slug_enum!(
         You => "you",
         /// The companion (including computer-use runs).
         Companion => "companion",
+        /// A terminal (`quire-do`): the person or an agent typing in it, which cannot be told
+        /// apart.
+        Terminal => "terminal",
         /// Apps acting on their own.
         Apps => "apps",
         /// Unexplained changes.

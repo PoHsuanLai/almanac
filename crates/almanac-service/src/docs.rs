@@ -4,6 +4,7 @@
 //! Pure: the index is rebuildable from the log and the files because everything here is a
 //! function of them.
 
+use crate::class::tag_of;
 use almanac_core::{
     AppName, EventBody, EventRef, Fact, FactId, IndexPart, Integrity, Label, MessageFault,
     ReplicaId, SenderCheck, Seq, UnixSeconds, from_hex,
@@ -88,6 +89,7 @@ impl EventDoc {
                 app: self.app.map(|a| a.to_string()),
                 trust: tier(&self.label),
             },
+            class: tag_of(&self.label),
         }
     }
 }
@@ -184,6 +186,7 @@ pub(crate) fn fact_doc(fact: &Fact) -> Doc {
             app: None,
             trust: tier(&fact.label),
         },
+        class: tag_of(&fact.label),
     }
 }
 

@@ -212,3 +212,65 @@ fn globs() {
         assert_eq!(glob_matches(pattern, text), want, "{pattern} vs {text}");
     }
 }
+
+#[test]
+fn a_terminals_events_are_audit_class_like_the_companions() {
+    // quire-do cannot tell the person from an agent typing in the terminal: what it does is
+    // audited, so a pause or a Never rule keeps the header and never drops it.
+    let acted: Vec<(&str, Actor, bool)> = vec![
+        ("terminal", Actor::Cli, true),
+        ("companion", companion(), true),
+        ("person", user(), false),
+        ("unexplained", Actor::Unknown, false),
+    ];
+    for (name, actor, audited) in acted {
+        let rec = record(archived_body(), actor);
+        assert_eq!(is_audit_class(&rec), audited, "{name}");
+    }
+
+    let rec = record(archived_body(), Actor::Cli);
+    let header = Admission::HeaderOnly {
+        retention: default_retention(&rec, &RuleSet::standard()),
+    };
+    let paused = SpaceState::Paused {
+        until: UnixSeconds(NOW.0 + 600),
+    };
+    let never_cli = rules(vec![named(
+        "r-cli",
+        rule(RuleScope::Actor(ActorKind::Cli), RememberMode::Never),
+    )]);
+    assert_eq!(
+        admit(&rec, &RuleSet::standard(), &paused, &Marks::default()),
+        header,
+        "paused"
+    );
+    assert_eq!(
+        admit(&rec, &never_cli, &SpaceState::Open, &Marks::default()),
+        header,
+        "a Never rule on the terminal"
+    );
+}
+
+#[test]
+fn a_terminal_is_no_app_so_an_app_rule_matches_it_only_through_its_things() {
+    // No things and no searched app: nothing names an app, and the actor is not one.
+    let rec = record(file_body(FileWhy::Unexplained), Actor::Cli);
+    let never_mail = rules(vec![named(
+        "r-mail",
+        rule(RuleScope::App(app("org.quire.Mail")), RememberMode::Never),
+    )]);
+    let standard = RuleSet::standard();
+    let open = SpaceState::Open;
+    let marks = Marks::default();
+    assert_eq!(
+        admit(&rec, &never_mail, &open, &marks),
+        admit(&rec, &standard, &open, &marks)
+    );
+    // The same terminal acting on a Mail thing is matched by the thing, not by the actor; as an
+    // audit-class record it keeps its header.
+    let on_mail = record(archived_body(), Actor::Cli);
+    assert!(matches!(
+        admit(&on_mail, &never_mail, &open, &marks),
+        Admission::HeaderOnly { .. }
+    ));
+}

@@ -1,5 +1,6 @@
 //! The embedder seam and the fake that tests use.
 
+use crate::doc::ClassTag;
 use crate::vector::{EmbedRole, EmbedderCard, Urgency, Vector};
 use std::future::Future;
 
@@ -50,6 +51,15 @@ impl EmbedError {
     }
 }
 
+/// A text to embed with the data class it came from.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Classed {
+    /// The class of the text (see [`ClassTag`]).
+    pub class: ClassTag,
+    /// The text.
+    pub text: String,
+}
+
 /// Turns texts into vectors. Implementations: `FakeEmbedder` (feature `testing`),
 /// `FastembedEmbedder` (recall-fastembed), `InferdEmbedder` (memoryd, over porter's inference
 /// session).
@@ -65,4 +75,20 @@ pub trait Embedder: Send + Sync {
         role: EmbedRole,
         urgency: Urgency,
     ) -> impl Future<Output = Result<Vec<Vector>, EmbedError>> + Send;
+
+    /// Like [`Embedder::embed`], for texts that each carry a data class. One vector per text, in
+    /// input order, whatever the classes. The default ignores the classes (an embedder that
+    /// runs on this computer has no floor to keep apart); one that sends texts elsewhere keeps
+    /// each class in its own request.
+    fn embed_classed(
+        &self,
+        texts: &[Classed],
+        role: EmbedRole,
+        urgency: Urgency,
+    ) -> impl Future<Output = Result<Vec<Vector>, EmbedError>> + Send {
+        async move {
+            let plain: Vec<String> = texts.iter().map(|t| t.text.clone()).collect();
+            self.embed(&plain, role, urgency).await
+        }
+    }
 }

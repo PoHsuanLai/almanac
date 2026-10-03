@@ -144,6 +144,8 @@ pub fn requests() -> Vec<MemoryRequest> {
                 id: ConfirmId::parse("c-1").expect("id"),
                 input: InputProof::ShellCaller,
                 at: NOW,
+                // A keep endorses; it opens nothing.
+                covers: Confidentiality::Secret,
             }),
         ),
         MemoryRequest::Consolidation(w.clone()),

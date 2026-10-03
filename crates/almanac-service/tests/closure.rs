@@ -79,6 +79,36 @@ fn the_closure_follows_things_events_and_fact_links() {
     assert_eq!(plan.digest(), same.digest());
 }
 
+#[test]
+fn a_terminal_is_no_app_so_forgetting_an_app_reaches_its_events_only_by_their_things() {
+    // seq 1: the terminal on a Notes thing; seq 2: the terminal on a Mail thing; seq 3: Mail's
+    // own user action on a Notes thing.
+    let log = log_of(&[
+        record(thing_body("org.quire.Notes", "n"), Actor::Cli),
+        record(thing_body("org.quire.Mail", "a"), Actor::Cli),
+        record(thing_body("org.quire.Notes", "n"), user("org.quire.Mail")),
+    ]);
+    let graph = FactGraph {
+        nodes: vec![],
+        procedures: vec![],
+    };
+    let events = |scope: ForgetScope| plan_forget(&space("work"), &scope, &log, &graph).events;
+    assert_eq!(
+        events(ForgetScope::App(app("org.quire.Mail"))),
+        vec![Seq(2), Seq(3)]
+    );
+    assert_eq!(
+        events(ForgetScope::App(app("org.quire.Notes"))),
+        vec![Seq(1), Seq(3)],
+        "Notes' things, whoever touched them"
+    );
+    assert_eq!(
+        events(ForgetScope::Space),
+        vec![Seq(1), Seq(2), Seq(3)],
+        "the Space reaches the terminal's events"
+    );
+}
+
 fn untrusted() -> Label {
     label(Integrity::Untrusted)
 }

@@ -19,7 +19,7 @@ almanac-watch = { workspace = true }
 almanac-dbus = { workspace = true }
 porter-core = { workspace = true }
 porter-infer = { workspace = true }
-porter-client = { workspace = true }
+porter-client = { workspace = true, features = ["dbus"] }
 clap = { workspace = true }
 getrandom = { workspace = true }
 rusqlite = { workspace = true }
@@ -32,6 +32,7 @@ serde_json = { workspace = true }
 blake3 = { workspace = true }
 
 [dev-dependencies]
+porter-dbus = { workspace = true }
 almanac-client = { workspace = true, features = ["dbus"] }
 almanac-fake = { workspace = true }
 almanac-seal = { workspace = true, features = ["testing", "oo7"] }

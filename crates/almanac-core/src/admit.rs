@@ -10,17 +10,21 @@ use crate::rules::{
 use crate::space::SpaceState;
 use prov::{Actor, ActorKind, SystemPart};
 
-/// Whether the record is part of the audit trail: the companion's, the router's, every
-/// other area's payloads, and every message and episode (so a pause keeps headers only). Such records are never dropped for policy reasons (pause, `Never`
-/// rules, marks); at worst they keep their header.
+/// Whether the record is part of the audit trail: the companion's, a computer-use run's, a
+/// terminal's (`quire-do` cannot tell the person from an agent typing in it, so what it does is
+/// audited like an agent's), the router's, every other area's payloads, and every message and
+/// episode (so a pause keeps headers only). Such records are never dropped for policy reasons
+/// (pause, `Never` rules, marks); at worst they keep their header.
 pub fn is_audit_class(record: &Record) -> bool {
-    let by_actor = matches!(record.actor.kind(), ActorKind::Companion | ActorKind::Cua)
-        || matches!(
-            record.actor,
-            Actor::System {
-                part: SystemPart::Router | SystemPart::Cua
-            }
-        );
+    let by_actor = matches!(
+        record.actor.kind(),
+        ActorKind::Companion | ActorKind::Cua | ActorKind::Cli
+    ) || matches!(
+        record.actor,
+        Actor::System {
+            part: SystemPart::Router | SystemPart::Cua
+        }
+    );
     by_actor
         || matches!(
             record.body,
@@ -150,7 +154,13 @@ fn app_of(record: &Record) -> Vec<porter_core::AppName> {
         Actor::User { via: app } | Actor::App { app } | Actor::ThirdParty { app, .. } => {
             apps.push(app.clone());
         }
-        _ => {}
+        // No app acts: a terminal (`Cli`) is not an app, so an App-scoped rule never matches it
+        // by actor (it still matches the things and the search the event is about).
+        Actor::Companion { .. }
+        | Actor::Mcp { .. }
+        | Actor::Cli
+        | Actor::System { .. }
+        | Actor::Unknown => {}
     }
     apps
 }
