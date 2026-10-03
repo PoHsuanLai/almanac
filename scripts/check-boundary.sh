@@ -18,8 +18,12 @@ cd "$(dirname "$0")/.."
 # `tokio` feature. recall-fastembed and memoryd are the places that reach fastembed and the
 # daemon's runtime, so they have no rule.
 EFFECTS="zbus zvariant tokio reqwest hyper oo7 ort fastembed"
+# almanac-core is also light enough for cua-bus to depend on (interface ask 26: `HandedBack`
+# carries `almanac_core::EventRef`; cua's own EFFECTS list adds these to ours), so it reaches none
+# of them either.
+CUA_EFFECTS="hyper-util rustls pipewire wayland-client wayland-backend wayland-server reis atspi rmcp cedar-policy"
 RULES=(
-  "almanac-core: $EFFECTS rusqlite notify toml"
+  "almanac-core: $EFFECTS rusqlite notify toml $CUA_EFFECTS"
   "almanac-seal: $EFFECTS rusqlite notify"
   "eventlog: $EFFECTS notify"
   "memfiles: $EFFECTS rusqlite notify"

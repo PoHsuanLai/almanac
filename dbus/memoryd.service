@@ -1,0 +1,27 @@
+# memoryd as a systemd user unit (org.quire.Memory1 on the session bus).
+#
+# It needs no network (the bus is a unix socket; inferd is another daemon behind the bus) and
+# writes only the memory directories, so the unit says so. Paths are `-` prefixed because they do
+# not exist before the first run.
+[Unit]
+Description=quire memory (org.quire.Memory1)
+Documentation=man:memoryd(1)
+
+[Service]
+Type=dbus
+BusName=org.quire.Memory1
+ExecStart=/usr/libexec/quire/memoryd
+Restart=on-failure
+RestartSec=2
+
+PrivateNetwork=yes
+PrivateTmp=yes
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=-%h/.local/share/quire/memory -%h/.cache/quire/memory -%h/.config/quire -%t/quire/memory
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX
+LockPersonality=yes
+MemoryDenyWriteExecute=yes

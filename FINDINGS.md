@@ -2,22 +2,12 @@
 
 Open items and standing facts. An entry names the condition that closes it. At the freeze
 (porter 4623e18) there were 59 `todo!()` bodies; fill waves 1 and 2 (eventlog, memfiles, recall, seal,
-watch, almanac-service) removed 53, so **6 remain** (below, one row per crate or file with the
-count), all in the bus and daemon wave. No contract test is `#[ignore]`d except the by-hand
-fastembed one.
+watch, almanac-service) removed 53 and the bus and daemon wave (F2 memoryd, below) removed the last
+6, so **0 remain**. No contract test is `#[ignore]`d except the by-hand fastembed one.
 
 ## Stubs behind frozen interfaces
 
-| Where | Count | Closes when |
-| --- | --- | --- |
-| almanac-dbus codec `encode_request`, `decode_reply` | 2 | fill wave 3: one match from `MemoryRequest` to member and JSON arguments; a bus error name maps back to `Refusal` (`MemoryError::refusal`) |
-| almanac-client `DbusTransport::call` | 1 | fill wave 3, with the codec |
-| memoryd `InferdEmbedder::embed`, `InferdConsolidator::draft` | 2 | fill wave 3, blocked on porter's `DbusTransport::open` and session fills; the embedder's `DataClass` is the document's, `Usage::Background` for indexing |
-| memoryd `SystemBackend::open_index` | 1 | fill wave 3: open `index.db` with `PRAGMA key` from `Purpose::Index`, create `recall::SCHEMA_V1` on a new file |
-| memoryd `main` (serving the bus, systemd unit, Landlock) | 0 todo; skeleton | fill wave 3: serve the three interfaces, the unit with `PrivateNetwork=yes`, `ProtectSystem=strict`, `ReadWritePaths=` for the memory directories only, `ProtectHome=read-only` for watching |
-| daemons serve their bus | | the items above |
-
-Total: 2 + 1 + 2 + 1 = 6 (almanac-dbus codec, almanac-client `DbusTransport::call`, memoryd's embedder, consolidator and `open_index`).
+None. What still waits on other repos is under "Open" below (porter's transports, docket, cua).
 
 ## Built at the freeze (pinned by tests)
 
@@ -246,13 +236,129 @@ Decisions the fill made where the frozen text left room:
   refuses anything `desktop_admits` does not `Admit` (`Invalid`).
 - **A `Message` is recorded in the receiving Space** (`to.space`); `Invalid` for a forged sender, a
   malformed message, an untrusted skeleton or a label less restrictive than its documents.
-- **Not done by the service yet**: Tidy, Stamp, ExternalEdit and Flag hunks are reviewable but not
-  applied (Promote and Supersede are, into topic `consolidated`); the retention sweep is not
-  triggered by any request; `AnchorFinalHead` on Space deletion; marks are not persisted; `FactView.used`
-  is always 0; why an old body is gone after a restart is inferred (retention, else forgotten).
-- **Interface ask (eventlog)**: `rows.rs` writes the `things` table from `body.things()`; the contract
-  is `thing_refs()` (messages naming an entity). `plan_forget` scans the log, so forgetting is right
-  either way, but `LogRead::touching` misses messages.
+- **Closed by the memoryd wave** (was "not done by the service yet"): Tidy, Stamp, ExternalEdit
+  and Flag hunks, the retention sweep and its trigger, `AnchorFinalHead`, persisted marks and
+  `FactView.used`; and the eventlog `things` rows now come from `thing_refs()`. See the next
+  section for what each means.
 - **ContentDigest** is plain unkeyed `blake3` of the file's bytes (documented on the type and on
   `FileWhyClaim.content`).
 - `FakeEmbedder::with_max_batch` sets the card's `max_batch`.
+
+## Bus and daemon fill (wave F2, memoryd)
+
+**The bus.** `almanac-dbus` has one member table, both ways: `encode_request`/`decode_request` and
+`decode_reply`/`encode_reply` (`codec/`), `invoke` (the caller's half, over the proxies) and the
+served objects (`serve.rs`, the daemon's half, over a `Serve` handler). The frozen unit-struct
+skeletons stay as the introspection source; `tests/served.rs` pins that the objects memoryd
+serves introspect the same, and both equal `dbus/org.quire.Memory1.xml`. The XML gained `Control.Sweep`
+(30 methods became 31). Conventions the codec fixes: a Space argument is its plain id and every other
+typed argument is JSON; a Space argument that differs from the Space inside the body is `Invalid`;
+`Primer` answers the markdown, `RecordBatch`'s count is a decimal, and a `Record` or `RecordBatch`
+that admission dropped answers an empty first output (so the client sees `Recorded::NoMemory`);
+`RunConsolidation` answers nothing (the draft is read with `Consolidation`); a refusal is the bus
+error of its name, one to one. `DbusTransport::call` maps a missing daemon
+(`ServiceUnknown`, `NameHasNoOwner`) to `Absent`; `Export` needs a stream, so it has
+`DbusTransport::export(options, fd)` and `call(Export)` is a `Bus` error.
+
+**Who is calling.** `Peers` turns the sender's unique name into a `Caller`. `ProcPeers` asks the bus
+for the connection's pid, reads `/proc/<pid>/exe` and looks it up in
+`<config>/quire/memory-callers.toml` (`router`, `shell`, `cuad` as lists of executables, `[apps]`
+mapping an `AppName` to its executables; the fixed roles win over an app entry). A missing or
+unreadable file allows nobody. This is advisory for unsandboxed processes (porter R12); a sandbox
+identity (Flatpak, a cgroup scope) would be another `Peers`. `TablePeers` is the test seam.
+
+**One queue per Space.** `Serialised` wraps the service: a request that names Spaces holds their
+queues in id order (a message holds the receiver's), one that cannot name them (`Forget`, `Settle`,
+`Revert`, `Export`, the rules, the timer's sweep) holds all of them, `Spaces` and `Rules` hold none.
+`Busy` never reaches a client; the cost is that `RunConsolidation` (a model call) holds its Space's
+queue for as long as it runs.
+
+**memoryd's seams.** `SystemBackend<K, E, C>` takes any key store, embedder and consolidator (the
+defaults are the real ones), so a test keeps SQLCipher and the sealed vault real and swaps the rest.
+`open_index` opens `index.db` with `PRAGMA key` from `Purpose::Index`, creates `recall::SCHEMA_V1`
+and sets `user_version` on a new file, and gives FTS5 and the vectors a connection each.
+`Backend::random` (OS randomness, mixed into every id the service mints) and
+`Backend::remove_space` (the Space's directory, its index directory and its edit copies) are the
+two new seam methods. `SqliteLog::open_for` takes the digest subkey, so `append` refuses a body that
+does not match its header (`BadDigest`); `open` (no Space, no key) does not check.
+
+**The models.** `InferdEmbedder` asks for `Need::Embeddings` of the card's length with
+`Usage::Background` for indexing, maps `EmbedRole` and `Urgency`, and treats a reply of the wrong
+count or length as fatal (another vector space). It carries one `DataClass` (default `Mail`, the
+on-device floor), because `Embedder::embed` has no per-document class. `InferdConsolidator` sends
+`Task::Extract` in the background with the most sensitive class among the labels it reads; the
+model answers `{"hunks": [...]}` of `promote`, `supersede` and `flag` that cite links, and memoryd
+builds the facts (label = the join of what they cite, `almanac_service::cited_label`, which
+`check_draft` also uses; id from a hash of the run and the text; date from the run). A hunk that
+cites nothing in the input is dropped, an answer that is not the object is `Unparseable`.
+`ConsolidationInput` gained `now`.
+
+**Hunks the service applies.** Tidy replaces a topic file by its reworded form only if the file is
+still the `before` the draft saw, the topic is the same and every fact keeps its id, author, label,
+links and date (only its text may change); anything else is not applied. Stamp turns a bullet the
+person wrote into a fact (author the shell's user, label trusted); a run adds a Stamp for every
+unstamped bullet by itself. ExternalEdit indexes the file again (the person's edit stands; facts
+the old text had that are gone leave the index). Flag keeps the model's note in `flags/<run>.json`
+and changes no fact. Every file a run rewrote is kept as a pre-image and `Revert` puts it back
+before it re-indexes.
+
+**Sweep.** `MemoryRequest::Sweep(space)` (the shell's) and memoryd's timer (one minute after start,
+then daily) erase the bodies whose retention (the rule that would admit them now, else the kind's
+default) has run out and drop their index documents; `WhileSourceExists` counts a thing or file as
+gone once a later event (or the event itself) says deleted. Then the longest prefix of entries whose
+bodies are gone and whose headers are a year old is pruned behind a checkpoint
+(`memory.checkpoint` in the audit).
+
+**Space deletion.** After the plan applies, the final head goes into the `desktop` Space's log as
+`MemoryOp::SpaceDeleted { space, head }` (best effort: a locked desktop log does not stop the
+person's deletion), the key is destroyed, the stores are closed and `remove_space` removes the
+directories.
+
+**Marks** are in the Space's vault (`meta/marks.json`, sealed like every file there).
+**`FactView.used` and `last_used`** are counted from the router's `Memory.Read` audit entries that
+list the fact; they last as long as those bodies (90 days).
+
+**memoryd main** serves the session bus with `ProcPeers`, persists `spaces.toml` and `memory.toml`
+after each request that changed them, emits `Recorded`, `Forgotten`, `ConsolidationReady`,
+`PendingChanged` (when a proposal lands pending) and `StatusChanged` (after pause, resume and
+rebuild), and runs on the multi-thread runtime (an export writes to the caller's stream blocking).
+`dbus/memoryd.service` and `dbus/org.quire.Memory1.service` are the user unit (`PrivateNetwork`,
+`ProtectSystem=strict`, `ProtectHome=read-only`, `ReadWritePaths` for the memory directories only)
+and the activation file. Landlock is not applied.
+
+**The inferd link is `NoInference` until porter's transports exist.** `porter-client`'s
+`DbusTransport::open` and `Accounts::connect` are still `todo!()`, so `main` builds the embedder
+and consolidator over a transport that answers `Unreachable`: recall is lexical-only and
+consolidation is unavailable. When porter fills them, `main` switches to `SystemBackend::new` with
+the transport `Accounts::connect` picks; nothing else changes. `default_card()` is the card of the
+default embedding model (768 numbers, nomic prefixes) and must match what inferd serves.
+
+**Interface ask 26 (cua `HandedBack.user_events`): decided, and done on this side.** Option taken:
+`cua-bus` depends on `almanac-core` and carries `almanac_core::EventRef`; no memory call at record
+time. Why: `almanac-core` is already pure (its tree is `porter-core`, `prov`, serde, thiserror),
+cua is above almanac in the repo order and cuad already depends on it, so the edge costs cua-bus
+nothing it does not already link; a memory call at record time would need `Caller::Cuad` to read
+events, which the authorisation matrix refuses on purpose (cuad handles untrusted screen text).
+`scripts/check-boundary.sh` now also forbids cua's own effects list (`hyper-util rustls pipewire
+wayland-* reis atspi rmcp cedar-policy`) from `almanac-core`, so the edge cannot break cua's
+boundary later. What cua does (not in this repo): add `almanac-core` to cua-bus's `Cargo.toml` and to
+its row in `check-boundary.sh`, and give `HandedBack` `user_events: Vec<EventRef>`. The router, not
+cuad, reads the person's events during the takeover (`Recent`, a `Router` call) and hands them over.
+
+### Open after the memoryd wave
+
+- **Per-document data class for embedding**: `Embedder::embed` has no class, so one embedder has one
+  class. Closes when `recall::Doc` carries a class tag the embedder may map (recall names no porter
+  type, so a plain string facet) or memoryd keeps one embedder per class.
+- **Re-embedding at every start**: opening a Space with documents rebuilds its index (the service
+  does it on open), which re-embeds everything through inferd in the background. Closes when `Index`
+  can adopt an existing `index.db` whose card matches (a `state` read from `meta`).
+- **The model cannot propose Tidy or ExternalEdit**: `ConsolidationInput` carries facts and events,
+  not topic file text, and nothing detects an external edit (it needs a baseline of the last text the
+  service wrote). Stamp is proposed mechanically. The apply paths are built and tested.
+- **Flags are not shown**: `flags/<run>.json` is written, but `FactView` has no flagged field and no
+  member reads the file; the last run's `DraftView` does show the hunk. Needs a `FactView.flagged`
+  (wire change) or a `Flags` member.
+- **`StatusChanged` on a lost key** and `PendingChanged` after `Settle` or ageing are not emitted
+  (the service raises no event for them).
+- **Landlock** for memoryd is not applied.

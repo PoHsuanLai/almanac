@@ -1,0 +1,4 @@
+[D-BUS Service]
+Name=org.quire.Memory1
+Exec=/usr/libexec/quire/memoryd
+SystemdService=memoryd.service

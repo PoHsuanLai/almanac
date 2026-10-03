@@ -17,17 +17,17 @@ trait), section 5 (what is built), section 6 (copy the recipe).
 | Crate | Purpose | I/O |
 | --- | --- | --- |
 | `almanac-core` | the vocabulary: ids and their grammars (`FactId`, `TopicPath`, `KindTag`, `KindPattern`, `SpacePath`), things (`ThingRef` = `prov::EntityId`), `Record`, `EventBody` (with `Message` and `Episode`), `AreaPayload`, `Episode` and its skeleton, `InjectQuery`/`RecentQuery`, facts, remember rules and the pure `admit`, the wire (`MemoryRequest`, `MemoryReply`, `Refusal`, `Caller`), the timeline, forget-plan, draft and status views, the export manifest, `Dirs`; re-exports the porter and `prov` names the other crates use | none |
-| `almanac-seal` | `SpaceKey`, purpose subkeys (`derive`), `DbKey`, `seal`/`unseal` for files, the `KeyStore` seam, `MemoryKeys` (feature `testing`), `Oo7Keys` (feature `oo7`, stubbed) | none (oo7 behind its feature) |
-| `eventlog` | the header's canonical bytes, `link`, `verify_chain`, `LogRead`/`LogWrite`, `SqliteLog` (SQLCipher, stubbed), `MemoryLog` (feature `testing`), the schema | rusqlite |
-| `memfiles` | the topic file format (`parse_topic`, `render_topic`, the trailer), `VaultPath`, the `Vault` seam, `PlainDir`/`SealedDir` (stubbed), `MemoryVault` (feature `testing`), `Store`, `Primer` | the filesystem through `Vault` |
+| `almanac-seal` | `SpaceKey`, purpose subkeys (`derive`), `DbKey`, `seal`/`unseal` for files, the `KeyStore` seam, `MemoryKeys` (feature `testing`), `Oo7Keys` (feature `oo7`) | none (oo7 behind its feature) |
+| `eventlog` | the header's canonical bytes, `link`, `verify_chain`, `LogRead`/`LogWrite`, `SqliteLog` (SQLCipher), `MemoryLog` (feature `testing`), the schema | rusqlite |
+| `memfiles` | the topic file format (`parse_topic`, `render_topic`, the trailer), `VaultPath`, the `Vault` seam, `PlainDir`/`SealedDir`, `MemoryVault` (feature `testing`), `Store`, `Primer` | the filesystem through `Vault` |
 | `recall` | generic: `Embedder`, `VectorIndex`, `Fts5`, `ExactScan`, `Index`, `fuse_rrf`, `chunk`, the index state machine, `FakeEmbedder` (feature `testing`). Knows nothing of almanac | rusqlite |
 | `recall-fastembed` | `FastembedEmbedder` (in-process ONNX). Excluded from clippy and test: ort downloads binaries | ort through fastembed |
 | `almanac-service` | memoryd's core over seams: `allowed`, the Space, fact, forget-plan and consolidation machines, retention, timeline rows, the export writer, the config files, `Backend` and `MemoryService` | none (seams are passed in) |
-| `almanac-watch` | `FileWatch`, `InotifyWatch` (notify 8.2, stubbed), the pure `join` of observed changes and app-supplied reasons | inotify |
-| `almanac-dbus` | `org.quire.Memory1` (`Record`, `Recall`, `Control`) as zbus proxies and skeletons, `MemoryError`, introspection, the argument codec (stubbed) | zbus |
+| `almanac-watch` | `FileWatch`, `InotifyWatch` (notify 8.2), the pure `join` of observed changes and app-supplied reasons | inotify |
+| `almanac-dbus` | `org.quire.Memory1` (`Record`, `Recall`, `Control`) as zbus proxies and skeletons (the introspection source), `MemoryError`, the argument codec (`encode_request`/`decode_request`, `encode_reply`/`decode_reply`), `invoke` (the caller's half) and the served objects over a `Serve` handler (the daemon's half) | zbus |
 | `almanac-client` | the app-facing `Memory` over a `Transport`: `Absent` (no-op on other desktops), `DbusTransport` (feature `dbus`), `InProcess` (feature `in_process`, off by default: only it links `almanac-service`, SQLCipher and OpenSSL) | through its transport |
-| `almanac-fake` | test-only: `fake_service`, `FakeBackend`, `FixedClock`, `ScriptedConsolidator`, `Scratch`, the five fixtures | none |
-| `memoryd` | the daemon and its library: `SystemBackend`, `SystemClock`, `InferdEmbedder`, `InferdConsolidator`, the XDG roots. The binary is a skeleton that exits | everything |
+| `almanac-fake` | test-only: `fake_service`, `FakeBackend`, `FixedClock`, `SteppedClock`, `SharedVault`, `ScriptedConsolidator`, `Scratch`, the five fixtures | none |
+| `memoryd` | the daemon and its library: `SystemBackend` (over any key store, embedder and consolidator), `SystemClock`, `InferdEmbedder`, `InferdConsolidator`, the XDG roots, `Serialised` (a queue per Space), `Peers` (who is calling), `Daemon` (the bus handler); the binary serves the session bus | everything |
 
 Allowed direct edges (checked by `scripts/check-boundary.sh`; dev-dependencies are outside it):
 
@@ -66,12 +66,12 @@ may reach `notify` and never `rusqlite`; `almanac-dbus` reaches `tokio` only thr
 | `eventlog` | `header` < `chain`, `filter`, `traits` < `memory`, `sqlite` |
 | `memfiles` | `vault`, `trailer` < `topic` < `memory`, `dirs`, `store` |
 | `recall` | `doc`, `vector`, `fuse`, `state`, `embed` < `fts`, `exact`, `fake` < `index` |
-| `almanac-service` | `clock`, `auth`, `retention`, `space`, `fact`, `forget`, `consolidation`, `timeline`, `export`, `config` < `backend` < `service` |
+| `almanac-service` | `clock`, `auth`, `retention`, `space`, `fact`, `forget`, `consolidation`, `timeline`, `export`, `config`, `marks` < `backend` < `service` < `open`, `record`, `facts`, `search`, `run`, `hunks`, `sweep`, `erase`, `control`, `dispatch` |
 | `almanac-watch` | `observed` < `join` < `inotify` |
-| `almanac-dbus` | `names`, `error`, `record`, `recall`, `control`, `codec`, `introspect` |
+| `almanac-dbus` | `names`, `error`, `record`, `recall`, `control` (skeletons and proxies), `codec` (`request`, `reply`), `invoke`, `serve`, `introspect` |
 | `almanac-client` | `transport` < `memory` |
 | `almanac-fake` | `clock`, `consolidator`, `fixtures`, `scratch` < `backend` |
-| `memoryd` | `xdg`, `clock`, `infer` < `backend` < `main` |
+| `memoryd` | `xdg`, `clock`, `infer` (`embed`, `consolidate`, `prompt`), `peers`, `signals` < `backend`, `queue` < `daemon` < `main` |
 
 ## 3. One home per concept
 
@@ -147,7 +147,7 @@ pub trait Consolidator: Send + Sync {
 }
 pub trait Clock: Send + Sync { fn now(&self) -> UnixSeconds; }
 // The service's seams, bundled as associated types: FakeBackend, memoryd's SystemBackend.
-pub trait Backend: Send + Sync { type Keys; type Log; type Files; type Vectors; type Embedder; type Consolidator; type Clock; /* + open_log, open_files, open_index */ }
+pub trait Backend: Send + Sync { type Keys; type Log; type Files; type Vectors; type Embedder; type Consolidator; type Clock; /* + random, remove_space, open_log, open_files, open_index */ }
 
 // almanac-watch: InotifyWatch (fanotify later).
 pub trait FileWatch: Send { fn watch(..); fn unwatch(..); fn next(&mut self) -> impl Future<Output = Option<Observed>> + Send; }
@@ -161,35 +161,32 @@ Closed sets stay enums: `EventBody`, `MemoryOp`, `FileChange`, `RuleScope`, `Rem
 `Link`, `FactState`, `Settlement`, `Hunk`, `RunState`, `SpaceState`, `IndexView`, `Break`,
 `ChainReport`, `ExportedBody`, memoryd's `SpaceVault`.
 
-## 5. What is frozen, what is built, what is stubbed
+## 5. What is frozen, what is built
 
 Frozen means: the types, trait signatures, file formats and D-Bus signatures below are the
-interface other work builds on; a change is a format bump (section 6) or a SPEC edit.
+interface other work builds on; a change is a format bump (section 6) or a SPEC edit. Every
+`todo!()` of the freeze is filled (fill waves 1 to 3); nothing is stubbed.
 
 | Piece | State |
 | --- | --- |
 | ids, grammars, `UserText`, wire and stored forms, kind tags, `Dirs` layout | built; every variant round-trip and JSON pinned tests |
 | `admit`, `default_retention`, globs, `allowed` | built, table-tested |
 | event header canonical bytes, `link`, genesis, keyed body digest, `verify_chain` | built; golden bytes |
-| `MemoryLog` | built; the contract every log meets |
-| `SqliteLog` (the schema is frozen and tested as SQL) | stub |
-| key derivation (contexts pinned), `seal`/`unseal`, `DbKey`, `MemoryKeys` | built; golden derivation |
-| `Oo7Keys` | stub (the attribute scheme is built) |
-| topic file format, trailer grammar, `parse_topic`/`render_topic`, `VaultPath`, `MemoryVault`, `Primer` | built; golden file |
-| `PlainDir`, `SealedDir`, `Store` | stub |
-| `fuse_rrf`, `chunk`, `nearest_exact`, the vector BLOB, `match_expression`, the index state machine, `FakeEmbedder` | built, table-tested; FTS5 verified compiled in |
-| `Fts5`, `ExactScan`, `Index`, `FastembedEmbedder` | stub |
+| `MemoryLog`, `SqliteLog` | built; one contract, `SqliteLog` also over a file (SQLCipher, keyed digest checked on append) |
+| key derivation (contexts pinned), `seal`/`unseal`, `DbKey`, `MemoryKeys`, `Oo7Keys` | built; golden derivation |
+| topic file format, trailer grammar, `parse_topic`/`render_topic`, `VaultPath`, `MemoryVault`, `PlainDir`, `SealedDir`, `Store`, `Primer` | built; golden file |
+| `fuse_rrf`, `chunk`, `nearest_exact`, the vector BLOB, `Fts5`, `ExactScan`, `Index`, `FakeEmbedder`, `FastembedEmbedder` | built, tested |
 | the Space, fact, plan and consolidation machines, `Plan::digest`, retention, timeline rows | built, table-tested |
+| every hunk (Promote, Supersede, Tidy, Stamp, ExternalEdit, Flag), revert, the retention sweep, marks, use counts | built; `almanac-fake/tests/hunks.rs` |
 | the export writer, `EventLine`, config files (`memory.toml`, `spaces.toml`) | built; golden tar layout and event lines |
-| `plan_forget`, `check_draft`, `MemoryService::{handle, export}` | stub |
-| the file-why `join` | built, table-tested |
-| `InotifyWatch` | stub |
-| D-Bus skeletons, proxies, `dbus/org.quire.Memory1.xml`, `MemoryError` | frozen, introspection tested; skeleton methods answer `NotSupported` |
-| D-Bus codec, `DbusTransport` | stub |
+| `plan_forget`, `check_draft`, `MemoryService` | built |
+| the file-why `join`, `InotifyWatch` | built |
+| D-Bus skeletons, proxies, `dbus/org.quire.Memory1.xml`, `MemoryError` | frozen, introspection tested (the skeletons and the served objects both) |
+| D-Bus codec, `invoke`, the served objects, `DbusTransport` | built; `almanac-dbus/tests/codec.rs` (every wire sample, both directions) |
 | `Memory`, `Absent`, `InProcess` | built, tested |
-| `fake_service`, fixtures, scratch dirs | built; the service contract tests are `#[ignore]`d until the service is |
-| `SystemBackend`, `SystemClock`, XDG roots | built (open_index is a stub); `InferdEmbedder`, `InferdConsolidator` stub |
-| `memoryd` binary | skeleton: resolves its directories, says what is frozen, exits 2 |
+| `fake_service`, fixtures, scratch dirs | built |
+| `SystemBackend`, `SystemClock`, XDG roots, `InferdEmbedder`, `InferdConsolidator` | built; the models are tested over a scripted inferd session |
+| `Serialised`, `Peers`, `Daemon`, the `memoryd` binary | built; `memoryd/tests/bus.rs` is the end-to-end test on a private bus |
 
 ## 6. File formats (frozen)
 
@@ -275,8 +272,10 @@ log on restart. Both are `Router` or `ShellUi`, both audited as `Memory.Read`
 
 **Add a request**: the variant in `MemoryRequest` and its reply in `MemoryReply`; its arm in
 `MemoryRequest::space`, in `allowed` (the match is exhaustive) and in `MemoryService::handle`;
-the D-Bus member in `almanac-dbus` (proxy and skeleton), then regenerate and review
-`dbus/org.quire.Memory1.xml`; a method on `Memory`; the codec arm.
+the D-Bus member in `almanac-dbus` (proxy, skeleton and served object), then regenerate and review
+`dbus/org.quire.Memory1.xml`; a method on `Memory`; the arms of `encode_request`, `decode_request`,
+`decode_reply`, `encode_reply` and `invoke`; the sample in `almanac-core/tests/common/samples.rs`
+(the wire and codec tests read it); its queue claim in `memoryd::claim_of`.
 
 **Add a vector backend**: a `VectorIndex` implementation in its own crate (never in `recall`
 if it needs `unsafe` or an extension: the rule is no `unsafe` anywhere); the contract tests of
@@ -297,9 +296,13 @@ in the opener, the golden updated in the same commit (review the diff of the gol
 `MemoryService` over `MemoryKeys`, `MemoryLog`, `MemoryVault`, an `Index<ExactScan>` over
 in-memory SQLite, `FakeEmbedder` and `FixedClock(NOW)`; `Scratch` gives scratch XDG roots;
 `mail_thread_archived`, `file_saved_from_attachment`, `companion_forwarded`, `cua_run_step` and
-`policy_ask` are the fixtures. Tests never touch a bus, a keyring, the network or the real XDG
-directories; the D-Bus test only introspects skeletons in memory. `almanac-fake/tests/service.rs`
-and `almanac-client/tests/memory.rs` are the model for end-to-end tests once the service is built.
+`policy_ask` are the fixtures; `FakeBackend::vault_of` and `advance_clock` let a test edit files
+behind the service's back and move time. Tests never touch the real session bus, a keyring, the
+network or the real XDG directories: `memoryd/tests/common` starts a private `dbus-daemon` on a
+socket in a scratch directory, scratch XDG roots and an in-memory key store, and
+`memoryd/tests/bus.rs` calls the daemon through `almanac-client`'s `DbusTransport`.
+`almanac-fake/tests/service.rs` and `almanac-client/tests/memory.rs` are the model for tests over
+the fakes.
 
 ## 9. Repo rules
 
@@ -324,7 +327,8 @@ and `almanac-client/tests/memory.rs` are the model for end-to-end tests once the
 - **The wire is serde.** Every stored or wire type has a round-trip test; enums with data are
   adjacently tagged (`kind`/`v`).
 - **D-Bus signatures change with their XML.** `almanac-dbus/tests/introspection.rs` fails until
-  `dbus/org.quire.Memory1.xml` equals the skeletons' introspection.
+  `dbus/org.quire.Memory1.xml` equals the skeletons' introspection, and `tests/served.rs` until
+  the served objects (what memoryd runs) introspect the same.
 - **Keys and bodies never cross a transport in the clear.** No wire type holds a `SpaceKey`;
   the digest subkey leaves only in an export the person asked to include it in.
 - **Floats** appear only in `recall::Vector` (embeddings are floats end to end).
