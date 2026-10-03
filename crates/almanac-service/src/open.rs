@@ -62,6 +62,12 @@ pub(crate) struct Open<B: Backend> {
     pub notes: ErasedNotes,
     pub run: RunState,
     pub last: Option<LastRun>,
+    /// Topic files as the service last left them (`baseline.rs`).
+    pub baseline: crate::baseline::Baseline,
+    /// Topics found edited by someone else when the request began.
+    pub dirty: BTreeSet<TopicPath>,
+    /// What happened during the request that the bus should hear of (drained by the service).
+    pub outbox: Vec<crate::events::ServiceEvent>,
 }
 
 /// A fact as the files hold it.
@@ -264,6 +270,23 @@ impl<B: Backend> Open<B> {
                 recall::IndexError::Embed(_) => Refusal::Busy,
                 other => failed(other),
             })
+    }
+
+    /// Brings the index in line with the truth at open: an index the embedder's own is adopted
+    /// (only what changed is embedded), anything else is rebuilt (`Index::sync`). An embedder
+    /// that fails does not stop the Space opening: the index says why in its state and the next
+    /// start tries again.
+    pub(crate) async fn sync_index(&mut self, cx: &Cx<'_, B>) -> Result<(), Refusal> {
+        let docs = self.truth_docs()?;
+        match self
+            .rt
+            .index
+            .sync(docs.into_iter(), cx.backend.embedder())
+            .await
+        {
+            Ok(()) | Err(recall::IndexError::Embed(_)) => Ok(()),
+            Err(other) => Err(failed(other)),
+        }
     }
 
     /// The links of a fact that name events, for the timeline's derived counts.

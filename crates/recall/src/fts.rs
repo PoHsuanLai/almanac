@@ -1,17 +1,19 @@
 //! Lexical search: FTS5 in `index.db`. One implementation, so a struct and not a trait.
 
-use crate::doc::{Allow, Doc, DocId, Ranked, TopK, TrustTier};
+use crate::doc::{Allow, Doc, DocId, Facets, Ranked, StoredDoc, TopK, TrustTier};
 use crate::index::IndexError;
+use crate::vector::EmbedderCard;
 
 /// The tables of `index.db` (SQLCipher, deletable and rebuilt from the files and the log).
 /// `docs` is the FTS5 table; `vectors` holds `ExactScan`'s BLOBs; `meta` records the embedder
-/// card the vectors came from and the format.
+/// card the vectors came from (`space` is `EmbedderCard::space_key`, empty until vectors exist;
+/// a file made before the column is given it when the card is first recorded) and the format.
 pub const SCHEMA_V1: &str = "
 CREATE VIRTUAL TABLE docs USING fts5(
   text, id UNINDEXED, kind UNINDEXED, app UNINDEXED, trust UNINDEXED, at_s UNINDEXED,
   tokenize = 'unicode61 remove_diacritics 2');
 CREATE TABLE vectors(id TEXT PRIMARY KEY, vec BLOB NOT NULL);
-CREATE TABLE meta(format INTEGER NOT NULL, model TEXT, dims INTEGER, metric TEXT);
+CREATE TABLE meta(format INTEGER NOT NULL, model TEXT, dims INTEGER, metric TEXT, space TEXT);
 ";
 
 /// The FTS5 `MATCH` expression for free text: every alphanumeric word quoted, joined with `OR`
@@ -46,7 +48,7 @@ impl Fts5 {
     pub fn create(&self) -> Result<(), IndexError> {
         self.conn.execute_batch(SCHEMA_V1)?;
         self.conn.execute(
-            "INSERT INTO meta(format, model, dims, metric) VALUES (?1, NULL, NULL, NULL)",
+            "INSERT INTO meta(format, model, dims, metric, space) VALUES (?1, NULL, NULL, NULL, NULL)",
             [FORMAT],
         )?;
         Ok(())
@@ -113,6 +115,75 @@ impl Fts5 {
             .zip(1u32..)
             .map(|(id, rank)| Ranked { id, rank })
             .collect())
+    }
+
+    fn has_space_column(&self) -> Result<bool, IndexError> {
+        Ok(self
+            .conn
+            .prepare("SELECT 1 FROM pragma_table_info('meta') WHERE name = 'space'")?
+            .exists([])?)
+    }
+
+    /// The vector space the index says its vectors are in: `None` for a file that never recorded
+    /// one (so its vectors cannot be trusted).
+    pub fn recorded_space(&self) -> Result<Option<String>, IndexError> {
+        if !self.has_space_column()? {
+            return Ok(None);
+        }
+        Ok(self
+            .conn
+            .query_row("SELECT space FROM meta", [], |r| {
+                r.get::<_, Option<String>>(0)
+            })
+            .or_else(|e| match e {
+                rusqlite::Error::QueryReturnedNoRows => Ok(None),
+                other => Err(other),
+            })?)
+    }
+
+    /// Records that the vectors being stored are `card`'s.
+    pub fn record_space(&self, card: &EmbedderCard) -> Result<(), IndexError> {
+        if !self.has_space_column()? {
+            self.conn
+                .execute("ALTER TABLE meta ADD COLUMN space TEXT", [])?;
+        }
+        let metric = format!("{:?}", card.metric).to_lowercase();
+        let changed = self.conn.execute(
+            "UPDATE meta SET model = ?1, dims = ?2, metric = ?3, space = ?4",
+            rusqlite::params![card.model, card.dims, metric, card.space_key()],
+        )?;
+        if changed == 0 {
+            self.conn.execute(
+                "INSERT INTO meta(format, model, dims, metric, space) VALUES (?1, ?2, ?3, ?4, ?5)",
+                rusqlite::params![FORMAT, card.model, card.dims, metric, card.space_key()],
+            )?;
+        }
+        Ok(())
+    }
+
+    /// Every document the lexical half holds, without its class (which is not stored).
+    pub fn stored(&self) -> Result<Vec<StoredDoc>, IndexError> {
+        let mut statement = self
+            .conn
+            .prepare_cached("SELECT id, text, kind, app, trust, at_s FROM docs")?;
+        let rows = statement.query_map([], |row| {
+            let trust: String = row.get(4)?;
+            Ok(StoredDoc {
+                id: DocId(row.get(0)?),
+                text: row.get(1)?,
+                at: row.get(5)?,
+                facets: Facets {
+                    kind: row.get(2)?,
+                    app: row.get(3)?,
+                    trust: if trust == "trusted" {
+                        TrustTier::Trusted
+                    } else {
+                        TrustTier::Untrusted
+                    },
+                },
+            })
+        })?;
+        Ok(rows.collect::<Result<Vec<_>, _>>()?)
     }
 
     /// Removes everything.

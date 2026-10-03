@@ -27,7 +27,7 @@ trait), section 5 (what is built), section 6 (copy the recipe).
 | `almanac-dbus` | `org.quire.Memory1` (`Record`, `Recall`, `Control`) as zbus proxies and skeletons (the introspection source), `MemoryError`, the argument codec (`encode_request`/`decode_request`, `encode_reply`/`decode_reply`), `invoke` (the caller's half) and the served objects over a `Serve` handler (the daemon's half) | zbus |
 | `almanac-client` | the app-facing `Memory` over a `Transport`: `Absent` (no-op on other desktops), `DbusTransport` (feature `dbus`), `InProcess` (feature `in_process`, off by default: only it links `almanac-service`, SQLCipher and OpenSSL) | through its transport |
 | `almanac-fake` | test-only: `fake_service`, `FakeBackend`, `FixedClock`, `SteppedClock`, `SharedVault`, `ScriptedConsolidator`, `Scratch`, the five fixtures | none |
-| `memoryd` | the daemon and its library: `SystemBackend` (over any key store, embedder and consolidator), `SystemClock`, `InferdEmbedder`, `InferdConsolidator`, the XDG roots, `Serialised` (a queue per Space), `Peers` (who is calling), `Daemon` (the bus handler); the binary serves the session bus | everything |
+| `memoryd` | the daemon and its library: `SystemBackend` (over any key store, embedder and consolidator), `SystemClock`, `InferdEmbedder`, `InferdConsolidator`, the XDG roots, `Serialised` (a queue per Space), `Peers` (who is calling), `Daemon` (the bus handler), the Landlock `sandbox` policy; the binary applies the sandbox, then serves the session bus | everything |
 
 Allowed direct edges (checked by `scripts/check-boundary.sh`; dev-dependencies are outside it):
 
@@ -66,12 +66,12 @@ may reach `notify` and never `rusqlite`; `almanac-dbus` reaches `tokio` only thr
 | `eventlog` | `header` < `chain`, `filter`, `traits` < `memory`, `sqlite` |
 | `memfiles` | `vault`, `trailer` < `topic` < `memory`, `dirs`, `store` |
 | `recall` | `doc`, `vector`, `fuse`, `state`, `embed` < `fts`, `exact`, `fake` < `index` |
-| `almanac-service` | `clock`, `auth`, `retention`, `space`, `fact`, `forget`, `consolidation`, `timeline`, `export`, `config`, `marks` < `backend` < `service` < `open`, `record`, `facts`, `search`, `run`, `hunks`, `sweep`, `erase`, `control`, `dispatch` |
+| `almanac-service` | `clock`, `auth`, `retention`, `space`, `fact`, `forget`, `consolidation`, `timeline`, `export`, `config`, `marks`, `baseline`, `events` < `backend` < `service` < `open`, `record`, `facts`, `search`, `run`, `hunks`, `edits`, `sweep`, `erase`, `control`, `dispatch` |
 | `almanac-watch` | `observed` < `join` < `inotify` |
 | `almanac-dbus` | `names`, `error`, `record`, `recall`, `control` (skeletons and proxies), `codec` (`request`, `reply`), `invoke`, `serve`, `introspect` |
 | `almanac-client` | `transport` < `memory` |
 | `almanac-fake` | `clock`, `consolidator`, `fixtures`, `scratch` < `backend` |
-| `memoryd` | `xdg`, `clock`, `infer` (`embed`, `consolidate`, `prompt`), `peers`, `signals` < `backend`, `queue` < `daemon` < `main` |
+| `memoryd` | `xdg`, `clock`, `infer` (`embed`, `consolidate`, `prompt`), `peers`, `signals`, `sandbox` < `backend`, `queue` < `daemon` < `main` |
 
 ## 3. One home per concept
 
@@ -90,8 +90,11 @@ may reach `notify` and never `rusqlite`; `almanac-dbus` reaches `tokio` only thr
 | keys, derivation contexts, the sealed-file format | `almanac-seal` |
 | the topic file and its trailer | `memfiles::topic`, `memfiles::trailer` |
 | where files live in a Space | `memfiles::vault` (`VaultPath`) and `almanac-core::dirs` (`Dirs`) |
-| search, fusion, chunking, the index state | `recall` |
+| search, fusion, chunking, the index state, adopting an index file at start (`Index::sync`) | `recall` |
 | the Space, fact, plan and run machines | `almanac-service::{space, fact, forget, consolidation}` |
+| topic files edited outside the service (the baseline) | `almanac-service::{baseline, edits}` |
+| what the bus hears that no reply says (`ServiceEvent`) | `almanac-service::events`, drained by `Daemon::flush_events` |
+| what memoryd may touch (Landlock) | `memoryd::sandbox` |
 | the export layout and event lines | `almanac-service::export` |
 | the file-why join | `almanac-watch::join` |
 | D-Bus names, members, error names | `almanac-dbus::{names, record, recall, control, error}` |
@@ -177,7 +180,7 @@ interface other work builds on; a change is a format bump (section 6) or a SPEC 
 | `MemoryLog`, `SqliteLog` | built; one contract, `SqliteLog` also over a file (SQLCipher, keyed digest checked on append) |
 | key derivation (contexts pinned), `seal`/`unseal`, `DbKey`, `MemoryKeys`, `Oo7Keys` | built; golden derivation |
 | topic file format, trailer grammar, `parse_topic`/`render_topic`, `VaultPath`, `MemoryVault`, `PlainDir`, `SealedDir`, `Store`, `Primer` | built; golden file |
-| `fuse_rrf`, `chunk`, `nearest_exact`, the vector BLOB, `Fts5`, `ExactScan`, `Index`, `FakeEmbedder`, `FastembedEmbedder` | built, tested |
+| `fuse_rrf`, `chunk`, `nearest_exact`, the vector BLOB, `Fts5`, `ExactScan`, `Index` (rebuild, upsert, `sync` that adopts a file, per-class refusal), `FakeEmbedder`, `FastembedEmbedder` | built, tested |
 | the Space, fact, plan and consolidation machines, `Plan::digest`, retention, timeline rows | built, table-tested |
 | every hunk (Promote, Supersede, Tidy, Stamp, ExternalEdit, Flag), revert, the retention sweep, marks, use counts | built; `almanac-fake/tests/hunks.rs` |
 | the export writer, `EventLine`, config files (`memory.toml`, `spaces.toml`) | built; golden tar layout and event lines |
@@ -189,6 +192,7 @@ interface other work builds on; a change is a format bump (section 6) or a SPEC 
 | `fake_service`, fixtures, scratch dirs | built |
 | `SystemBackend`, `SystemClock`, XDG roots, `InferdEmbedder`, `InferdConsolidator`, `inferd_link` | built; the models are tested over a scripted inferd session and over a fake inferd on a private bus |
 | `Serialised`, `Peers`, `Daemon`, the `memoryd` binary | built; `memoryd/tests/bus.rs` is the end-to-end test on a private bus |
+| the baseline and `ExternalEdit` hunks, topic text in `ConsolidationInput`, flags in `FactView`, `ServiceEvent`, `check_keys`, the Landlock sandbox, adopting an index at start | built; `almanac-fake/tests/edits.rs`, `recall/tests/adopt.rs`, `memoryd/tests/{restart,sandbox,bus}.rs` |
 
 ## 6. File formats (frozen)
 
@@ -203,7 +207,10 @@ system/events.db                    desktop-level log: Space created or deleted,
 <space>/pending/<fact-id>.md        facts derived from untrusted text, awaiting the person
 <space>/procedures/<app>/<name>.md  CUA procedures (the cua area's format; the same trailer)
 <space>/consolidation/<run>.toml    one run's diff and pre-images (kept until the next run)
-$XDG_CACHE_HOME/quire/memory/<space>/index.db   recall index, SQLCipher, deletable
+<space>/meta/marks.json             "do not remember" marks (vault file)
+<space>/meta/baseline.json          each topic file's text as the service last left it (an edit is a difference)
+<space>/flags/<run>.json            the notes a run's Flag hunks left, by fact
+$XDG_CACHE_HOME/quire/memory/<space>/index.db   recall index, SQLCipher, deletable; meta.space records the vector space it holds, so a restart adopts it
 $XDG_CONFIG_HOME/quire/memory.toml              RuleSet and defaults (written only by memoryd)
 $XDG_RUNTIME_DIR/quire/memory/edit/<space>/     decrypted edit copies on tmpfs
 ```

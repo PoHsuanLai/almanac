@@ -107,6 +107,7 @@ fn input() -> ConsolidationInput {
         now: UnixSeconds(1_790_000_000),
         facts: vec![],
         events: vec![],
+        topics: vec![],
     }
 }
 

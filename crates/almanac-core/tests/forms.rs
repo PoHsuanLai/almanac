@@ -220,6 +220,31 @@ fn every_slug_enum_has_its_slug_as_its_serde_form() {
             format!("\"{}\"", tag.slug())
         );
     }
+    for filter in ActorFilter::ALL {
+        let json = serde_json::to_string(filter).expect("j");
+        assert_eq!(json, format!("\"{}\"", filter.slug()));
+        assert_eq!(
+            &serde_json::from_str::<ActorFilter>(&json).expect("back"),
+            filter
+        );
+    }
+}
+
+#[test]
+fn the_timeline_has_a_bucket_for_every_kind_of_actor() {
+    let slugs: Vec<&str> = ActorFilter::ALL.iter().map(|f| f.slug()).collect();
+    assert_eq!(
+        slugs,
+        [
+            "everyone",
+            "you",
+            "companion",
+            "terminal",
+            "mcp",
+            "apps",
+            "unknown"
+        ]
+    );
 }
 
 #[test]
@@ -239,6 +264,9 @@ fn directory_layout_is_pinned() {
         dirs.index_db(&w),
         dirs.memory_toml(),
         dirs.edit(&w),
+        dirs.cache_memory(),
+        dirs.config(),
+        dirs.runtime_memory(),
     ];
     let want = [
         "/d/quire/memory/spaces.toml",
@@ -252,6 +280,9 @@ fn directory_layout_is_pinned() {
         "/c/quire/memory/work/index.db",
         "/cfg/quire/memory.toml",
         "/run/quire/memory/edit/work",
+        "/c/quire/memory",
+        "/cfg/quire",
+        "/run/quire/memory",
     ];
     for (got, want) in paths.iter().zip(want) {
         assert_eq!(got.to_str(), Some(want));

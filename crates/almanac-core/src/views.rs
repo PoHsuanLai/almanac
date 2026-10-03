@@ -26,6 +26,16 @@ pub enum SourceView {
     Purged,
 }
 
+/// A note a consolidation run left about facts that looked wrong or stale (`Hunk::Flag`). The
+/// run changed nothing; the person decides.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct FlagNote {
+    /// The run that flagged it.
+    pub run: RunId,
+    /// Why, in the model's words.
+    pub note: UserText,
+}
+
 /// A fact with what the UI needs around it.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct FactView {
@@ -41,6 +51,9 @@ pub struct FactView {
     pub used: UseCount,
     /// When it was last read.
     pub last_used: Option<UnixSeconds>,
+    /// What consolidation runs flagged about it, oldest run first; empty when nothing did.
+    #[serde(default)]
+    pub flagged: Vec<FlagNote>,
 }
 
 /// What a forget would remove, exactly: apply removes what this shows, no more.

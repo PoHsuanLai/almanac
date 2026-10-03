@@ -2,7 +2,7 @@
 
 use almanac_core::{
     ConsolidateFailure, EventRef, Fact, Hunk, KindTag, Label, Link, RunId, RunState, SpaceId,
-    ThingView, TidyHunk, UnixSeconds,
+    ThingView, TidyHunk, TopicPath, UnixSeconds, UserText,
 };
 use std::future::Future;
 
@@ -19,6 +19,16 @@ pub struct InputEvent {
     pub label: Label,
 }
 
+/// One topic file as the consolidator reads it: the whole file as text (trailers included, so
+/// a Tidy can keep every fact's id, author, label and links).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InputTopic {
+    /// The topic.
+    pub topic: TopicPath,
+    /// The file.
+    pub text: UserText,
+}
+
 /// What a run reads: the active facts and the events since the last run's cut.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConsolidationInput {
@@ -32,6 +42,8 @@ pub struct ConsolidationInput {
     pub facts: Vec<Fact>,
     /// Events since the last cut.
     pub events: Vec<InputEvent>,
+    /// The topic files as they are now: what a Tidy rewrites.
+    pub topics: Vec<InputTopic>,
 }
 
 /// What the model proposes.

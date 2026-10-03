@@ -3,7 +3,7 @@
 use crate::backend::Backend;
 use crate::clock::Clock;
 use crate::export::{EventLine, ExportWriter, rules_path};
-use crate::open::{Open, failed, files_refusal, log_refusal};
+use crate::open::{Cx, Open, failed, files_refusal, log_refusal};
 use crate::record::Stored;
 use crate::service::MemoryService;
 use almanac_core::{
@@ -94,7 +94,10 @@ impl<B: Backend> MemoryService<B> {
                     let Some(open) = lease.open() else { continue };
                     let known = open.stored()?.iter().any(|s| s.fact.id == fact);
                     if known {
+                        open.guard_topics()?;
                         open.settle(&cx, &fact, settlement).await?;
+                        open.accept_topics()?;
+                        self.raise_all(open.outbox.drain(..));
                         return Ok(MemoryReply::Ok);
                     }
                 }
@@ -106,7 +109,10 @@ impl<B: Backend> MemoryService<B> {
                     .ok_or_else(|| failed("no such run"))?;
                 let mut lease = self.checkout(caller, &id).await?;
                 let cx = self.cx(caller);
-                lease.open().ok_or(Refusal::Busy)?.revert(&cx, &run).await?;
+                let open = lease.open().ok_or(Refusal::Busy)?;
+                open.guard_topics()?;
+                open.revert(&cx, &run).await?;
+                open.accept_topics()?;
                 Ok(MemoryReply::Ok)
             }
             other => self.in_space(caller, other).await,
@@ -122,7 +128,11 @@ impl<B: Backend> MemoryService<B> {
         let mut lease = self.checkout(caller, id).await?;
         let cx = self.cx(caller);
         let open = lease.open().ok_or(Refusal::Busy)?;
+        open.guard_topics()?;
         let (report, scope) = open.forget(&cx, token)?;
+        if scope != ForgetScope::Space {
+            open.accept_topics()?;
+        }
         if scope == ForgetScope::Space {
             use crate::space::{SpaceEffect, SpaceEvent, step};
             let final_head = open.rt.log.head().map_err(log_refusal)?;
@@ -177,7 +187,6 @@ impl<B: Backend> MemoryService<B> {
         caller: &Caller,
         request: MemoryRequest,
     ) -> Result<MemoryReply, Refusal> {
-        use MemoryRequest as R;
         let id = request
             .space()
             .cloned()
@@ -185,41 +194,9 @@ impl<B: Backend> MemoryService<B> {
         let mut lease = self.checkout(caller, &id).await?;
         let cx = self.cx(caller);
         let open: &mut Open<B> = lease.open().ok_or(Refusal::Busy)?;
-        open.tick(&cx)?;
-        match request {
-            R::ExplainFile(claim) => open.explain(&cx, claim).await.map(|_| MemoryReply::Ok),
-            R::Mark(mark) => open.mark(mark).map(|()| MemoryReply::Ok),
-            R::Search(q) => open.search(&cx, q).await.map(MemoryReply::Hits),
-            R::Inject(q) => open.inject(&cx, q).await.map(MemoryReply::Hits),
-            R::Recent(_, q) => open.recent(&cx, q).map(MemoryReply::Recent),
-            R::Facts(q) => open.facts(&cx, &q).map(MemoryReply::Facts),
-            R::Related(_, thing) => open.related(&cx, &thing).map(MemoryReply::Related),
-            R::Provenance(_, path) => open.provenance(&cx, &path).map(MemoryReply::Provenance),
-            R::Primer(_) => open.primer(&cx).map(MemoryReply::Primer),
-            R::Propose(_, draft) => open
-                .propose(&cx, draft)
-                .await
-                .map(|(id, state)| MemoryReply::Proposed(id, state)),
-            R::Status(_) => open.status().map(MemoryReply::Status),
-            R::Timeline(_, q) => open.timeline(&cx, &q).map(MemoryReply::Timeline),
-            R::PlanForget(_, scope) => open.plan(&cx, scope).map(MemoryReply::Plan),
-            R::Pending(_) => open.pending(&cx).map(MemoryReply::Pending),
-            R::Consolidation(_) => open
-                .last
-                .as_ref()
-                .map(|l| MemoryReply::Consolidation(l.view.clone()))
-                .ok_or_else(|| failed("no consolidation run yet")),
-            R::RunConsolidation(_) => open
-                .run_consolidation(&cx)
-                .await
-                .map(MemoryReply::Consolidation),
-            R::Pause(_, until) => open.pause(&cx, until).map(|()| MemoryReply::Ok),
-            R::Resume(_) => open.resume(&cx).map(|()| MemoryReply::Ok),
-            R::Verify(_) => open.verify().map(MemoryReply::Verified),
-            R::Rebuild(_) => open.rebuild_index(&cx).await.map(|()| MemoryReply::Ok),
-            R::Sweep(_) => open.sweep(&cx).map(MemoryReply::Swept),
-            _ => Err(failed("not a Space request")),
-        }
+        let reply = run_in_space(open, &cx, request).await;
+        self.raise_all(open.outbox.drain(..));
+        reply
     }
 
     pub(crate) async fn export_to(
@@ -281,6 +258,54 @@ impl<B: Backend> MemoryService<B> {
         writer.rules(&toml).map_err(io)?;
         writer.finish().map_err(io)?;
         Ok(manifest)
+    }
+}
+
+/// The request `request` against the open Space `open`.
+async fn run_in_space<B: Backend>(
+    open: &mut Open<B>,
+    cx: &Cx<'_, B>,
+    request: MemoryRequest,
+) -> Result<MemoryReply, Refusal> {
+    use MemoryRequest as R;
+    open.tick(cx)?;
+    match request {
+        R::ExplainFile(claim) => open.explain(cx, claim).await.map(|_| MemoryReply::Ok),
+        R::Mark(mark) => open.mark(mark).map(|()| MemoryReply::Ok),
+        R::Search(q) => open.search(cx, q).await.map(MemoryReply::Hits),
+        R::Inject(q) => open.inject(cx, q).await.map(MemoryReply::Hits),
+        R::Recent(_, q) => open.recent(cx, q).map(MemoryReply::Recent),
+        R::Facts(q) => open.facts(cx, &q).map(MemoryReply::Facts),
+        R::Related(_, thing) => open.related(cx, &thing).map(MemoryReply::Related),
+        R::Provenance(_, path) => open.provenance(cx, &path).map(MemoryReply::Provenance),
+        R::Primer(_) => open.primer(cx).map(MemoryReply::Primer),
+        R::Propose(_, draft) => {
+            open.guard_topics()?;
+            let proposed = open.propose(cx, draft).await?;
+            open.accept_topics()?;
+            Ok(MemoryReply::Proposed(proposed.0, proposed.1))
+        }
+        R::Status(_) => open.status().map(MemoryReply::Status),
+        R::Timeline(_, q) => open.timeline(cx, &q).map(MemoryReply::Timeline),
+        R::PlanForget(_, scope) => open.plan(cx, scope).map(MemoryReply::Plan),
+        R::Pending(_) => open.pending(cx).map(MemoryReply::Pending),
+        R::Consolidation(_) => open
+            .last
+            .as_ref()
+            .map(|l| MemoryReply::Consolidation(l.view.clone()))
+            .ok_or_else(|| failed("no consolidation run yet")),
+        R::RunConsolidation(_) => {
+            open.guard_topics()?;
+            let view = open.run_consolidation(cx).await?;
+            open.accept_topics()?;
+            Ok(MemoryReply::Consolidation(view))
+        }
+        R::Pause(_, until) => open.pause(cx, until).map(|()| MemoryReply::Ok),
+        R::Resume(_) => open.resume(cx).map(|()| MemoryReply::Ok),
+        R::Verify(_) => open.verify().map(MemoryReply::Verified),
+        R::Rebuild(_) => open.rebuild_index(cx).await.map(|()| MemoryReply::Ok),
+        R::Sweep(_) => open.sweep(cx).map(MemoryReply::Swept),
+        _ => Err(failed("not a Space request")),
     }
 }
 

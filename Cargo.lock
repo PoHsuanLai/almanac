@@ -1956,6 +1956,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "landlock"
+version = "0.4.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4cca98e95f35b29d469dade6724c6f96cec9236640f745a0e99b0334ec320ab1"
+dependencies = [
+ "enumflags2",
+ "libc",
+ "thiserror",
+]
+
+[[package]]
 name = "lebe"
 version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2134,6 +2145,8 @@ dependencies = [
  "clap",
  "eventlog",
  "getrandom 0.3.4",
+ "jiff",
+ "landlock",
  "memfiles",
  "porter-client",
  "porter-core",
@@ -3093,6 +3106,7 @@ version = "0.1.0"
 dependencies = [
  "recall",
  "rusqlite",
+ "tempfile",
  "thiserror",
  "tokio",
 ]

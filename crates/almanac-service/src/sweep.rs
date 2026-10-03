@@ -85,6 +85,7 @@ impl<B: Backend> Open<B> {
     /// Erases the bodies that have expired and prunes the headers that have too.
     pub(crate) fn sweep(&mut self, cx: &Cx<'_, B>) -> Result<SweepReport, Refusal> {
         let now = cx.now();
+        self.age_pending(now)?;
         let entries = self.entries()?;
         let expired: Vec<(Seq, &Entry)> = entries
             .iter()

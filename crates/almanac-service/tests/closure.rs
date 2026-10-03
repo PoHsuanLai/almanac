@@ -147,6 +147,7 @@ fn a_draft_cannot_launder_cite_outside_or_remove() {
             things: vec![],
             label: untrusted(),
         }],
+        topics: vec![],
     };
     let foreign = EventRef {
         space: space("home"),

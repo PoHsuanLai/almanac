@@ -51,6 +51,13 @@ impl FakeEmbedder {
         self
     }
 
+    /// A working fake whose card says passages are embedded after `prefix`, so an index built
+    /// without one is in another space.
+    pub fn with_document_prefix(mut self, prefix: &str) -> Self {
+        self.card.prompts.document = prefix.to_owned();
+        self
+    }
+
     /// A working fake that claims to be another model, so an index built with one is stale for
     /// the other.
     pub fn named(model: &str) -> Self {

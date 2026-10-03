@@ -1,7 +1,9 @@
 # memoryd as a systemd user unit (org.quire.Memory1 on the session bus).
 #
 # It needs no network (the bus is a unix socket; inferd is another daemon behind the bus) and
-# writes only the memory directories, so the unit says so. Paths are `-` prefixed because they do
+# writes only the memory directories, so the unit says so. memoryd also applies a Landlock policy
+# to itself (the same directories, the session bus socket, nothing else), so outside systemd the
+# daemon is confined by the kernel all the same. Paths are `-` prefixed because they do
 # not exist before the first run.
 [Unit]
 Description=quire memory (org.quire.Memory1)

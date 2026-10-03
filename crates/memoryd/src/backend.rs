@@ -106,6 +106,8 @@ fn open_keyed(path: &Path, key: &DbKey) -> Result<Connection, IndexError> {
     let conn = Connection::open(path)?;
     conn.pragma_update(None, "key", key.pragma())?;
     conn.pragma_update(None, "secure_delete", "ON")?;
+    // No temporary files: the sandbox has no directory for them.
+    conn.pragma_update(None, "temp_store", "MEMORY")?;
     Ok(conn)
 }
 

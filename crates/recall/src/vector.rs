@@ -101,6 +101,16 @@ impl EmbedderCard {
         }
     }
 
+    /// A string that is equal for two cards exactly when [`EmbedderCard::space_vs`] says `Same`:
+    /// what an index records about the vectors it holds, so a later start can tell whether they
+    /// are still the embedder's.
+    pub fn space_key(&self) -> String {
+        format!(
+            "{}\u{1f}{}\u{1f}{:?}\u{1f}{}\u{1f}{}",
+            self.model, self.dims, self.metric, self.prompts.query, self.prompts.document
+        )
+    }
+
     /// `text` as the embedder wants it for `role`: the model's prefix, then the text.
     pub fn prefixed(&self, role: EmbedRole, text: &str) -> String {
         format!("{}{text}", self.prompts.of(role))

@@ -9,7 +9,9 @@ use crate::queue::Serialised;
 use crate::signals::{FollowUp, follow_ups};
 use almanac_core::{Caller, Dirs, MemoryReply, MemoryRequest, PlanToken, SpaceId};
 use almanac_dbus::{Call, MemoryError, Serve, Signal, decode_request, emit, encode_reply};
-use almanac_service::{Backend, MemoryService, SpacesFile, rules_to_toml, spaces_to_toml};
+use almanac_service::{
+    Backend, MemoryService, ServiceEvent, SpacesFile, locked_status, rules_to_toml, spaces_to_toml,
+};
 use std::collections::BTreeMap;
 use std::os::fd::OwnedFd;
 use std::sync::{Mutex, OnceLock, PoisonError};
@@ -123,28 +125,69 @@ impl<B: Backend, P: Peers> Daemon<B, P> {
         for step in follow_ups(request, reply) {
             match step {
                 FollowUp::Emit(signal) => self.signal(signal).await,
-                FollowUp::PendingChanged(space) => {
-                    let asked = MemoryRequest::Pending(space.clone());
-                    if let MemoryReply::Pending(pending) =
-                        self.queue.handle(&Caller::ShellUi, asked).await
-                    {
-                        let count = u32::try_from(pending.len()).unwrap_or(u32::MAX);
-                        let space = space.to_string();
-                        self.signal(Signal::PendingChanged { space, count }).await;
-                    }
-                }
-                FollowUp::StatusChanged(space) => {
-                    let asked = MemoryRequest::Status(space.clone());
-                    if let MemoryReply::Status(status) =
-                        self.queue.handle(&Caller::ShellUi, asked).await
-                    {
-                        let status = serde_json::to_string(&status).unwrap_or_default();
+                FollowUp::PendingChanged(space) => self.pending_changed(space).await,
+                FollowUp::StatusChanged(space) => self.status_changed(space).await,
+            }
+        }
+        self.flush_events().await;
+    }
+
+    /// Tells the bus what the service says happened since it last looked: pending facts settled
+    /// or aged out, Spaces locked or open again. Called after every request and on the timers.
+    pub async fn flush_events(&self) {
+        loop {
+            let events = self.queue.service().take_events();
+            if events.is_empty() {
+                return;
+            }
+            for event in events {
+                match event {
+                    ServiceEvent::PendingChanged(space) => self.pending_changed(space).await,
+                    ServiceEvent::StatusChanged(space) => self.status_changed(space).await,
+                    ServiceEvent::Locked(space) => {
+                        let status = serde_json::to_string(&locked_status()).unwrap_or_default();
                         let space = space.to_string();
                         self.signal(Signal::StatusChanged { space, status }).await;
                     }
                 }
             }
         }
+    }
+
+    async fn pending_changed(&self, space: SpaceId) {
+        let asked = MemoryRequest::Pending(space.clone());
+        if let MemoryReply::Pending(pending) = self.queue.handle(&Caller::ShellUi, asked).await {
+            let count = u32::try_from(pending.len()).unwrap_or(u32::MAX);
+            let space = space.to_string();
+            self.signal(Signal::PendingChanged { space, count }).await;
+        }
+    }
+
+    async fn status_changed(&self, space: SpaceId) {
+        let asked = MemoryRequest::Status(space.clone());
+        if let MemoryReply::Status(status) = self.queue.handle(&Caller::ShellUi, asked).await {
+            let status = serde_json::to_string(&status).unwrap_or_default();
+            let space = space.to_string();
+            self.signal(Signal::StatusChanged { space, status }).await;
+        }
+    }
+
+    /// The timer's work: the key check, then the events it caused.
+    pub async fn check_keys(&self) {
+        self.queue.check_keys().await;
+        self.flush_events().await;
+    }
+
+    /// The daily sweep over every Space, then the events it caused (aged-out pending facts).
+    pub async fn sweep_all(
+        &self,
+    ) -> Vec<(
+        SpaceId,
+        Result<almanac_core::SweepReport, almanac_core::Refusal>,
+    )> {
+        let swept = self.queue.sweep_all().await;
+        self.flush_events().await;
+        swept
     }
 
     /// Serves `call` as `caller`.

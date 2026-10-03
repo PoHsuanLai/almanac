@@ -5,6 +5,7 @@ use crate::doc::{Allow, DocId, Ranked, TopK};
 use crate::fts::SCHEMA_V1;
 use crate::index::IndexError;
 use crate::vector::{EmbedderCard, Vector, nearest_exact};
+use std::collections::BTreeSet;
 
 /// What a vector index does.
 pub trait VectorIndex: Send {
@@ -18,6 +19,8 @@ pub trait VectorIndex: Send {
     fn nearest(&self, q: &Vector, k: TopK, allow: &Allow) -> Result<Vec<Ranked>, IndexError>;
     /// Removes everything.
     fn clear(&mut self) -> Result<(), IndexError>;
+    /// The ids that have a vector.
+    fn ids(&self) -> Result<BTreeSet<DocId>, IndexError>;
 }
 
 /// Exhaustive scan over the `vectors` table (see `nearest_exact` for the scoring).
@@ -112,5 +115,11 @@ impl VectorIndex for ExactScan {
     fn clear(&mut self) -> Result<(), IndexError> {
         self.conn.execute("DELETE FROM vectors", [])?;
         Ok(())
+    }
+
+    fn ids(&self) -> Result<BTreeSet<DocId>, IndexError> {
+        let mut statement = self.conn.prepare_cached("SELECT id FROM vectors")?;
+        let rows = statement.query_map([], |row| row.get::<_, String>(0).map(DocId))?;
+        Ok(rows.collect::<Result<_, _>>()?)
     }
 }

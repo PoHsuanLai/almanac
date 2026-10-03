@@ -1,12 +1,13 @@
 //! `Index`: lexical and vector search together, rebuildable from the truth.
 
-use crate::doc::{Allow, Count, Doc, DocId, Ranked, TopK};
+use crate::doc::{Allow, ClassTag, Count, Doc, DocId, Ranked, StoredDoc, TopK};
 use crate::embed::{Classed, EmbedError, Embedder, RetryClass};
 use crate::exact::VectorIndex;
 use crate::fts::Fts5;
 use crate::fuse::{Fused, RrfK, chunk, fuse_rrf};
 use crate::state::{DegradedWhy, IndexEvent, IndexState, step};
 use crate::vector::{EmbedRole, SpaceCheck, Urgency, Vector};
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Mutex;
 
 /// Why an index operation failed.
@@ -87,8 +88,25 @@ impl<V: VectorIndex> Index<V> {
 
     /// Records that the embedder failed and how.
     fn degrade(&self, error: &EmbedError) {
+        self.lexical_only(degraded_why(error));
+    }
+
+    fn lexical_only(&self, why: DegradedWhy) {
         self.built_by_upserts();
-        self.apply(IndexEvent::EmbedderLost(degraded_why(error)));
+        self.apply(IndexEvent::EmbedderLost(why));
+    }
+
+    /// Documents all of whose classes were refused leave the index lexical-only; some refused
+    /// and some embedded is a normal index (each document answers for its own class).
+    fn note_refused(&self, embedded: &Embedded) {
+        if embedded.vectors.is_empty() && !embedded.refused.is_empty() {
+            self.lexical_only(DegradedWhy::EmbedderRefused);
+        }
+    }
+
+    /// Records the vector space the stored vectors are in, once they are the embedder's.
+    fn record_space(&self, e: &impl Embedder) -> Result<(), IndexError> {
+        self.fts.record_space(e.card())
     }
 
     /// The fusion constant.
@@ -122,12 +140,19 @@ impl<V: VectorIndex> Index<V> {
         });
         self.fts.clear()?;
         self.vectors.clear()?;
+        self.record_space(e)?;
         self.fts.insert_new(&docs)?;
         let group = usize::try_from(e.card().max_batch.0.max(1)).unwrap_or(1);
         let mut done = 0usize;
+        let mut embedded_any = false;
+        let mut refused_any = false;
         for part in docs.chunks(group) {
             match embed_docs(part, e, Urgency::Background).await {
-                Ok(vectors) => self.vectors.upsert(&vectors)?,
+                Ok(embedded) => {
+                    self.vectors.upsert(&embedded.vectors)?;
+                    embedded_any |= !embedded.vectors.is_empty();
+                    refused_any |= !embedded.refused.is_empty();
+                }
                 Err(error) => return self.embedding_failed(error),
             }
             done += part.len();
@@ -136,7 +161,62 @@ impl<V: VectorIndex> Index<V> {
             });
         }
         self.apply(IndexEvent::Finished);
+        if refused_any && !embedded_any {
+            self.lexical_only(DegradedWhy::EmbedderRefused);
+        }
         Ok(())
+    }
+
+    /// Brings the index in line with `docs` (the truth) without embedding what is already
+    /// right. An index whose recorded vector space is the embedder's is *adopted*: documents it
+    /// holds with the same text and facets keep their vectors, documents that are new, changed
+    /// or still without a vector (an embedder that was away, a class it refused) are embedded,
+    /// and documents the truth no longer has are removed. Anything else (no recorded space, a
+    /// different model, length or prefix) is a full [`Index::rebuild`].
+    pub async fn sync(
+        &mut self,
+        docs: impl Iterator<Item = Doc>,
+        e: &impl Embedder,
+    ) -> Result<(), IndexError> {
+        self.same_space(e)?;
+        let docs: Vec<Doc> = docs.collect();
+        if self.fts.recorded_space()? != Some(e.card().space_key()) {
+            return self.rebuild(docs.into_iter(), e).await;
+        }
+        let held: BTreeMap<DocId, StoredDoc> = self
+            .fts
+            .stored()?
+            .into_iter()
+            .map(|d| (d.id.clone(), d))
+            .collect();
+        let vectored = self.vectors.ids()?;
+        let truth: BTreeSet<&DocId> = docs.iter().map(|d| &d.id).collect();
+        let gone: Vec<DocId> = held
+            .keys()
+            .chain(vectored.iter())
+            .filter(|id| !truth.contains(id))
+            .cloned()
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect();
+        let max_tokens = e.card().max_tokens;
+        let due: Vec<Doc> = docs
+            .into_iter()
+            .filter(|d| match held.get(&d.id) {
+                Some(stored) if *stored == d.stored() => {
+                    !vectored.contains(&d.id) && !chunk(&d.text, max_tokens).is_empty()
+                }
+                _ => true,
+            })
+            .collect();
+        if !gone.is_empty() {
+            self.remove(&gone)?;
+        }
+        if due.is_empty() {
+            self.built_by_upserts();
+            return Ok(());
+        }
+        self.upsert(&due, e).await
     }
 
     /// A Retry-class failure leaves the lexical index in place and the work to retry; a fatal
@@ -154,12 +234,16 @@ impl<V: VectorIndex> Index<V> {
     pub async fn upsert(&mut self, docs: &[Doc], e: &impl Embedder) -> Result<(), IndexError> {
         self.same_space(e)?;
         self.fts.upsert(docs)?;
+        if self.fts.recorded_space()?.is_none() {
+            self.record_space(e)?;
+        }
         match embed_docs(docs, e, Urgency::Background).await {
-            Ok(vectors) => {
+            Ok(embedded) => {
                 let ids: Vec<DocId> = docs.iter().map(|d| d.id.clone()).collect();
                 self.vectors.remove(&ids)?;
-                self.vectors.upsert(&vectors)?;
+                self.vectors.upsert(&embedded.vectors)?;
                 self.built_by_upserts();
+                self.note_refused(&embedded);
                 Ok(())
             }
             Err(error) => self.embedding_failed(error),
@@ -236,13 +320,75 @@ fn degraded_why(error: &EmbedError) -> DegradedWhy {
     }
 }
 
+/// What embedding a set of documents gave.
+#[derive(Debug)]
+struct Embedded {
+    /// One vector per embedded document.
+    vectors: Vec<(DocId, Vector)>,
+    /// Documents whose data class the embedder refused: they stay lexical.
+    refused: Vec<DocId>,
+}
+
+/// One batch of chunks embedded as documents, each answering for itself: `None` is a text whose
+/// class the embedder refused. A refusal of the whole batch is retried class by class (a refused
+/// class fails its own documents only, never another class's); any other failure fails the batch.
+async fn embed_batch(
+    e: &impl Embedder,
+    texts: &[Classed],
+    urgency: Urgency,
+    width: usize,
+) -> Result<Vec<Option<Vector>>, EmbedError> {
+    match e.embed_classed(texts, EmbedRole::Document, urgency).await {
+        Ok(vectors) => checked(vectors, texts.len(), width),
+        Err(EmbedError::Refused(_)) => {
+            let mut groups: BTreeMap<&ClassTag, Vec<usize>> = BTreeMap::new();
+            for (at, t) in texts.iter().enumerate() {
+                groups.entry(&t.class).or_default().push(at);
+            }
+            let mut out: Vec<Option<Vector>> = vec![None; texts.len()];
+            if groups.len() < 2 {
+                return Ok(out);
+            }
+            for at in groups.into_values() {
+                let part: Vec<Classed> = at.iter().map(|&i| texts[i].clone()).collect();
+                match e.embed_classed(&part, EmbedRole::Document, urgency).await {
+                    Ok(vectors) => {
+                        for (slot, v) in at.iter().zip(checked(vectors, part.len(), width)?) {
+                            out[*slot] = v;
+                        }
+                    }
+                    Err(EmbedError::Refused(_)) => {}
+                    Err(other) => return Err(other),
+                }
+            }
+            Ok(out)
+        }
+        Err(other) => Err(other),
+    }
+}
+
+fn checked(
+    vectors: Vec<Vector>,
+    count: usize,
+    width: usize,
+) -> Result<Vec<Option<Vector>>, EmbedError> {
+    if vectors.len() != count || vectors.iter().any(|v| v.0.len() != width) {
+        return Err(EmbedError::Failed {
+            class: RetryClass::Fatal,
+            why: format!("expected {count} vectors of {width} floats"),
+        });
+    }
+    Ok(vectors.into_iter().map(Some).collect())
+}
+
 /// One vector per document with text: its chunks embedded in batches of `max_batch` (as
-/// documents, so the model's prefix applies), checked for count and width, and averaged.
+/// documents, so the model's prefix applies), checked for count and width, and averaged. A
+/// document with a chunk the embedder refused has no vector and is listed in `refused`.
 async fn embed_docs(
     docs: &[Doc],
     e: &impl Embedder,
     urgency: Urgency,
-) -> Result<Vec<(DocId, Vector)>, EmbedError> {
+) -> Result<Embedded, EmbedError> {
     let card = e.card();
     let pieces: Vec<(usize, Classed)> = docs
         .iter()
@@ -262,35 +408,39 @@ async fn embed_docs(
         .collect();
     let width = usize::try_from(card.dims).unwrap_or(usize::MAX);
     let mut sums: Vec<Option<(Vec<f32>, u32)>> = vec![None; docs.len()];
+    let mut refused: BTreeSet<usize> = BTreeSet::new();
     let mut from = 0usize;
     for size in card.batch_sizes(pieces.len()) {
         let batch = &pieces[from..from + size];
         let texts: Vec<Classed> = batch.iter().map(|(_, t)| t.clone()).collect();
-        let vectors = e
-            .embed_classed(&texts, EmbedRole::Document, urgency)
-            .await?;
-        if vectors.len() != batch.len() || vectors.iter().any(|v| v.0.len() != width) {
-            return Err(EmbedError::Failed {
-                class: RetryClass::Fatal,
-                why: format!("expected {} vectors of {width} floats", batch.len()),
-            });
-        }
+        let vectors = embed_batch(e, &texts, urgency, width).await?;
         for ((slot, _), vector) in batch.iter().zip(vectors) {
+            let Some(vector) = vector else {
+                refused.insert(*slot);
+                continue;
+            };
             let (sum, n) = sums[*slot].get_or_insert_with(|| (vec![0.0; width], 0));
             sum.iter_mut().zip(&vector.0).for_each(|(s, x)| *s += x);
             *n += 1;
         }
         from += size;
     }
-    Ok(docs
+    let vectors = docs
         .iter()
         .zip(sums)
-        .filter_map(|(d, sum)| {
+        .enumerate()
+        .filter(|(slot, _)| !refused.contains(slot))
+        .filter_map(|(_, (d, sum))| {
             sum.map(|(mut v, n)| {
                 let n = n as f32;
                 v.iter_mut().for_each(|x| *x /= n);
                 (d.id.clone(), Vector(v))
             })
         })
-        .collect())
+        .collect();
+    let refused = refused
+        .into_iter()
+        .map(|slot| docs[slot].id.clone())
+        .collect();
+    Ok(Embedded { vectors, refused })
 }

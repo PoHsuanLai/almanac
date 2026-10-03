@@ -95,3 +95,29 @@ pub struct Chunk {
     /// Its text.
     pub text: String,
 }
+
+/// A document as the lexical half stores it: [`Doc`] without its class (the class decides who
+/// may embed a text, so it is not kept).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StoredDoc {
+    /// The id.
+    pub id: DocId,
+    /// The text.
+    pub text: String,
+    /// When (seconds).
+    pub at: i64,
+    /// Its facets.
+    pub facets: Facets,
+}
+
+impl Doc {
+    /// This document as the lexical half would store it.
+    pub fn stored(&self) -> StoredDoc {
+        StoredDoc {
+            id: self.id.clone(),
+            text: self.text.clone(),
+            at: self.at,
+            facets: self.facets.clone(),
+        }
+    }
+}

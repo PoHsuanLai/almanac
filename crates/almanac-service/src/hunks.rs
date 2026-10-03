@@ -8,10 +8,26 @@ use crate::docs::{fact_doc, fact_doc_id};
 use crate::open::{Cx, Open, failed, files_refusal};
 use crate::search::caller_actor;
 use almanac_core::{
-    Caller, Fact, FactId, FactState, FactText, Hunk, Label, MemoryOp, Refusal, RunId, TidyHunk,
-    TopicPath, UnixSeconds, UserText, Validity,
+    Caller, Fact, FactId, FactState, FactText, FlagNote, Hunk, Label, MemoryOp, Refusal, RunId,
+    TidyHunk, TopicPath, UnixSeconds, UserText, Validity,
 };
 use memfiles::{Block, TopicFile, Vault, VaultPath, parse_topic, render_topic};
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
+
+/// Where the notes of `Flag` hunks live in the vault: `flags/<run>.json`.
+const FLAGS_DIR: &str = "flags";
+
+fn flag_path(run: &RunId) -> Option<VaultPath> {
+    VaultPath::parse(&format!("{FLAGS_DIR}/{run}.json"))
+}
+
+/// One `Flag` hunk as the vault keeps it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+struct StoredFlag {
+    facts: Vec<FactId>,
+    note: String,
+}
 
 /// What a file held before a hunk changed it: restoring it undoes the hunk.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -47,6 +63,16 @@ pub(crate) fn tidy_accepts(current: &TopicFile, after: &TopicFile) -> bool {
                 } == *old
             })
         })
+}
+
+/// Whether `after` is an acceptable tidy of the file `before` (both as text): both parse and
+/// [`tidy_accepts`] says so. A consolidator checks its own tidies with this before it proposes
+/// them.
+pub fn tidy_is_acceptable(before: &str, after: &str) -> bool {
+    match (parse_topic(before), parse_topic(after)) {
+        (Ok(current), Ok(tidied)) => tidy_accepts(&current, &tidied),
+        _ => false,
+    }
 }
 
 /// The file with its first unstamped bullet reading `text` replaced by `stamped`, or `None` when
@@ -213,28 +239,102 @@ impl<B: Backend> Open<B> {
     }
 
     /// Flag: keeps the model's note about facts that look wrong, for the person to read next to
-    /// the run (`flags/<run>.json` in the vault). Nothing about the facts changes.
+    /// the fact (`flags/<run>.json` in the vault, shown as `FactView.flagged`). Nothing about
+    /// the facts changes.
     pub(crate) fn apply_flag(
         &self,
         run: &RunId,
         facts: &[FactId],
         note: &UserText,
     ) -> Result<(), Refusal> {
-        let Some(path) = VaultPath::parse(&format!("flags/{run}.json")) else {
-            return Err(failed("flag path"));
-        };
-        let vault = self.rt.store.vault();
-        let mut notes: Vec<serde_json::Value> = vault
-            .read(&path)
+        let path = flag_path(run).ok_or_else(|| failed("flag path"))?;
+        let mut notes = self.read_flags(&path);
+        notes.push(StoredFlag {
+            facts: facts.to_vec(),
+            note: note.as_str().to_owned(),
+        });
+        self.write_flags(&path, &notes)
+    }
+
+    fn read_flags(&self, path: &VaultPath) -> Vec<StoredFlag> {
+        self.rt
+            .store
+            .vault()
+            .read(path)
             .ok()
             .and_then(|b| serde_json::from_slice(&b).ok())
-            .unwrap_or_default();
-        notes.push(serde_json::json!({
-            "facts": facts.iter().map(ToString::to_string).collect::<Vec<_>>(),
-            "note": note.as_str(),
-        }));
-        let bytes = serde_json::to_vec(&notes).map_err(failed)?;
-        vault.write_atomic(&path, &bytes).map_err(failed)
+            .unwrap_or_default()
+    }
+
+    fn write_flags(&self, path: &VaultPath, notes: &[StoredFlag]) -> Result<(), Refusal> {
+        let vault = self.rt.store.vault();
+        if notes.is_empty() {
+            drop(vault.remove(path));
+            return Ok(());
+        }
+        let bytes = serde_json::to_vec(notes).map_err(failed)?;
+        vault.write_atomic(path, &bytes).map_err(failed)
+    }
+
+    /// Every flag file: the run it belongs to and its notes, oldest file name first.
+    fn flag_files(&self) -> Vec<(RunId, VaultPath, Vec<StoredFlag>)> {
+        let Some(dir) = VaultPath::parse(FLAGS_DIR) else {
+            return Vec::new();
+        };
+        self.rt
+            .store
+            .vault()
+            .list(&dir)
+            .unwrap_or_default()
+            .into_iter()
+            .filter_map(|path| {
+                let stem = path.as_str().rsplit('/').next()?.strip_suffix(".json")?;
+                let run = RunId::parse(stem).ok()?;
+                let notes = self.read_flags(&path);
+                Some((run, path, notes))
+            })
+            .collect()
+    }
+
+    /// What the runs flagged, by fact.
+    pub(crate) fn flags_by_fact(&self) -> BTreeMap<FactId, Vec<FlagNote>> {
+        let mut out: BTreeMap<FactId, Vec<FlagNote>> = BTreeMap::new();
+        for (run, _, notes) in self.flag_files() {
+            for flag in notes {
+                for fact in flag.facts {
+                    out.entry(fact).or_default().push(FlagNote {
+                        run: run.clone(),
+                        note: UserText::new(flag.note.clone()),
+                    });
+                }
+            }
+        }
+        out
+    }
+
+    /// Forgetting facts forgets what was said about them: their ids leave every note, and a
+    /// note about nothing left goes (its text may quote the fact).
+    pub(crate) fn prune_flags(&self, gone: &[FactId]) -> Result<(), Refusal> {
+        for (_, path, notes) in self.flag_files() {
+            let kept: Vec<StoredFlag> = notes
+                .iter()
+                .map(|n| StoredFlag {
+                    facts: n
+                        .facts
+                        .iter()
+                        .filter(|f| !gone.contains(f))
+                        .cloned()
+                        .collect(),
+                    note: n.note.clone(),
+                })
+                .filter(|n| !n.facts.is_empty())
+                .collect();
+            if kept.len() != notes.len() || kept.iter().zip(&notes).any(|(a, b)| a.facts != b.facts)
+            {
+                self.write_flags(&path, &kept)?;
+            }
+        }
+        Ok(())
     }
 
     /// Puts files back as they were, last change first.

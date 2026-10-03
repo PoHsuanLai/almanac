@@ -1,13 +1,16 @@
 //! The consolidation prompt and the parse of the model's answer: pure, so they are tables.
 //!
-//! The model is asked for one JSON object of simple hunks (`promote`, `supersede`, `flag`) that
-//! cite what they come from; memoryd builds the real `Hunk`s from them: the fact's id from the
+//! The model is asked for one JSON object of simple hunks (`promote`, `supersede`, `flag`, `tidy`)
+//! that cite what they come from (a `tidy` names a topic file it was shown and gives the whole file
+//! reworded, which must keep every fact's trailer: `almanac_service::tidy_is_acceptable`); memoryd builds the real `Hunk`s from them: the fact's id from the
 //! run and its text, its date from the run, its author as memory itself, and its label as the
 //! join of the labels of everything it cites (`almanac_service::cited_label`), which is also what
 //! `check_draft` holds every promotion to. A hunk that cites nothing in the input, or whose text
 //! is not fact text, is dropped; an answer that is not the JSON object at all is `Unparseable`.
 
-use almanac_core::{Actor, Fact, FactId, FactText, Hunk, Link, SystemPart, UserText, Validity};
+use almanac_core::{
+    Actor, Fact, FactId, FactText, Hunk, Link, SystemPart, TidyHunk, TopicPath, UserText, Validity,
+};
 use almanac_service::{ConsolidateError, ConsolidationInput, Draft, cited_label};
 use serde::Deserialize;
 
@@ -28,15 +31,27 @@ pub fn render_prompt(input: &ConsolidationInput) -> String {
          {\"kind\":\"promote\",\"text\":\"one sentence worth remembering\",\"from\":[LINK,...]}\n\
          {\"kind\":\"supersede\",\"old\":\"FACT-ID\",\"text\":\"the corrected sentence\",\"from\":[LINK,...]}\n\
          {\"kind\":\"flag\",\"facts\":[\"FACT-ID\",...],\"note\":\"why they look wrong or stale\"}\n\
+         {\"kind\":\"tidy\",\"topic\":\"TOPIC\",\"after\":\"the whole topic file, reworded\"}\n\
          A LINK is {\"kind\":\"event\",\"v\":EVENT} or {\"kind\":\"fact\",\"v\":\"FACT-ID\"} or \
          {\"kind\":\"thing\",\"v\":THING}, copied exactly from the lists below. Every promote and \
-         supersede must cite at least one. Use an empty list when nothing should change.\n\n\
+         supersede must cite at least one. A tidy rewords or merges the bullets of one topic file listed \
+         below without changing what they mean: copy the file exactly, keep every \
+         `<!-- fact: ... -->` trailer and every bullet's fact, and change only the words. Use an \
+         empty list when nothing should change.\n\n\
          Facts:\n",
     );
     for fact in &input.facts {
         out.push_str(&line(&serde_json::json!({
             "id": fact.id.to_string(),
             "text": fact.text.as_str(),
+        })));
+        out.push('\n');
+    }
+    out.push_str("\nTopic files:\n");
+    for file in &input.topics {
+        out.push_str(&line(&serde_json::json!({
+            "topic": file.topic.to_string(),
+            "text": file.text.as_str(),
         })));
         out.push('\n');
     }
@@ -75,6 +90,10 @@ enum ModelHunk {
     Flag {
         facts: Vec<FactId>,
         note: String,
+    },
+    Tidy {
+        topic: String,
+        after: String,
     },
 }
 
@@ -137,6 +156,19 @@ fn hunk_from(input: &ConsolidationInput, index: usize, hunk: ModelHunk) -> Optio
             facts,
             note: UserText::new(note),
         }),
+        ModelHunk::Tidy { topic, after } => {
+            let topic = TopicPath::parse(&topic).ok()?;
+            let before = input.topics.iter().find(|t| t.topic == topic)?.text.clone();
+            let worth = before.as_str().trim() != after.trim()
+                && almanac_service::tidy_is_acceptable(before.as_str(), &after);
+            worth.then(|| {
+                Hunk::Tidy(TidyHunk {
+                    topic,
+                    before,
+                    after: UserText::new(after),
+                })
+            })
+        }
     }
 }
 

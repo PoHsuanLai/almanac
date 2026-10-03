@@ -162,6 +162,11 @@ fn each_actor_filter_picks_its_own_kinds_and_the_terminal_has_a_bucket() {
         vec![5],
         "the terminal's own bucket"
     );
+    assert_eq!(
+        picks(ActorFilter::Mcp),
+        vec![4],
+        "an outside agent has its own bucket"
+    );
     assert_eq!(picks(ActorFilter::Apps), vec![6, 7]);
     assert_eq!(picks(ActorFilter::Unknown), vec![9]);
 }

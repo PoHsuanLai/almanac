@@ -99,6 +99,9 @@ impl SqliteLog {
             .map_err(rows::err)?;
         conn.pragma_update(None, "secure_delete", "ON")
             .map_err(rows::err)?;
+        // No temporary files: a sandboxed daemon has no directory for them.
+        conn.pragma_update(None, "temp_store", "MEMORY")
+            .map_err(rows::err)?;
         conn.query_row("PRAGMA journal_mode = WAL", [], |_| Ok(()))
             .map_err(rows::err)?;
         let replica = match version {

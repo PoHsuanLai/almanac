@@ -21,6 +21,15 @@ impl ScriptedConsolidator {
         }
     }
 
+    /// Adds one more answer after the ones already scripted (a test that needs ids the service
+    /// minted writes its draft after it has them).
+    pub fn push(&self, result: Result<Draft, ConsolidateError>) {
+        self.script
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .push_back(result);
+    }
+
     /// The inputs `draft` was called with so far.
     pub fn inputs(&self) -> Vec<ConsolidationInput> {
         self.seen

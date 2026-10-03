@@ -7,6 +7,7 @@
 
 mod auth;
 mod backend;
+mod baseline;
 mod class;
 mod clock;
 mod config;
@@ -14,7 +15,9 @@ pub mod consolidation;
 mod control;
 mod dispatch;
 mod docs;
+mod edits;
 mod erase;
+mod events;
 mod export;
 pub mod fact;
 mod facts;
@@ -40,8 +43,9 @@ pub use config::{
 };
 pub use consolidation::{
     CheckedDraft, ConsolidateError, ConsolidationInput, Consolidator, Desktop, Draft, HunkFault,
-    InputEvent, Power, check_draft, cited_label,
+    InputEvent, InputTopic, Power, check_draft, cited_label,
 };
+pub use events::{ServiceEvent, locked_status};
 pub use export::{
     ErasedTag, EventLine, ExportWriter, ExportedBody, events_path, file_path, manifest_path,
     rules_path,
@@ -50,6 +54,7 @@ pub use forget::{
     ApplyStep, FactGraph, FactNode, PLAN_TTL_SECONDS, Plan, PlanEffect, PlanEvent, PlanState,
     plan_forget, plan_step, token_for,
 };
+pub use hunks::tidy_is_acceptable;
 pub use retention::{SourceState, Sweep, header_expired, sweep_body};
 pub use service::{MemoryService, SpaceRuntime};
 pub use space::{BUFFER_LIMIT, SpaceEffect, SpaceEvent};

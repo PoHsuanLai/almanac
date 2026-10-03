@@ -324,7 +324,7 @@ after each request that changed them, emits `Recorded`, `Forgotten`, `Consolidat
 rebuild), and runs on the multi-thread runtime (an export writes to the caller's stream blocking).
 `dbus/memoryd.service` and `dbus/org.quire.Memory1.service` are the user unit (`PrivateNetwork`,
 `ProtectSystem=strict`, `ProtectHome=read-only`, `ReadWritePaths` for the memory directories only)
-and the activation file. Landlock is not applied.
+and the activation file. (Landlock came with the w4 fill, below.)
 
 **The inferd link is `AnyTransport::Dbus(DbusTransport::over(connection))`** (`memoryd::inferd_link`,
 asks 71 and 80 closed). `main` builds the session-bus connection first and gives the same
@@ -348,15 +348,16 @@ Strictest-class pinning: one index is one model, so a class can only decide whet
 receive the text, not which model embeds it. The card's model must satisfy the strictest class the
 Space holds (on this computer, in practice); a cloud model would have its `Mail` and `Voice`
 documents refused (`Refused`, Fatal). Queries and untagged or unknown-tag texts go as the
-embedder's pin (`Mail` for `InferdEmbedder::new`). A refused class fails the whole batch.
+embedder's pin (`Mail` for `InferdEmbedder::new`). A refused class fails the whole batch at the
+embedder; `recall::Index` retries it class by class and only that class's documents go without a
+vector (w4 fill).
 
 **Terminals (ask 91).** `ActorKind::Cli` is audit class (`is_audit_class`: a terminal cannot tell the
 person from an agent typing in it, so its acts are audited like the companion's and a pause or a
 `Never` rule keeps the header). It is no app: `app_of` (admission) and `involves_app` (forget) name
 it explicitly and match nothing by actor, so an app rule or an app forget reaches a terminal's
 events only through their things; `Forget` by Space or Kind reaches them. `ActorFilter::Terminal`
-(slug `terminal`) is the timeline's own bucket for it (`You` is the person only; `Mcp` still has no
-bucket but `Everyone`).
+(slug `terminal`) is the timeline's own bucket for it (`You` is the person only; `Mcp` got its own bucket in the w4 fill).
 
 **Interface ask 26 (cua `HandedBack.user_events`): decided, and done on this side.** Option taken:
 `cua-bus` depends on `almanac-core` and carries `almanac_core::EventRef`; no memory call at record
@@ -370,20 +371,83 @@ boundary later. What cua does (not in this repo): add `almanac-core` to cua-bus'
 its row in `check-boundary.sh`, and give `HandedBack` `user_events: Vec<EventRef>`. The router, not
 cuad, reads the person's events during the takeover (`Recent`, a `Router` call) and hands them over.
 
-### Open after the memoryd wave
+### Closed by the w4 fill (branch w4-almanac; asks 73-77, 93, 94)
 
-- **Per-document data class for embedding**: `Embedder::embed` has no class, so one embedder has one
-  class. Closes when `recall::Doc` carries a class tag the embedder may map (recall names no porter
-  type, so a plain string facet) or memoryd keeps one embedder per class.
-- **Re-embedding at every start**: opening a Space with documents rebuilds its index (the service
-  does it on open), which re-embeds everything through inferd in the background. Closes when `Index`
-  can adopt an existing `index.db` whose card matches (a `state` read from `meta`).
-- **The model cannot propose Tidy or ExternalEdit**: `ConsolidationInput` carries facts and events,
-  not topic file text, and nothing detects an external edit (it needs a baseline of the last text the
-  service wrote). Stamp is proposed mechanically. The apply paths are built and tested.
-- **Flags are not shown**: `flags/<run>.json` is written, but `FactView` has no flagged field and no
-  member reads the file; the last run's `DraftView` does show the hunk. Needs a `FactView.flagged`
-  (wire change) or a `Flags` member.
-- **`StatusChanged` on a lost key** and `PendingChanged` after `Settle` or ageing are not emitted
-  (the service raises no event for them).
-- **Landlock** for memoryd is not applied.
+- **A restart adopts the index** (73). `recall::Index::sync(docs, embedder)` is what the service
+  runs when a Space opens (it replaced the rebuild). `index.db`'s `meta` now records the embedder's
+  vector space (`meta.space`, `EmbedderCard::space_key()`: model, length, metric and both prefixes;
+  an older file without the column gets it when the card is first recorded). A file whose recorded
+  space is the embedder's is adopted: documents with the same text and facets keep their vectors,
+  new, changed and vectorless ones (an embedder that was away, a refused class) are embedded, and
+  documents the truth no longer has are removed from both halves. No recorded space, or another
+  one, is the full `rebuild`. `rebuild` and a first `upsert` record the space. An embedder that
+  fails at open no longer stops the Space opening (the index state says why; the next start
+  retries). Additions: `VectorIndex::ids()` (a trait method; `ExactScan` is its only
+  implementation), `Fts5::{recorded_space, record_space, stored}`, `StoredDoc`,
+  `FakeEmbedder::with_document_prefix`. Tests: `recall/tests/adopt.rs` (restart embeds nothing,
+  only the changed, a changed facet, another model or prefix, an old file, vectorless documents,
+  a text-less document) and `memoryd/tests/restart.rs` (a counting embedder over the real SQLCipher
+  index across a restart, a deleted cache, a changed model).
+- **A refused class fails only its own documents** (93). `recall::Index` retries a batch the
+  embedder refused (`EmbedError::Refused`) class by class (`Doc.class`); a class that refuses again
+  leaves its documents without a vector (lexical only, retried at the next start) and the call
+  succeeds. When every document was refused the state is `LexicalOnly(EmbedderRefused)`; other
+  failures still fail the batch. The trait is unchanged: `InferdEmbedder` still answers `Refused`
+  for the batch, and the index does the isolation.
+- **`ActorFilter::Mcp`** (94), slug `mcp`, the timeline's own bucket for `Actor::Mcp` (an
+  outside agent over MCP). A wire change: the enum has one more variant.
+- **Topic text for the consolidator, Tidy proposals and ExternalEdit** (74).
+  `ConsolidationInput.topics: Vec<InputTopic { topic, text }>` holds every topic file as the
+  service would write it. The prompt lists them and asks for `{"kind":"tidy","topic","after"}`;
+  `parse_draft` turns one into `Hunk::Tidy` with the text the model was shown as `before`, and
+  drops it when the topic was not shown, the file is unchanged or `almanac_service::
+  tidy_is_acceptable` refuses it (a tidy keeps every fact's id, author, label, links and date).
+  The ExternalEdit baseline is `meta/baseline.json` in the Space's vault (sealed): each topic
+  file's text as the service last left it. Before a request that may write topic files (`Propose`,
+  `Settle`, `Revert`, `Forget`, `RunConsolidation`; also when a Space opens) the service compares
+  the files with it (`guard_topics`), and after it refreshes the baseline except for topics that
+  already differed (`accept_topics`), so the service's own writes are never edits and its write
+  after the person's edit does not absorb it. A run adds one `ExternalEdit { before: baseline,
+  after: file }` per differing topic (beside the Stamp hunks it already adds), and applying it
+  makes the file the baseline. A topic file the person deleted drops its facts from the index and
+  the baseline. Forgetting a fact removes it from the baseline too (a pending edit's `before`
+  must not keep forgotten text).
+- **Flags are readable** (75): `FactView.flagged: Vec<FlagNote { run, note }>` (`#[serde(default)]`,
+  oldest run first), read from `flags/<run>.json`. Forgetting a fact removes its id from every
+  note and deletes a note about nothing left (the note may quote the fact).
+- **`StatusChanged` and `PendingChanged` the service raises** (76). `MemoryService::take_events()`
+  returns `ServiceEvent::{PendingChanged, StatusChanged, Locked}` raised since the last call:
+  `PendingChanged` after `Settle` and after pending facts age out (14 days; ageing now also runs in
+  the daily `Sweep`, so it happens without anyone reading `Pending`); `Locked` when a Space is found
+  without its key, once until it opens again (`StatusChanged` when it does). `MemoryService::
+  check_keys()` is the minute timer's work: an open Space whose key the store no longer gives is
+  closed and announced, a locked one whose key is back is opened (which flushes its buffered
+  records). memoryd's `Daemon` drains the events after every request and after its timers
+  (`flush_events`, `check_keys`, `sweep_all`) and sends the signals; a locked Space's
+  `StatusChanged` carries `locked_status()`. The Secret Service's own lock signal would be a
+  better trigger than polling (an event source for `check_keys`; not built).
+- **Landlock** (77): `memoryd/src/sandbox.rs`. The policy (`policy_for(dirs, bus_address)`, pure,
+  a table test) is read-write on the four memory directories (data, cache, `<config>/quire`,
+  `<runtime>/quire/memory`), read-only on `/usr /lib /lib64 /bin /etc /proc /sys /dev/urandom`,
+  `ResolveUnix` on the session bus socket only (`unix:path=` of `DBUS_SESSION_BUS_ADDRESS`, else
+  `<runtime>/bus`), and no TCP. `main` is no longer `#[tokio::main]`: it makes the directories,
+  applies the policy (best effort: older kernels get what they have, none gets a warning on
+  standard error and the unit file's restrictions) and only then builds the runtime, because
+  Landlock restricts the calling thread and the threads made after it. The `landlock` crate does
+  the syscalls, so there is no `unsafe` here. SQLite no longer opens temporary files
+  (`temp_store = MEMORY`, index and event log). Tested on a scratch tree by a thread that applies
+  the policy (real enforcement, `Full` on this kernel: writes outside denied, another unix socket
+  and TCP denied, the bus socket allowed; a kernel without Landlock skips), and the binary was run
+  once under it against a private pathname bus. Dropping the introspection-only skeleton structs
+  (the optional half of ask 77) is not done: the served objects equal them by test and the XML is
+  generated from them.
+
+### Open after the w4 fill
+
+- **`landlock` is not in quire's pinned dependency block** (`docs/workspace-deps.toml`): almanac's
+  `Cargo.toml` names `landlock = "0.4"` (0.4.7 in the lockfile, MIT OR Apache-2.0) ahead of it. The
+  line joins quire's file first (CONVENTIONS "dependencies").
+- **The key check polls** (a minute). Closes when memoryd listens for the Secret Service's own lock
+  signal and calls `check_keys` on it.
+- **The service raises no event for a changed index state** (building done, lexical only): the
+  signal exists (`StatusChanged`) and nothing calls for it after a background rebuild.

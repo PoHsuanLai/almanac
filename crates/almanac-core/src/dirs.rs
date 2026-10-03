@@ -35,6 +35,26 @@ impl Dirs {
         self.data_home.join("quire").join("memory")
     }
 
+    /// `<cache>/quire/memory`: the rebuildable indexes of every Space.
+    pub fn cache_memory(&self) -> PathBuf {
+        self.cache_home.join("quire").join("memory")
+    }
+
+    /// `<config>/quire`: where memoryd's two files live (`memory.toml`, `memory-callers.toml`).
+    pub fn config(&self) -> PathBuf {
+        self.config_home.join("quire")
+    }
+
+    /// `<runtime>/quire/memory`: the edit copies of every Space.
+    pub fn runtime_memory(&self) -> PathBuf {
+        self.runtime_dir.join("quire").join("memory")
+    }
+
+    /// The runtime directory itself (`$XDG_RUNTIME_DIR`).
+    pub fn runtime_dir(&self) -> &Path {
+        &self.runtime_dir
+    }
+
     /// `<data>/quire/memory/spaces.toml`.
     pub fn spaces_toml(&self) -> PathBuf {
         self.memory().join("spaces.toml")
@@ -87,10 +107,7 @@ impl Dirs {
 
     /// The directory of a Space's rebuildable recall index (cache: deletable).
     pub fn index_dir(&self, space: &SpaceId) -> PathBuf {
-        self.cache_home
-            .join("quire")
-            .join("memory")
-            .join(space.as_str())
+        self.cache_memory().join(space.as_str())
     }
 
     /// The rebuildable recall index (cache: deletable).
@@ -100,16 +117,12 @@ impl Dirs {
 
     /// `<config>/quire/memory.toml`: the rule set, written only by memoryd.
     pub fn memory_toml(&self) -> PathBuf {
-        self.config_home.join("quire").join("memory.toml")
+        self.config().join("memory.toml")
     }
 
     /// Decrypted edit copies on tmpfs.
     pub fn edit(&self, space: &SpaceId) -> PathBuf {
-        self.runtime_dir
-            .join("quire")
-            .join("memory")
-            .join("edit")
-            .join(space.as_str())
+        self.runtime_memory().join("edit").join(space.as_str())
     }
 
     /// `path` relative to the data root, for tests and logs.

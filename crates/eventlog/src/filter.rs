@@ -12,6 +12,7 @@ pub fn passes(filter: &TimelineFilter, entry: &Entry) -> bool {
         ActorFilter::You => h.actor.kind() == ActorKind::User,
         ActorFilter::Companion => matches!(h.actor.kind(), ActorKind::Companion | ActorKind::Cua),
         ActorFilter::Terminal => h.actor.kind() == ActorKind::Cli,
+        ActorFilter::Mcp => h.actor.kind() == ActorKind::Mcp,
         ActorFilter::Apps => matches!(h.actor.kind(), ActorKind::App | ActorKind::ThirdParty),
         ActorFilter::Unknown => h.actor.kind() == ActorKind::Unknown,
     };

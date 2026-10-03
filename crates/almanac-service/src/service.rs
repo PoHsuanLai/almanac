@@ -6,6 +6,7 @@
 use crate::auth::{Allowed, allowed};
 use crate::backend::Backend;
 use crate::clock::Clock;
+use crate::events::ServiceEvent;
 use crate::forget::{Plan, PlanState};
 use crate::open::{Cx, ErasedNotes, Open};
 use crate::record::Stored;
@@ -16,7 +17,7 @@ use almanac_core::{
 use almanac_seal::{KeyError, KeyStore, Purpose, derive};
 use memfiles::Store;
 use recall::Index;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::future::Future;
 use std::io::Write;
 use std::sync::{Mutex, MutexGuard, PoisonError};
@@ -63,6 +64,9 @@ pub struct MemoryService<B: Backend> {
     spaces: Mutex<BTreeMap<SpaceId, Slot<B>>>,
     metas: Mutex<BTreeMap<SpaceId, SpaceMeta>>,
     buffers: Mutex<BTreeMap<SpaceId, Vec<Record>>>,
+    /// Spaces whose lost key was announced, until they open again.
+    locked: Mutex<BTreeSet<SpaceId>>,
+    events: Mutex<Vec<ServiceEvent>>,
 }
 
 impl<B: Backend> std::fmt::Debug for MemoryService<B> {
@@ -118,6 +122,57 @@ impl<B: Backend> MemoryService<B> {
             spaces: Mutex::new(BTreeMap::new()),
             metas: Mutex::new(BTreeMap::new()),
             buffers: Mutex::new(BTreeMap::new()),
+            locked: Mutex::new(BTreeSet::new()),
+            events: Mutex::new(Vec::new()),
+        }
+    }
+
+    fn raise(&self, event: ServiceEvent) {
+        locked(&self.events).push(event);
+    }
+
+    pub(crate) fn raise_all(&self, events: impl IntoIterator<Item = ServiceEvent>) {
+        locked(&self.events).extend(events);
+    }
+
+    /// A Space found without its key: said once, until it opens again.
+    fn note_locked(&self, id: &SpaceId) {
+        if locked(&self.locked).insert(id.clone()) {
+            self.raise(ServiceEvent::Locked(id.clone()));
+        }
+    }
+
+    /// What happened since the last call that the bus should hear of, oldest first: pending
+    /// facts settled or aged out, Spaces locked or open again. memoryd calls it after every
+    /// request and on its timers.
+    pub fn take_events(&self) -> Vec<ServiceEvent> {
+        std::mem::take(&mut locked(&self.events))
+    }
+
+    /// The timer's key check: an open Space whose key the store no longer gives is closed and
+    /// announced as locked (the keyring locked); a locked one whose key is back is opened again,
+    /// which flushes the records it buffered. Spaces out on a request are left to it.
+    pub async fn check_keys(&self) {
+        let open: Vec<SpaceId> = locked(&self.spaces)
+            .iter()
+            .filter(|(_, slot)| matches!(slot, Slot::Ready(_)))
+            .map(|(id, _)| id.clone())
+            .collect();
+        for id in open {
+            if matches!(self.backend.keys().get(&id).await, Err(KeyError::Locked)) {
+                let mut spaces = locked(&self.spaces);
+                if matches!(spaces.get(&id), Some(Slot::Ready(_))) {
+                    spaces.remove(&id);
+                    drop(spaces);
+                    self.note_locked(&id);
+                }
+            }
+        }
+        let waiting: Vec<SpaceId> = locked(&self.locked).iter().cloned().collect();
+        for id in waiting {
+            if self.backend.keys().get(&id).await.is_ok() {
+                drop(self.checkout(&Caller::ShellUi, &id).await);
+            }
         }
     }
 
@@ -174,13 +229,21 @@ impl<B: Backend> MemoryService<B> {
             }),
             Some(Slot::Busy) => Err(Refusal::Busy),
             None => match self.open_space(caller, id).await {
-                Ok(open) => Ok(Lease {
-                    service: self,
-                    id: id.clone(),
-                    open: Some(Box::new(open)),
-                }),
+                Ok(open) => {
+                    if locked(&self.locked).remove(id) {
+                        self.raise(ServiceEvent::StatusChanged(id.clone()));
+                    }
+                    Ok(Lease {
+                        service: self,
+                        id: id.clone(),
+                        open: Some(Box::new(open)),
+                    })
+                }
                 Err(e) => {
                     locked(&self.spaces).remove(id);
+                    if e == Refusal::SpaceLocked {
+                        self.note_locked(id);
+                    }
                     Err(e)
                 }
             },
@@ -225,6 +288,7 @@ impl<B: Backend> MemoryService<B> {
             .map_err(crate::open::failed)?;
         let store = Store::new(files, id.clone(), jiff::tz::TimeZone::UTC);
         let marks = crate::marks::load(store.vault());
+        let baseline = crate::baseline::Baseline::load(store.vault());
         let mut open = Open {
             rt: SpaceRuntime {
                 meta,
@@ -242,11 +306,13 @@ impl<B: Backend> MemoryService<B> {
             notes: ErasedNotes::default(),
             run: RunState::Idle,
             last: None,
+            baseline,
+            dirty: std::collections::BTreeSet::new(),
+            outbox: Vec::new(),
         };
         let cx = self.cx(caller);
-        if !open.truth_docs()?.is_empty() {
-            open.rebuild_index(&cx).await?;
-        }
+        open.sync_index(&cx).await?;
+        open.guard_topics()?;
         let waiting = locked(&self.buffers).remove(id).unwrap_or_default();
         for record in waiting {
             open.record(&cx, record).await?;
@@ -280,7 +346,11 @@ impl<B: Backend> MemoryService<B> {
                 Ok(mut lease) => {
                     let cx = self.cx(&caller);
                     match lease.open() {
-                        Some(open) => open.sweep(&cx),
+                        Some(open) => {
+                            let report = open.sweep(&cx);
+                            self.raise_all(open.outbox.drain(..));
+                            report
+                        }
                         None => Err(Refusal::Busy),
                     }
                 }

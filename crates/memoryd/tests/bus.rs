@@ -379,3 +379,77 @@ async fn the_daemon_owns_its_well_known_name() {
     let name = zbus::names::BusName::try_from(MEMORY_BUS).expect("name");
     assert!(bus.name_has_owner(name).await.expect("owner"));
 }
+
+fn receipt() -> ConfirmReceipt {
+    ConfirmReceipt {
+        id: ConfirmId::parse("c-1").expect("id"),
+        input: InputProof::ShellCaller,
+        at: UnixSeconds(1_790_000_000),
+        covers: Confidentiality::Secret,
+    }
+}
+
+#[tokio::test]
+async fn settling_a_pending_fact_and_losing_a_key_are_signalled_too() {
+    let rig = rig().await;
+    let watcher = rig.world.client(Caller::ShellUi).await;
+    let control = ControlProxy::new(&watcher).await.expect("proxy");
+    let mut pending = control.receive_pending_changed().await.expect("subscribe");
+    let mut status = control.receive_status_changed().await.expect("subscribe");
+    let router = rig.memory(Caller::Router).await;
+    let shell = rig.memory(Caller::ShellUi).await;
+    let wait = Duration::from_secs(10);
+
+    let (id, _) = router
+        .propose(
+            space("work"),
+            FactDraft {
+                topic: TopicPath::parse("people/ana").expect("topic"),
+                text: FactText::parse("Ana is the CFO.").expect("text"),
+                links: vec![],
+                supersedes: vec![],
+            },
+        )
+        .await
+        .expect("propose");
+    let signal = tokio::time::timeout(wait, next_item(&mut pending))
+        .await
+        .expect("PendingChanged arrives for the proposal")
+        .expect("a signal");
+    assert_eq!(signal.args().expect("args").count, 1);
+
+    shell
+        .settle(id, Settlement::Keep(receipt()))
+        .await
+        .expect("settle");
+    let signal = tokio::time::timeout(wait, next_item(&mut pending))
+        .await
+        .expect("PendingChanged arrives for the settlement")
+        .expect("a signal");
+    let args = signal.args().expect("args");
+    assert_eq!((args.space, args.count), ("work", 0));
+
+    // The keyring locks: the daemon's key check closes the Space and says so, once.
+    rig.world.keys.0.lock();
+    rig.world.daemon.check_keys().await;
+    let signal = tokio::time::timeout(wait, next_item(&mut status))
+        .await
+        .expect("StatusChanged arrives for the lost key")
+        .expect("a signal");
+    let args = signal.args().expect("args");
+    assert_eq!(args.space, "work");
+    let locked: SpaceStatus = serde_json::from_str(args.status).expect("a SpaceStatus");
+    assert_eq!(locked.state, SpaceState::Locked);
+
+    // It comes back: the next check opens the Space again and the status is read from it.
+    rig.world.keys.0.unlock();
+    rig.world.daemon.check_keys().await;
+    let signal = tokio::time::timeout(wait, next_item(&mut status))
+        .await
+        .expect("StatusChanged arrives for the returned key")
+        .expect("a signal");
+    let open: SpaceStatus =
+        serde_json::from_str(signal.args().expect("args").status).expect("a SpaceStatus");
+    assert_eq!(open.state, SpaceState::Open);
+    assert_eq!(open.facts, Count(1));
+}

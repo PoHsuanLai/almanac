@@ -68,6 +68,9 @@ getrandom = "0.3"
 rusqlite = { version = "0.40", features = ["bundled-sqlcipher-vendored-openssl"] }
 tar = "0.4"
 oo7 = "0.6"
+# memoryd's Landlock sandbox (no unsafe of ours: the crate wraps the syscalls). Not yet in quire's
+# pinned block (`docs/workspace-deps.toml`): it joins there first (interface ask in FINDINGS).
+landlock = "0.4"
 # recall-fastembed only; excluded from the gate.
 fastembed = "7.1"
 # Dev-dependencies.

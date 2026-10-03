@@ -9,6 +9,7 @@ mod daemon;
 mod infer;
 mod peers;
 mod queue;
+mod sandbox;
 mod signals;
 mod xdg;
 
@@ -20,6 +21,7 @@ pub use daemon::Daemon;
 pub use infer::{InferdConsolidator, InferdEmbedder, class_of, parse_draft, render_prompt};
 pub use peers::{CallerTable, Peers, ProcPeers, TablePeers};
 pub use queue::{Claim, Serialised, claim_of};
+pub use sandbox::{Enforcement, Policy, SandboxError, bus_socket, enforce, policy_for, prepare};
 pub use signals::{FollowUp, follow_ups};
 pub use xdg::{XdgError, dirs_from, dirs_from_env};
 

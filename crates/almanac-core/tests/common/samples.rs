@@ -57,6 +57,10 @@ pub fn fact_view() -> FactView {
         ],
         used: UseCount(2),
         last_used: Some(NOW),
+        flagged: vec![FlagNote {
+            run: RunId::parse("c-1a2b").expect("run"),
+            note: UserText::new("looks stale".to_owned()),
+        }],
     }
 }
 

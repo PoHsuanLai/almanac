@@ -4,8 +4,9 @@
 use almanac_core::*;
 use almanac_fake::{mail_label, trusted_label};
 use almanac_service::{
-    ConsolidateError, ConsolidationInput, Consolidator, InputEvent, check_draft,
+    ConsolidateError, ConsolidationInput, Consolidator, InputEvent, InputTopic, check_draft,
 };
+use memfiles::{Block, TopicFile, render_topic};
 use memoryd::{InferdConsolidator, InferdEmbedder, class_of, parse_draft, render_prompt};
 use porter_client::{Transport, TransportError};
 use porter_core::capability::{LlmFeature, Modality};
@@ -368,7 +369,25 @@ fn input() -> ConsolidationInput {
                 label: mail_label(),
             },
         ],
+        topics: vec![InputTopic {
+            topic: TopicPath::parse("people/ana").expect("topic"),
+            text: UserText::new(topic_text()),
+        }],
     }
+}
+
+/// `people/ana` as the service reads it back: Ana's fact with its trailer, and a bullet of the
+/// person's own.
+fn topic_text() -> String {
+    let file = TopicFile {
+        topic: TopicPath::parse("people/ana").expect("topic"),
+        title: "ana".to_owned(),
+        blocks: vec![
+            Block::Fact(fact(1, "Ana is the CFO.", trusted_label())),
+            Block::Unstamped("Ana likes tea".to_owned()),
+        ],
+    };
+    render_topic(&file, &jiff::tz::TimeZone::UTC)
 }
 
 fn event_link(seq: u64) -> String {
@@ -403,6 +422,71 @@ fn the_prompt_lists_the_facts_and_the_events_and_says_what_to_answer() {
         "an event line carries its reference exactly as a link needs it: {listed:?}"
     );
     assert!(prompt.contains("thing.archived"));
+}
+
+#[test]
+fn the_prompt_shows_the_topic_files_and_how_to_tidy_one() {
+    let prompt = render_prompt(&input());
+    assert!(prompt.contains("\"kind\":\"tidy\""));
+    let shown: Vec<serde_json::Value> = prompt
+        .lines()
+        .filter_map(|l| serde_json::from_str(l).ok())
+        .filter(|l: &serde_json::Value| l.get("topic").is_some() && l.get("text").is_some())
+        .collect();
+    assert_eq!(shown.len(), 1, "{shown:?}");
+    assert_eq!(shown[0]["topic"], "people/ana");
+    assert_eq!(shown[0]["text"].as_str(), Some(topic_text().as_str()));
+}
+
+fn tidy_answer(topic: &str, after: &str) -> String {
+    serde_json::json!({"hunks": [{"kind": "tidy", "topic": topic, "after": after}]}).to_string()
+}
+
+#[test]
+fn a_tidy_of_a_shown_file_becomes_a_hunk_with_the_text_the_model_saw() {
+    let reworded = topic_text().replace("Ana is the CFO.", "Ana is our CFO.");
+    let input = input();
+    let draft = parse_draft(&tidy_answer("people/ana", &reworded), &input).expect("draft");
+    let [Hunk::Tidy(tidy)] = draft.hunks.as_slice() else {
+        panic!("{:?}", draft.hunks)
+    };
+    assert_eq!(tidy.topic, TopicPath::parse("people/ana").expect("topic"));
+    assert_eq!(tidy.before.as_str(), topic_text());
+    assert_eq!(tidy.after.as_str(), reworded);
+    let checked = check_draft(&input, draft);
+    assert!(checked.dropped.is_empty(), "{:?}", checked.dropped);
+}
+
+#[test]
+fn a_tidy_that_is_not_one_is_dropped() {
+    let input = input();
+    let text = topic_text();
+    let cases = [
+        ("an unchanged file", "people/ana", text.clone()),
+        (
+            "a topic it was not shown",
+            "people/bo",
+            text.replace("CFO", "COO"),
+        ),
+        (
+            "a topic that is not a path",
+            "../x",
+            text.replace("CFO", "COO"),
+        ),
+        (
+            "a file that lost its fact",
+            "people/ana",
+            text.lines()
+                .filter(|l| !l.contains("fact:") && !l.contains("CFO"))
+                .collect::<Vec<_>>()
+                .join("\n"),
+        ),
+        ("not a topic file", "people/ana", "just words".to_owned()),
+    ];
+    for (name, topic, after) in cases {
+        let draft = parse_draft(&tidy_answer(topic, &after), &input).expect("draft");
+        assert!(draft.hunks.is_empty(), "{name}: {:?}", draft.hunks);
+    }
 }
 
 fn fact_id() -> FactId {

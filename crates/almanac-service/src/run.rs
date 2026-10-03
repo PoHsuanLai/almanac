@@ -69,12 +69,14 @@ impl<B: Backend> Open<B> {
                     _ => None,
                 })
                 .collect(),
+            topics: self.input_topics()?,
         };
         let (s, _) = step(state, RunEvent::InputReady);
         state = s;
         let draft: Draft = match cx.backend.consolidator().draft(input.clone()).await {
             Ok(mut d) => {
                 d.hunks.extend(self.stamp_hunks()?);
+                d.hunks.extend(self.external_edit_hunks()?);
                 d
             }
             Err(e) => {
@@ -159,6 +161,7 @@ impl<B: Backend> Open<B> {
             }
             Hunk::ExternalEdit { topic, before, .. } => {
                 self.apply_external_edit(cx, topic, before).await?;
+                self.absorb_edit(topic);
                 applied.hunks += 1;
                 return Ok(());
             }

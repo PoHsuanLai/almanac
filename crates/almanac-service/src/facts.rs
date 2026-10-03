@@ -2,6 +2,7 @@
 
 use crate::backend::Backend;
 use crate::docs::{fact_doc, fact_doc_id};
+use crate::events::ServiceEvent;
 use crate::fact::{FactEffect, FactEvent, FactLife, lands, step};
 use crate::open::{Cx, Open, Stored, failed, files_refusal};
 use crate::search::caller_actor;
@@ -92,6 +93,7 @@ impl<B: Backend> Open<B> {
         let entries = self.entries()?;
         let stored = self.stored()?;
         let uses = reads_of(&entries);
+        let flags = self.flags_by_fact();
         Ok(items
             .iter()
             .map(|s| FactView {
@@ -106,6 +108,7 @@ impl<B: Backend> Open<B> {
                     .collect(),
                 used: UseCount(uses.get(&s.fact.id).map_or(0, |(n, _)| *n)),
                 last_used: uses.get(&s.fact.id).map(|(_, at)| *at),
+                flagged: flags.get(&s.fact.id).cloned().unwrap_or_default(),
             })
             .collect())
     }
@@ -242,7 +245,8 @@ impl<B: Backend> Open<B> {
         self.fact_views(cx, &pending)
     }
 
-    fn age_pending(&mut self, now: UnixSeconds) -> Result<(), Refusal> {
+    /// Discards the pending facts that waited past their 14 days, and says so.
+    pub(crate) fn age_pending(&mut self, now: UnixSeconds) -> Result<(), Refusal> {
         let old: Vec<FactId> = self
             .stored()?
             .into_iter()
@@ -260,12 +264,18 @@ impl<B: Backend> Open<B> {
             })
             .map(|s| s.fact.id)
             .collect();
+        let mut aged = false;
         for id in old {
             self.rt
                 .store
                 .settle(&id, Settlement::Discard)
                 .map_err(files_refusal)?;
             self.audit(now, MemoryOp::FactRejected { fact: id })?;
+            aged = true;
+        }
+        if aged {
+            self.outbox
+                .push(ServiceEvent::PendingChanged(self.space().clone()));
         }
         Ok(())
     }
@@ -308,6 +318,8 @@ impl<B: Backend> Open<B> {
         } else {
             self.audit(now, MemoryOp::FactRejected { fact: id.clone() })?;
         }
+        self.outbox
+            .push(ServiceEvent::PendingChanged(self.space().clone()));
         Ok(())
     }
 

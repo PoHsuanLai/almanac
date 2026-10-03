@@ -136,4 +136,11 @@ impl<B: Backend> Serialised<B> {
         self.holding(Claim::Everything, self.service.sweep_all())
             .await
     }
+
+    /// The key check over every Space (the minute timer): a lost key closes its Space, a
+    /// returned one opens it again.
+    pub async fn check_keys(&self) {
+        self.holding(Claim::Everything, self.service.check_keys())
+            .await;
+    }
 }
