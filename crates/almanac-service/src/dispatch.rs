@@ -9,7 +9,7 @@ use crate::service::MemoryService;
 use almanac_core::{
     Caller, Count, EXPORT_FORMAT, ExportCounts, ExportManifest, ExportOptions, ExportedSpace,
     FactState, ForgetScope, Head, MemoryOp, MemoryReply, MemoryRequest, Refusal, SpaceId,
-    SpaceState, VerificationKey, hex_of,
+    VerificationKey, hex_of,
 };
 use eventlog::LogRead;
 use memfiles::{Vault, VaultPath};
@@ -125,16 +125,50 @@ impl<B: Backend> MemoryService<B> {
         let (report, scope) = open.forget(&cx, token)?;
         if scope == ForgetScope::Space {
             use crate::space::{SpaceEffect, SpaceEvent, step};
+            let final_head = open.rt.log.head().map_err(log_refusal)?;
             let (deleting, _) = step(open.rt.state, SpaceEvent::ForgetConfirmed);
-            let (_, effects) = step(deleting, SpaceEvent::Done);
-            if effects.contains(&SpaceEffect::DestroyKey) {
-                let _ = almanac_seal::KeyStore::destroy(self.backend().keys(), id).await;
+            let (gone, effects) = step(deleting, SpaceEvent::Done);
+            open.rt.state = gone;
+            for effect in effects {
+                match effect {
+                    SpaceEffect::AnchorFinalHead => {
+                        self.anchor_final_head(caller, id, final_head).await;
+                    }
+                    SpaceEffect::DestroyKey => {
+                        let _ = almanac_seal::KeyStore::destroy(self.backend().keys(), id).await;
+                    }
+                    _ => {}
+                }
             }
-            open.rt.state = SpaceState::Gone;
             self.forget_meta(id);
+            // The stores close before their directories go.
             lease.discard();
+            self.backend().remove_space(id).map_err(failed)?;
         }
         Ok(MemoryReply::Forgot(report))
+    }
+
+    /// Records a deleted Space's final head in the `desktop` Space's log (`SpaceEffect::
+    /// AnchorFinalHead`). Best effort: the person's deletion goes ahead if the desktop log is
+    /// not available (locked or itself being deleted).
+    async fn anchor_final_head(&self, caller: &Caller, space: &SpaceId, head: Head) {
+        let desktop = SpaceId::desktop();
+        if space == &desktop {
+            return;
+        }
+        let Ok(mut lease) = self.checkout(caller, &desktop).await else {
+            return;
+        };
+        let now = self.backend().clock().now();
+        if let Some(open) = lease.open() {
+            let _ = open.audit(
+                now,
+                MemoryOp::SpaceDeleted {
+                    space: space.clone(),
+                    head,
+                },
+            );
+        }
     }
 
     /// A request that names one Space.
@@ -154,10 +188,7 @@ impl<B: Backend> MemoryService<B> {
         open.tick(&cx)?;
         match request {
             R::ExplainFile(claim) => open.explain(&cx, claim).await.map(|_| MemoryReply::Ok),
-            R::Mark(mark) => {
-                open.mark(mark);
-                Ok(MemoryReply::Ok)
-            }
+            R::Mark(mark) => open.mark(mark).map(|()| MemoryReply::Ok),
             R::Search(q) => open.search(&cx, q).await.map(MemoryReply::Hits),
             R::Inject(q) => open.inject(&cx, q).await.map(MemoryReply::Hits),
             R::Recent(_, q) => open.recent(&cx, q).map(MemoryReply::Recent),
@@ -186,6 +217,7 @@ impl<B: Backend> MemoryService<B> {
             R::Resume(_) => open.resume(&cx).map(|()| MemoryReply::Ok),
             R::Verify(_) => open.verify().map(MemoryReply::Verified),
             R::Rebuild(_) => open.rebuild_index(&cx).await.map(|()| MemoryReply::Ok),
+            R::Sweep(_) => open.sweep(&cx).map(MemoryReply::Swept),
             _ => Err(failed("not a Space request")),
         }
     }

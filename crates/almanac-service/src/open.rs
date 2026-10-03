@@ -35,6 +35,7 @@ impl<B: Backend> Cx<'_, B> {
 #[derive(Debug, Default)]
 pub(crate) struct ErasedNotes {
     pub forgotten: BTreeSet<Seq>,
+    pub expired: BTreeSet<Seq>,
     pub header_only: BTreeSet<Seq>,
 }
 
@@ -45,6 +46,10 @@ pub(crate) struct LastRun {
     pub view: almanac_core::DraftView,
     pub added: Vec<FactId>,
     pub superseded: Vec<FactId>,
+    /// Files the run rewrote, as they were.
+    pub pre_images: Vec<crate::hunks::PreImage>,
+    /// Topics whose facts the run reworded.
+    pub topics: Vec<TopicPath>,
     pub cut: Seq,
 }
 
@@ -87,10 +92,12 @@ impl<B: Backend> Open<B> {
         &self.rt.meta.id
     }
 
-    /// Entropy for an id: a keyed hash over the Space's digest subkey, a counter, the time and
-    /// what the id is for. No ambient randomness (CONVENTIONS 4); ids from two machines differ
-    /// because their Space keys do.
-    pub(crate) fn entropy(&mut self, now: UnixSeconds, what: &[u8]) -> [u8; 10] {
+    /// Entropy for an id: a keyed hash over the Space's digest subkey, a counter, the time, the
+    /// backend's random bytes and what the id is for. No ambient randomness (CONVENTIONS 4: the
+    /// bytes come through `Backend::random`); ids from two machines differ because their Space
+    /// keys do, and a restarted daemon's differ because its random bytes do.
+    pub(crate) fn entropy(&mut self, cx: &Cx<'_, B>, what: &[u8]) -> [u8; 10] {
+        let now = cx.now();
         self.minted += 1;
         let head = self.rt.log.head().map(|h| h.seq.0).unwrap_or_default();
         let mut hasher = blake3::Hasher::new_keyed(self.digest.expose());
@@ -98,6 +105,7 @@ impl<B: Backend> Open<B> {
         hasher.update(&self.minted.to_be_bytes());
         hasher.update(&now.0.to_be_bytes());
         hasher.update(&head.to_be_bytes());
+        hasher.update(&cx.backend.random());
         hasher.update(what);
         let mut out = [0u8; 10];
         out.copy_from_slice(&hasher.finalize().as_bytes()[..10]);

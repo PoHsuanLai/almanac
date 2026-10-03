@@ -7,12 +7,12 @@ use crate::open::{Cx, Open, Stored, failed, files_refusal};
 use crate::search::caller_actor;
 use crate::timeline::timeline_entry;
 use almanac_core::{
-    Caller, Confidentiality, Count, DesktopVerdict, Fact, FactDraft, FactId, FactState, FactView,
-    Integrity, Label, Link, MemoryOp, ModelRole, PENDING_TTL_DAYS, Refusal, Settlement, Source,
-    SourceView, SpaceId, UnixSeconds, UseCount, Validity, desktop_admits,
+    Caller, Confidentiality, Count, DesktopVerdict, EventBody, Fact, FactDraft, FactId, FactState,
+    FactView, Integrity, Label, Link, MemoryOp, ModelRole, PENDING_TTL_DAYS, Refusal, Settlement,
+    Source, SourceView, SpaceId, UnixSeconds, UseCount, Validity, desktop_admits,
 };
 use eventlog::Entry;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 const SECONDS_PER_DAY: i64 = 86_400;
 
@@ -62,6 +62,26 @@ fn proposal_label(caller: &Caller, space: &SpaceId, cited: &[Label]) -> Label {
     cited.iter().fold(base, |acc, l| acc.join(l))
 }
 
+/// How often each fact was read into a prompt, and when last: the router's `Memory.Read`
+/// audit entries still in the log (their bodies live for the `memory.*` retention, 90 days).
+fn reads_of(entries: &[Entry]) -> BTreeMap<FactId, (u32, UnixSeconds)> {
+    let mut uses: BTreeMap<FactId, (u32, UnixSeconds)> = BTreeMap::new();
+    for entry in entries {
+        let eventlog::BodyState::Present(EventBody::Memory {
+            op: MemoryOp::Read { facts, .. },
+        }) = &entry.body
+        else {
+            continue;
+        };
+        for id in facts {
+            let seen = uses.entry(id.clone()).or_insert((0, entry.header.occurred));
+            seen.0 = seen.0.saturating_add(1);
+            seen.1 = seen.1.max(entry.header.occurred);
+        }
+    }
+    uses
+}
+
 impl<B: Backend> Open<B> {
     /// Views of `items`, with the events and things they came from (one read of the log).
     pub(crate) fn fact_views(
@@ -71,6 +91,7 @@ impl<B: Backend> Open<B> {
     ) -> Result<Vec<FactView>, Refusal> {
         let entries = self.entries()?;
         let stored = self.stored()?;
+        let uses = reads_of(&entries);
         Ok(items
             .iter()
             .map(|s| FactView {
@@ -83,8 +104,8 @@ impl<B: Backend> Open<B> {
                     .iter()
                     .filter_map(|l| self.source_view(cx, l, &entries, &stored))
                     .collect(),
-                used: UseCount(0),
-                last_used: None,
+                used: UseCount(uses.get(&s.fact.id).map_or(0, |(n, _)| *n)),
+                last_used: uses.get(&s.fact.id).map(|(_, at)| *at),
             })
             .collect())
     }
@@ -165,7 +186,7 @@ impl<B: Backend> Open<B> {
             u64::try_from(now.0)
                 .unwrap_or_default()
                 .saturating_mul(1000),
-            self.entropy(now, draft.text.as_str().as_bytes()),
+            self.entropy(cx, draft.text.as_str().as_bytes()),
         );
         let fact = Fact {
             id: id.clone(),

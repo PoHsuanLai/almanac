@@ -137,7 +137,7 @@ impl<B: Backend> Open<B> {
     }
 
     /// Marks or unmarks a thing "do not remember".
-    pub(crate) fn mark(&mut self, request: MarkRequest) {
+    pub(crate) fn mark(&mut self, request: MarkRequest) -> Result<(), Refusal> {
         match request.mark {
             MarkKind::DoNotRemember => {
                 self.rt.marks.things.insert(request.thing);
@@ -146,6 +146,7 @@ impl<B: Backend> Open<B> {
                 self.rt.marks.things.remove(&request.thing);
             }
         }
+        crate::marks::save(self.rt.store.vault(), &self.rt.marks).map_err(failed)
     }
 }
 

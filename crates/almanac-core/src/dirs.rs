@@ -85,13 +85,17 @@ impl Dirs {
         self.space(space).join("consolidation")
     }
 
-    /// The rebuildable recall index (cache: deletable).
-    pub fn index_db(&self, space: &SpaceId) -> PathBuf {
+    /// The directory of a Space's rebuildable recall index (cache: deletable).
+    pub fn index_dir(&self, space: &SpaceId) -> PathBuf {
         self.cache_home
             .join("quire")
             .join("memory")
             .join(space.as_str())
-            .join("index.db")
+    }
+
+    /// The rebuildable recall index (cache: deletable).
+    pub fn index_db(&self, space: &SpaceId) -> PathBuf {
+        self.index_dir(space).join("index.db")
     }
 
     /// `<config>/quire/memory.toml`: the rule set, written only by memoryd.

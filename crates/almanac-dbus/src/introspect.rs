@@ -12,7 +12,11 @@ pub const INTROSPECTION_FILE: &str = "org.quire.Memory1.xml";
 
 /// The introspection document: every interface memoryd serves, in one `<node>`.
 pub fn introspection() -> String {
-    let interfaces: [&dyn Interface; 3] = [&RecordSkeleton, &RecallSkeleton, &ControlSkeleton];
+    document([&RecordSkeleton, &RecallSkeleton, &ControlSkeleton])
+}
+
+/// The document of any three interfaces (the skeletons, or memoryd's served objects).
+pub(crate) fn document(interfaces: [&dyn Interface; 3]) -> String {
     let mut xml = String::from(
         "<!DOCTYPE node PUBLIC \"-//freedesktop//DTD D-BUS Object Introspection 1.0//EN\"\n \"http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd\">\n<node>\n",
     );

@@ -39,6 +39,15 @@ fn stored_forms_round_trip() {
                 link: Link32([4; 32]),
             },
         },
+        EventBody::Memory {
+            op: MemoryOp::SpaceDeleted {
+                space: space("work"),
+                head: Head {
+                    seq: Seq(9),
+                    link: Link32([6; 32]),
+                },
+            },
+        },
         area_body(AreaTag::Cua, "cua.step"),
     ]);
     round_trips(&[record(archived_body(), companion())]);
@@ -105,6 +114,18 @@ fn kind_tags_are_one_match() {
                 },
             },
             "memory.fact_added",
+        ),
+        (
+            EventBody::Memory {
+                op: MemoryOp::SpaceDeleted {
+                    space: space("work"),
+                    head: Head {
+                        seq: Seq(9),
+                        link: Link32([6; 32]),
+                    },
+                },
+            },
+            "memory.space_deleted",
         ),
         (area_body(AreaTag::Docket, "policy.ruled"), "policy.ruled"),
     ];

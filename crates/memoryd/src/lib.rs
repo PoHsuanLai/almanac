@@ -1,15 +1,44 @@
 //! memoryd's library half: the real seams (`SystemBackend`, `SystemClock`, the inferd-backed
-//! `InferdEmbedder` and `InferdConsolidator`) and the XDG roots, so every module is testable
-//! without a bus. The binary is a skeleton: it exits saying so.
+//! `InferdEmbedder` and `InferdConsolidator`), the XDG roots, the per-Space queues, the caller
+//! identities and the bus handler (`Daemon`), so every module is testable on a private bus. The
+//! binary is `main.rs`: it builds these over the real system and serves the session bus.
 
 mod backend;
 mod clock;
+mod daemon;
 mod infer;
+mod peers;
+mod queue;
+mod signals;
 mod xdg;
 
 pub use almanac_dbus::{MEMORY_BUS, MEMORY_PATH};
 pub use almanac_watch::InotifyWatch as Watcher;
 pub use backend::{SpaceVault, SystemBackend};
 pub use clock::SystemClock;
-pub use infer::{InferdConsolidator, InferdEmbedder};
+pub use daemon::Daemon;
+pub use infer::{
+    InferdConsolidator, InferdEmbedder, NoInference, NoSession, class_of, parse_draft,
+    render_prompt,
+};
+pub use peers::{CallerTable, Peers, ProcPeers, TablePeers};
+pub use queue::{Claim, Serialised, claim_of};
+pub use signals::{FollowUp, follow_ups};
 pub use xdg::{XdgError, dirs_from, dirs_from_env};
+
+/// The card of the embedding model the default inferd tier maps (nomic-embed-text v1.5): 768
+/// numbers, asymmetric prefixes. It must match what inferd serves, or the vector index refuses
+/// the answers (their length differs) and search stays lexical.
+pub fn default_card() -> recall::EmbedderCard {
+    recall::EmbedderCard {
+        model: "nomic-embed-text-v1.5".to_owned(),
+        dims: 768,
+        max_tokens: 2048,
+        max_batch: recall::MaxBatch(32),
+        prompts: recall::PromptPrefixes {
+            query: "search_query: ".to_owned(),
+            document: "search_document: ".to_owned(),
+        },
+        metric: recall::Metric::Cosine,
+    }
+}

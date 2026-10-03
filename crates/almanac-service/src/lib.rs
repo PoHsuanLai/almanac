@@ -18,6 +18,8 @@ mod export;
 pub mod fact;
 mod facts;
 pub mod forget;
+mod hunks;
+mod marks;
 mod open;
 mod record;
 mod retention;
@@ -25,6 +27,7 @@ mod run;
 mod search;
 mod service;
 pub mod space;
+mod sweep;
 mod timeline;
 
 pub use auth::{Allowed, allowed};
@@ -35,7 +38,7 @@ pub use config::{
 };
 pub use consolidation::{
     CheckedDraft, ConsolidateError, ConsolidationInput, Consolidator, Desktop, Draft, HunkFault,
-    InputEvent, Power, check_draft,
+    InputEvent, Power, check_draft, cited_label,
 };
 pub use export::{
     ErasedTag, EventLine, ExportWriter, ExportedBody, events_path, file_path, manifest_path,

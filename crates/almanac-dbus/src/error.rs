@@ -67,3 +67,54 @@ impl MemoryError {
         }
     }
 }
+
+impl From<crate::CodecError> for MemoryError {
+    fn from(e: crate::CodecError) -> Self {
+        MemoryError::Invalid(e.to_string())
+    }
+}
+
+/// How a call failed, for callers that do not name zbus.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Failure {
+    /// memoryd answered no.
+    Refused(Refusal),
+    /// Nothing owns `org.quire.Memory1` and nothing can start it: there is no memory here.
+    NoDaemon,
+    /// The connection to the bus closed.
+    Closed,
+    /// Anything else, as text.
+    Other(String),
+}
+
+impl MemoryError {
+    /// What this error is, in terms a transport can act on.
+    pub fn failure(&self) -> Failure {
+        if let Some(refusal) = self.refusal() {
+            return Failure::Refused(refusal);
+        }
+        let MemoryError::ZBus(error) = self else {
+            return Failure::Other(self.to_string());
+        };
+        let absent = |name: &str| {
+            matches!(
+                name,
+                "org.freedesktop.DBus.Error.ServiceUnknown"
+                    | "org.freedesktop.DBus.Error.NameHasNoOwner"
+            )
+        };
+        match error {
+            zbus::Error::FDO(fdo)
+                if matches!(
+                    **fdo,
+                    zbus::fdo::Error::ServiceUnknown(_) | zbus::fdo::Error::NameHasNoOwner(_)
+                ) =>
+            {
+                Failure::NoDaemon
+            }
+            zbus::Error::MethodError(name, _, _) if absent(name.as_str()) => Failure::NoDaemon,
+            zbus::Error::InputOutput(_) => Failure::Closed,
+            other => Failure::Other(other.to_string()),
+        }
+    }
+}

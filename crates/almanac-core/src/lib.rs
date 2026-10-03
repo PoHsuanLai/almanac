@@ -56,7 +56,7 @@ pub use query::{
     ExportOptions, FactFilter, FactQuery, FileWhyClaim, MarkKind, MarkRequest, RecallOver,
     RecallQuery, VerificationKey,
 };
-pub use reply::{ForgetReport, MemoryReply, RecallHit, RecallWhy, Refusal};
+pub use reply::{ForgetReport, MemoryReply, RecallHit, RecallWhy, Refusal, SweepReport};
 pub use request::{ForgetScope, MemoryRequest};
 pub use rules::{
     ActorClass, Admission, DropReason, FALLBACK_DAYS, HEADER_DAYS, KindRetention, Marks,

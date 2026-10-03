@@ -67,6 +67,15 @@ pub struct ForgetReport {
     pub counts: ForgetCounts,
 }
 
+/// What a retention sweep removed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct SweepReport {
+    /// Event bodies erased (their headers stay).
+    pub bodies: Count,
+    /// Headers pruned behind a new checkpoint.
+    pub headers: Count,
+}
+
 /// Why memoryd said no. Each maps 1:1 to an `org.quire.Memory1.Error.<Variant>`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "v", rename_all = "snake_case")]
@@ -139,4 +148,6 @@ pub enum MemoryReply {
     Exported(ExportManifest),
     /// Refused.
     Refused(Refusal),
+    /// A retention sweep ran.
+    Swept(SweepReport),
 }

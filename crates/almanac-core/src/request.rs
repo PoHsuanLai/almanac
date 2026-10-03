@@ -104,6 +104,9 @@ pub enum MemoryRequest {
     Rebuild(SpaceId),
     /// Export (the tar stream goes to the fd beside the request).
     Export(ExportOptions),
+    /// Run the retention sweep now: erase the bodies and prune the headers that have outlived
+    /// their keep (memoryd also sweeps on a timer).
+    Sweep(SpaceId),
 }
 
 impl MemoryRequest {
@@ -130,7 +133,8 @@ impl MemoryRequest {
             | MemoryRequest::Pause(s, _)
             | MemoryRequest::Resume(s)
             | MemoryRequest::Verify(s)
-            | MemoryRequest::Rebuild(s) => Some(s),
+            | MemoryRequest::Rebuild(s)
+            | MemoryRequest::Sweep(s) => Some(s),
             MemoryRequest::RecordBatch(_)
             | MemoryRequest::Spaces
             | MemoryRequest::Forget(_)

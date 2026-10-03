@@ -6,7 +6,7 @@
 
 use crate::chain::{BodyState, Entry, verify_chain};
 use crate::filter::passes;
-use crate::header::{NewHeader, genesis_link, link};
+use crate::header::{NewHeader, body_digest, genesis_link, link};
 use crate::rows::{self, Stored, to_sql};
 use crate::traits::{LogError, LogRead, LogWrite, PageQuery, RoleFilter};
 use almanac_core::{
@@ -48,6 +48,10 @@ const UNBOUND_SPACE: &str = "unbound";
 pub struct SqliteLog {
     conn: Connection,
     replica: ReplicaId,
+    /// The Space's digest subkey: when present, `append` refuses a body that does not match
+    /// its header's keyed digest ([`LogError::BadDigest`]). `open` has none (an unbound log is
+    /// only verifiable by the audit).
+    digest_key: Option<SubKey>,
 }
 
 impl SqliteLog {
@@ -59,16 +63,29 @@ impl SqliteLog {
         let replica = SpaceKey::generate().map_err(|e| LogError::Sqlite(e.to_string()))?;
         let mut id = [0u8; 16];
         id.copy_from_slice(&replica.expose()[..16]);
-        Self::open_for(path, key, &space, ReplicaId(id))
+        Self::open_with(path, key, &space, ReplicaId(id), None)
     }
 
     /// Opens (or creates) the log of `space` on `replica`. A file that already exists keeps its
-    /// own replica and genesis; the two arguments only seed a new one.
+    /// own replica and genesis; the two arguments only seed a new one. `digest_key` is the
+    /// Space's [`almanac_seal::Purpose::Digest`] subkey: `append` uses it to check that a body
+    /// matches its header's digest.
     pub fn open_for(
         path: &Path,
         key: &DbKey,
         space: &SpaceId,
         replica: ReplicaId,
+        digest_key: &SubKey,
+    ) -> Result<Self, LogError> {
+        Self::open_with(path, key, space, replica, Some(digest_key.clone()))
+    }
+
+    fn open_with(
+        path: &Path,
+        key: &DbKey,
+        space: &SpaceId,
+        replica: ReplicaId,
+        digest_key: Option<SubKey>,
     ) -> Result<Self, LogError> {
         if let Some(dir) = path.parent() {
             std::fs::create_dir_all(dir).map_err(|e| LogError::Sqlite(e.to_string()))?;
@@ -96,7 +113,11 @@ impl SqliteLog {
                 })?,
             found => return Err(LogError::Schema { found }),
         };
-        Ok(Self { conn, replica })
+        Ok(Self {
+            conn,
+            replica,
+            digest_key,
+        })
     }
 
     fn create(
@@ -254,6 +275,11 @@ impl LogRead for SqliteLog {
 
 impl LogWrite for SqliteLog {
     fn append(&mut self, header: NewHeader, body: Option<EventBody>) -> Result<Entry, LogError> {
+        if let (Some(key), Some(body)) = (&self.digest_key, &body)
+            && body_digest(key, body) != header.body_digest
+        {
+            return Err(LogError::BadDigest);
+        }
         let tip = self.head()?;
         let chained = header.chained(Seq(tip.seq.0 + 1), self.replica, tip.link);
         let entry = Entry {

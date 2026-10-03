@@ -46,6 +46,8 @@ pub trait Control {
     fn verify(&self, space: &str) -> zbus::Result<String>;
     /// Rebuilds the index.
     fn rebuild(&self, space: &str) -> zbus::Result<()>;
+    /// Runs the retention sweep now (answers `SweepReport` JSON).
+    fn sweep(&self, space: &str) -> zbus::Result<String>;
     /// Writes a tar export to `out` (`ExportOptions` JSON; answers `ExportManifest` JSON).
     fn export(&self, options: &str, out: zbus::zvariant::Fd<'_>) -> zbus::Result<String>;
     /// A record was stored.
@@ -153,6 +155,11 @@ impl ControlSkeleton {
     }
 
     fn rebuild(&self, space: String) -> fdo::Result<()> {
+        let _ = space;
+        Err(crate::introspect::frozen())
+    }
+
+    fn sweep(&self, space: String) -> fdo::Result<String> {
         let _ = space;
         Err(crate::introspect::frozen())
     }

@@ -18,7 +18,14 @@ fn key() -> DbKey {
 }
 
 fn open(dir: &tempfile::TempDir) -> SqliteLog {
-    SqliteLog::open_for(&path(dir), &key(), &space(), ReplicaId([9; 16])).expect("open")
+    SqliteLog::open_for(
+        &path(dir),
+        &key(),
+        &space(),
+        ReplicaId([9; 16]),
+        &digest_key(),
+    )
+    .expect("open")
 }
 
 fn path(dir: &tempfile::TempDir) -> PathBuf {
@@ -86,8 +93,14 @@ fn the_log_persists_across_reopen_and_keeps_its_replica() {
     let mut log = open(&dir);
     let written = fill(&mut log);
     drop(log);
-    let again =
-        SqliteLog::open_for(&path(&dir), &key(), &space(), ReplicaId([1; 16])).expect("reopen");
+    let again = SqliteLog::open_for(
+        &path(&dir),
+        &key(),
+        &space(),
+        ReplicaId([1; 16]),
+        &digest_key(),
+    )
+    .expect("reopen");
     assert_eq!(again.replica(), ReplicaId([9; 16]));
     assert_eq!(again.scan(Seq(1)).expect("scan"), written);
     assert!(matches!(audit(&again), ChainReport::Intact { .. }));
@@ -333,4 +346,49 @@ fn an_unbound_open_creates_the_directory_and_works() {
     log.append(NewHeader::of(&rec, NOW, &digest_key()), Some(rec.body))
         .expect("append");
     assert_eq!(log.head().expect("head").seq, Seq(1));
+}
+
+#[test]
+fn append_checks_the_body_against_its_digest_when_the_log_has_the_key() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let mut log = open(&dir);
+    let rec = record("7f3a", Verb::Archived, user());
+    let header = NewHeader::of(&rec, NOW, &digest_key());
+    let other = record("other", Verb::Deleted, user()).body;
+    assert_eq!(log.append(header, Some(other)), Err(LogError::BadDigest));
+    assert_eq!(log.head().expect("head").seq, Seq(0), "nothing was written");
+}
+
+#[test]
+fn a_message_names_its_entities_in_the_things_rows() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let mut log = open(&dir);
+    let named = view("7f3a").thing;
+    let message = Message {
+        id: MessageId::parse("m-2").expect("id"),
+        thread: ThreadId::parse("m-1").expect("id"),
+        in_reply_to: None,
+        from: Address::new(AgentRef::Companion, space()),
+        to: Address::new(AgentRef::User, space()),
+        kind: MessageKind::Note,
+        parts: vec![
+            Part::Text(MessageText::new("done")),
+            Part::Entity(named.clone()),
+        ],
+        label: label(Integrity::Trusted),
+        sent: NOW,
+    };
+    let mut rec = record("7f3a", Verb::Archived, user());
+    rec.body = EventBody::Message(Box::new(message));
+    let entry = log
+        .append(
+            NewHeader::of(&rec, NOW, &digest_key()),
+            Some(rec.body.clone()),
+        )
+        .expect("append");
+    assert_eq!(
+        log.touching(&named, RoleFilter::Source).expect("touching"),
+        vec![entry.header.seq],
+        "the message is found by the entity it names"
+    );
 }

@@ -57,6 +57,7 @@ fn every_member_is_declared() {
         "<method name=\"Resume\">",
         "<method name=\"Verify\">",
         "<method name=\"Rebuild\">",
+        "<method name=\"Sweep\">",
         "<method name=\"Export\">",
         "<signal name=\"Recorded\">",
         "<signal name=\"Forgotten\">",
@@ -71,8 +72,8 @@ fn every_member_is_declared() {
     let methods = xml.matches("<method ").count();
     assert_eq!(
         methods,
-        4 + 8 + 18,
-        "memory.md section 3.10 declares 28 methods; the companion amendment adds Inject and Recent"
+        4 + 8 + 19,
+        "memory.md section 3.10 declares 28 methods; the companion amendment adds Inject and Recent, the retention sweep adds Sweep"
     );
     assert_eq!(xml.matches("<signal ").count(), 5);
 }

@@ -1,6 +1,6 @@
 [package]
 name = "memoryd"
-description = "almanac's memory daemon: serves org.quire.Memory1 over almanac-service. A skeleton: it builds the service and exits."
+description = "almanac's memory daemon: serves org.quire.Memory1 over almanac-service, with the real seams (Secret Service keys, SQLCipher, sealed files, inferd models)."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -21,8 +21,23 @@ porter-core = { workspace = true }
 porter-infer = { workspace = true }
 porter-client = { workspace = true }
 clap = { workspace = true }
+getrandom = { workspace = true }
+rusqlite = { workspace = true }
+serde = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
+toml = { workspace = true }
+zbus = { workspace = true }
+serde_json = { workspace = true }
+blake3 = { workspace = true }
+
+[dev-dependencies]
+almanac-client = { workspace = true, features = ["dbus"] }
+almanac-fake = { workspace = true }
+almanac-seal = { workspace = true, features = ["testing", "oo7"] }
+recall = { workspace = true, features = ["testing"] }
+tar = { workspace = true }
+tempfile = { workspace = true }
 
 [lints]
 workspace = true

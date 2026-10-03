@@ -96,9 +96,50 @@ impl DbusTransport {
 }
 
 #[cfg(feature = "dbus")]
+impl DbusTransport {
+    /// Sends `call` and reads its reply; a refusal is `MemoryReply::Refused`, a missing daemon
+    /// is `Absent`.
+    async fn send(
+        &self,
+        call: almanac_dbus::Call,
+        fd: Option<std::os::fd::OwnedFd>,
+    ) -> Result<MemoryReply, TransportError> {
+        use almanac_dbus::Failure;
+        match almanac_dbus::invoke(&self.connection, &call, fd).await {
+            Ok(outputs) => almanac_dbus::decode_reply(&call, &outputs)
+                .map_err(|e| TransportError::Bus(e.to_string())),
+            Err(error) => match error.failure() {
+                Failure::Refused(refusal) => Ok(MemoryReply::Refused(refusal)),
+                Failure::NoDaemon => Err(TransportError::Absent),
+                Failure::Closed => Err(TransportError::Closed),
+                Failure::Other(why) => Err(TransportError::Bus(why)),
+            },
+        }
+    }
+
+    /// Writes a tar export of `options` to `out` and answers its manifest. `Export` needs a
+    /// stream, which `Transport::call` cannot carry, so it has this method of its own.
+    pub async fn export(
+        &self,
+        options: almanac_core::ExportOptions,
+        out: std::os::fd::OwnedFd,
+    ) -> Result<MemoryReply, TransportError> {
+        let call = almanac_dbus::encode_request(&MemoryRequest::Export(options))
+            .map_err(|e| TransportError::Bus(e.to_string()))?;
+        self.send(call, Some(out)).await
+    }
+}
+
+#[cfg(feature = "dbus")]
 impl Transport for DbusTransport {
     async fn call(&self, request: MemoryRequest) -> Result<MemoryReply, TransportError> {
-        let _ = (&self.connection, almanac_dbus::encode_request(&request));
-        todo!("encode_request, the proxy call, decode_reply; a bus error name maps back to Refusal")
+        if matches!(request, MemoryRequest::Export(_)) {
+            return Err(TransportError::Bus(
+                "Export needs a stream: use DbusTransport::export".into(),
+            ));
+        }
+        let call = almanac_dbus::encode_request(&request)
+            .map_err(|e| TransportError::Bus(e.to_string()))?;
+        self.send(call, None).await
     }
 }

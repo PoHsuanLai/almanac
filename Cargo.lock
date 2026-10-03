@@ -105,6 +105,7 @@ name = "almanac-dbus"
 version = "0.1.0"
 dependencies = [
  "almanac-core",
+ "serde",
  "serde_json",
  "thiserror",
  "zbus",
@@ -118,6 +119,7 @@ dependencies = [
  "almanac-seal",
  "almanac-service",
  "eventlog",
+ "jiff",
  "memfiles",
  "recall",
  "rusqlite",
@@ -2121,20 +2123,31 @@ dependencies = [
 name = "memoryd"
 version = "0.1.0"
 dependencies = [
+ "almanac-client",
  "almanac-core",
  "almanac-dbus",
+ "almanac-fake",
  "almanac-seal",
  "almanac-service",
  "almanac-watch",
+ "blake3",
  "clap",
  "eventlog",
+ "getrandom 0.3.4",
  "memfiles",
  "porter-client",
  "porter-core",
  "porter-infer",
  "recall",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tar",
+ "tempfile",
  "thiserror",
  "tokio",
+ "toml",
+ "zbus",
 ]
 
 [[package]]

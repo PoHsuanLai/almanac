@@ -144,6 +144,7 @@ pub fn allowed(caller: &Caller, request: &MemoryRequest) -> Allowed {
         | R::Resume(_)
         | R::Verify(_)
         | R::Rebuild(_)
+        | R::Sweep(_)
         | R::Export(_) => yes_if(matches!(caller, Caller::ShellUi)),
     }
 }

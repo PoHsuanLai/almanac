@@ -170,13 +170,13 @@ pub(crate) fn insert(tx: &Transaction<'_>, entry: &Entry) -> Result<(), LogError
         params![to_sql(h.seq.0), json(body)],
     )
     .map_err(err)?;
-    for (view, role) in body.things() {
+    for (thing, role) in body.thing_refs() {
         tx.execute(
             "INSERT INTO things(app, kind, key, seq, role) VALUES (?1, ?2, ?3, ?4, ?5)",
             params![
-                view.thing.app.as_str(),
-                view.thing.kind.as_str(),
-                view.thing.key.as_str(),
+                thing.app.as_str(),
+                thing.kind.as_str(),
+                thing.key.as_str(),
                 to_sql(h.seq.0),
                 role_text(role),
             ],

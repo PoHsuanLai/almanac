@@ -47,6 +47,9 @@ impl<B: Backend> Open<B> {
         if self.notes.forgotten.contains(&seq) {
             return EraseCause::Forgotten;
         }
+        if self.notes.expired.contains(&seq) {
+            return EraseCause::Expired;
+        }
         let kind = entry.header.kind.as_str();
         let retention = cx
             .rules

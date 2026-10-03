@@ -2,7 +2,7 @@
 
 use almanac_core::{
     ConsolidateFailure, EventRef, Fact, Hunk, KindTag, Label, Link, RunId, RunState, SpaceId,
-    ThingView, TidyHunk,
+    ThingView, TidyHunk, UnixSeconds,
 };
 use std::future::Future;
 
@@ -26,6 +26,8 @@ pub struct ConsolidationInput {
     pub space: SpaceId,
     /// This run.
     pub run: RunId,
+    /// When it started: the date of the facts it drafts.
+    pub now: UnixSeconds,
     /// Active facts.
     pub facts: Vec<Fact>,
     /// Events since the last cut.
@@ -139,20 +141,28 @@ fn fact_fault(input: &ConsolidationInput, fact: &Fact) -> Option<HunkFault> {
     if outside_space {
         return Some(HunkFault::OutsideSpace);
     }
-    let labels: Option<Vec<Label>> = fact
-        .links
+    let Some(joined) = cited_label(input, &fact.links) else {
+        return Some(HunkFault::CitesOutsideInput);
+    };
+    (fact.label.join(&joined) != fact.label.join(&fact.label)).then_some(HunkFault::LabelLaundered)
+}
+
+/// The label a fact citing `links` must carry: the join of the labels of everything they cite,
+/// or `None` when there is no link or one cites something the input does not hold. The check
+/// ([`check_draft`]) holds every promotion to this; a consolidator builds its facts with it.
+pub fn cited_label(input: &ConsolidationInput, links: &[Link]) -> Option<Label> {
+    let labels: Option<Vec<Label>> = links
         .iter()
         .map(|link| source_labels(input, link))
         .collect::<Option<Vec<Vec<Label>>>>()
         .map(|all| all.into_iter().flatten().collect());
-    let Some(labels) = labels.filter(|l| !l.is_empty()) else {
-        return Some(HunkFault::CitesOutsideInput);
-    };
-    let joined = labels
-        .iter()
-        .skip(1)
-        .fold(labels[0].clone(), |a, b| a.join(b));
-    (fact.label.join(&joined) != fact.label.join(&fact.label)).then_some(HunkFault::LabelLaundered)
+    let labels = labels.filter(|l| !l.is_empty())?;
+    Some(
+        labels
+            .iter()
+            .skip(1)
+            .fold(labels[0].clone(), |a, b| a.join(b)),
+    )
 }
 
 /// The labels of what one link cites inside the input (every event naming a thing), or `None`

@@ -1,9 +1,10 @@
 //! memoryd's own audit events and the counts they carry.
 
+use crate::chain::Head;
 use crate::ids::{FactId, RuleId, Seq, TopicPath};
 use crate::rules::DropReason;
 use crate::text::{Link32, PlanDigest};
-use porter_core::{Count, UnixSeconds};
+use porter_core::{Count, SpaceId, UnixSeconds};
 use prov::{Actor, RunId};
 use serde::{Deserialize, Serialize};
 
@@ -130,6 +131,14 @@ pub enum MemoryOp {
         /// The link there.
         link: Link32,
     },
+    /// A Space was deleted: its final head, kept in the `desktop` Space's log so the deletion
+    /// is visible and the removed chain's end is on record.
+    SpaceDeleted {
+        /// Which Space.
+        space: SpaceId,
+        /// Where its log ended.
+        head: Head,
+    },
     /// Records were dropped by admission.
     Dropped {
         /// How many.
@@ -155,6 +164,7 @@ impl MemoryOp {
             MemoryOp::Resumed => "resumed",
             MemoryOp::RuleChanged { .. } => "rule_changed",
             MemoryOp::Checkpoint { .. } => "checkpoint",
+            MemoryOp::SpaceDeleted { .. } => "space_deleted",
             MemoryOp::Dropped { .. } => "dropped",
         }
     }

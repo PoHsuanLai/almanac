@@ -9,8 +9,8 @@ mod consolidator;
 mod fixtures;
 mod scratch;
 
-pub use backend::{FAKE_SPACES, FakeBackend, fake_service, fake_space_metas};
-pub use clock::{FixedClock, NOW};
+pub use backend::{FAKE_SPACES, FakeBackend, SharedVault, fake_service, fake_space_metas};
+pub use clock::{FixedClock, NOW, SteppedClock};
 pub use consolidator::ScriptedConsolidator;
 pub use fixtures::{
     companion_forwarded, cua_run_step, file_saved_from_attachment, mail, mail_label,

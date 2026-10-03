@@ -2,6 +2,10 @@
 //! stubs in porter's `prov` until its fill wave.
 #![allow(dead_code)]
 
+mod samples;
+#[allow(unused_imports)]
+pub use samples::*;
+
 use almanac_core::*;
 use std::collections::BTreeSet;
 

@@ -107,6 +107,7 @@ fn a_draft_cannot_launder_cite_outside_or_remove() {
         seq: Seq(1),
     };
     let input = ConsolidationInput {
+        now: NOW,
         space: space("work"),
         run: RunId::parse("r-1").expect("r"),
         facts: vec![],

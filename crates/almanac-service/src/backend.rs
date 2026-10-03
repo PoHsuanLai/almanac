@@ -24,6 +24,9 @@ pub enum BackendError {
     /// The index could not be opened.
     #[error("index: {0}")]
     Index(#[from] IndexError),
+    /// A Space's directories could not be removed.
+    #[error("removing a Space: {0}")]
+    Remove(String),
 }
 
 /// The service's seams, bundled: closed sets of implementations are types, never `dyn`.
@@ -51,6 +54,14 @@ pub trait Backend: Send + Sync {
     fn consolidator(&self) -> &Self::Consolidator;
     /// The clock.
     fn clock(&self) -> &Self::Clock;
+    /// Sixteen random bytes. The one place real randomness enters the service: it is mixed into
+    /// every id the service mints (a fact, a consolidation run), so two ids minted in the same
+    /// second by a restarted daemon do not collide. memoryd reads the OS; tests count.
+    fn random(&self) -> [u8; 16];
+    /// Removes everything a Space stored on disk (its log, index and files), after its key was
+    /// destroyed. Called once, when the Space's deletion finishes; removing what is already gone
+    /// is not an error.
+    fn remove_space(&self, space: &SpaceId) -> Result<(), BackendError>;
     /// Opens (or creates) the Space's event log, keyed from `key`.
     fn open_log(
         &self,

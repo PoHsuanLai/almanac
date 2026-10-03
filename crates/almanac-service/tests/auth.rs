@@ -273,7 +273,8 @@ fn control_is_the_shells_alone() {
         MemoryRequest::Pause(w.clone(), NOW),
         MemoryRequest::Resume(w.clone()),
         MemoryRequest::Verify(w.clone()),
-        MemoryRequest::Rebuild(w),
+        MemoryRequest::Rebuild(w.clone()),
+        MemoryRequest::Sweep(w),
         MemoryRequest::Export(ExportOptions {
             spaces: vec![],
             verification_key: VerificationKey::Omit,

@@ -223,14 +223,16 @@ impl<B: Backend> MemoryService<B> {
             .backend
             .open_index(id, &key)
             .map_err(crate::open::failed)?;
+        let store = Store::new(files, id.clone(), jiff::tz::TimeZone::UTC);
+        let marks = crate::marks::load(store.vault());
         let mut open = Open {
             rt: SpaceRuntime {
                 meta,
                 state: SpaceState::Open,
                 log,
-                store: Store::new(files, id.clone(), jiff::tz::TimeZone::UTC),
+                store,
                 index,
-                marks: Marks::default(),
+                marks,
                 buffer: Vec::new(),
                 plans: BTreeMap::new(),
             },
@@ -266,6 +268,27 @@ impl<B: Backend> MemoryService<B> {
             };
             result.unwrap_or_else(MemoryReply::Refused)
         }
+    }
+
+    /// Runs the retention sweep in every Space the service knows (memoryd's timer, daily). A
+    /// Space whose key is locked is skipped until the next round.
+    pub async fn sweep_all(&self) -> Vec<(SpaceId, Result<almanac_core::SweepReport, Refusal>)> {
+        let caller = Caller::ShellUi;
+        let mut out = Vec::new();
+        for id in self.all_spaces() {
+            let swept = match self.checkout(&caller, &id).await {
+                Ok(mut lease) => {
+                    let cx = self.cx(&caller);
+                    match lease.open() {
+                        Some(open) => open.sweep(&cx),
+                        None => Err(Refusal::Busy),
+                    }
+                }
+                Err(e) => Err(e),
+            };
+            out.push((id, swept));
+        }
+        out
     }
 
     /// Writes the export of `options` as a tar stream into `out`, and returns its manifest.
