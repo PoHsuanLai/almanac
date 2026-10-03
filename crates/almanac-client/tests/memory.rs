@@ -79,7 +79,6 @@ async fn replies_map_to_results() {
 
 #[cfg(feature = "in_process")]
 #[tokio::test]
-#[ignore = "MemoryService::handle is a todo!() until fill wave 2 (FINDINGS.md)"]
 async fn in_process_end_to_end() {
     let service = std::sync::Arc::new(fake_service(ScriptedConsolidator::default()));
     let app = Memory::over(InProcess::new(

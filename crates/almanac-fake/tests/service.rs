@@ -1,12 +1,8 @@
-//! The service contract, written against the fakes. Each test is `#[ignore]`d until
-//! `MemoryService::handle` is built (fill wave 2; FINDINGS.md): the bodies are the acceptance
-//! the fill must meet, and they compile now so the frozen API is exercised.
+//! The service contract, written against the fakes.
 
 use almanac_core::*;
 use almanac_fake::*;
 use almanac_service::MemoryService;
-
-const WHY: &str = "MemoryService::handle is a todo!() until fill wave 2 (FINDINGS.md)";
 
 fn service() -> MemoryService<FakeBackend> {
     fake_service(ScriptedConsolidator::default())
@@ -39,9 +35,7 @@ fn everyone() -> TimelineQuery {
 }
 
 #[tokio::test]
-#[ignore = "MemoryService::handle is a todo!() until fill wave 2 (FINDINGS.md)"]
 async fn record_then_timeline_shows_it() {
-    let _ = WHY;
     let service = service();
     let record = mail_thread_archived().expect("fixture");
     let reply = ask(&service, &Caller::Router, MemoryRequest::Record(record)).await;
@@ -60,7 +54,6 @@ async fn record_then_timeline_shows_it() {
 }
 
 #[tokio::test]
-#[ignore = "MemoryService::handle is a todo!() until fill wave 2 (FINDINGS.md)"]
 async fn forget_thing_cascades() {
     let service = service();
     let thing = thing("mail.thread", "7f3a").expect("thing");
@@ -117,7 +110,6 @@ async fn forget_thing_cascades() {
 }
 
 #[tokio::test]
-#[ignore = "MemoryService::handle is a todo!() until fill wave 2 (FINDINGS.md)"]
 async fn plan_goes_stale_when_new_derivation_appears() {
     let service = service();
     let thing = thing("mail.thread", "7f3a").expect("thing");
@@ -158,7 +150,6 @@ async fn plan_goes_stale_when_new_derivation_appears() {
 }
 
 #[tokio::test]
-#[ignore = "MemoryService::handle is a todo!() until fill wave 2 (FINDINGS.md)"]
 async fn the_router_cannot_forget_or_settle() {
     let service = service();
     let forget = ask(
@@ -178,7 +169,6 @@ async fn the_router_cannot_forget_or_settle() {
 }
 
 #[tokio::test]
-#[ignore = "MemoryService::handle is a todo!() until fill wave 2 (FINDINGS.md)"]
 async fn router_reads_are_audited() {
     let service = service();
     let query = RecallQuery {
@@ -206,7 +196,6 @@ async fn router_reads_are_audited() {
 }
 
 #[tokio::test]
-#[ignore = "MemoryService::handle is a todo!() until fill wave 2 (FINDINGS.md)"]
 async fn an_untrusted_proposal_lands_in_pending() {
     let service = service();
     let draft = FactDraft {
@@ -228,7 +217,6 @@ async fn an_untrusted_proposal_lands_in_pending() {
 }
 
 #[tokio::test]
-#[ignore = "MemoryService::handle is a todo!() until fill wave 2 (FINDINGS.md)"]
 async fn space_delete_destroys_key() {
     let service = service();
     ask(

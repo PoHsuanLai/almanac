@@ -122,6 +122,7 @@ dependencies = [
  "recall",
  "rusqlite",
  "serde_json",
+ "tar",
  "tempfile",
  "tokio",
 ]
@@ -149,8 +150,10 @@ dependencies = [
  "almanac-seal",
  "blake3",
  "eventlog",
+ "jiff",
  "memfiles",
  "recall",
+ "rusqlite",
  "serde",
  "serde_json",
  "tar",

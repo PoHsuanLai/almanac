@@ -72,7 +72,8 @@ pub struct FileWhyClaim {
     pub space: SpaceId,
     /// The file.
     pub path: SpacePath,
-    /// Its content digest as the app wrote it.
+    /// Its content digest as the app wrote it: plain `blake3` of the file's bytes
+    /// (see `ContentDigest`).
     pub content: ContentDigest,
     /// The thing it came from.
     pub cause: ThingRef,

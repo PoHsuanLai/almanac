@@ -89,10 +89,8 @@ impl Backend for FakeBackend {
         let card = recall::Embedder::card(&self.embedder).clone();
         let fts =
             Fts5::new(rusqlite::Connection::open_in_memory().map_err(recall::IndexError::from)?);
-        let vectors = ExactScan::new(
-            rusqlite::Connection::open_in_memory().map_err(recall::IndexError::from)?,
-            card,
-        );
+        fts.create()?;
+        let vectors = ExactScan::in_memory(card)?;
         Ok(Index::new(fts, vectors))
     }
 }

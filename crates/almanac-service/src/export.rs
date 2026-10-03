@@ -175,6 +175,11 @@ impl<W: Write> ExportWriter<W> {
         self.entry(&file_path(space, rel), bytes)
     }
 
+    /// `<space>/digest.key`: the digest subkey in hex, only when the person ticked the box.
+    pub fn digest_key(&mut self, space: &SpaceId, hex: &str) -> std::io::Result<()> {
+        self.entry(&format!("{EXPORT_ROOT}/{space}/digest.key"), hex.as_bytes())
+    }
+
     /// `rules.toml`.
     pub fn rules(&mut self, toml: &str) -> std::io::Result<()> {
         self.entry(&rules_path(), toml.as_bytes())

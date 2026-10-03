@@ -1,7 +1,8 @@
 //! Consolidation: the model seam, the run machine (memory section 4.4) and the draft check.
 
 use almanac_core::{
-    ConsolidateFailure, EventRef, Fact, Hunk, KindTag, Label, RunId, RunState, SpaceId, ThingView,
+    ConsolidateFailure, EventRef, Fact, Hunk, KindTag, Label, Link, RunId, RunState, SpaceId,
+    ThingView, TidyHunk,
 };
 use std::future::Future;
 
@@ -98,10 +99,87 @@ pub struct CheckedDraft {
 /// the join of the cited sources' labels (so untrusted content cannot be laundered); no hunk
 /// removes a fact; none reaches outside the Space. Invalid hunks are dropped, not repaired.
 pub fn check_draft(input: &ConsolidationInput, draft: Draft) -> CheckedDraft {
-    let _ = (input, draft);
-    todo!(
-        "the four invariants; the join is prov::Label::join, itself a stub in porter until its fill"
-    )
+    let mut kept = Vec::new();
+    let mut dropped = Vec::new();
+    for (index, hunk) in draft.hunks.into_iter().enumerate() {
+        match hunk_fault(input, &hunk) {
+            None => kept.push(hunk),
+            Some(fault) => dropped.push((index, fault)),
+        }
+    }
+    CheckedDraft { kept, dropped }
+}
+
+fn hunk_fault(input: &ConsolidationInput, hunk: &Hunk) -> Option<HunkFault> {
+    match hunk {
+        Hunk::Promote { fact, .. } => fact_fault(input, fact),
+        Hunk::Supersede { old, new } => (!input.facts.iter().any(|f| &f.id == old))
+            .then_some(HunkFault::CitesOutsideInput)
+            .or_else(|| fact_fault(input, new)),
+        Hunk::Flag { facts, .. } => facts
+            .iter()
+            .any(|id| !input.facts.iter().any(|f| &f.id == id))
+            .then_some(HunkFault::CitesOutsideInput),
+        Hunk::Tidy(TidyHunk { before, after, .. }) | Hunk::ExternalEdit { before, after, .. } => {
+            (!before.as_str().trim().is_empty() && after.as_str().trim().is_empty())
+                .then_some(HunkFault::RemovesFact)
+        }
+        Hunk::Stamp { .. } => None,
+    }
+}
+
+/// The faults of a fact a hunk introduces: its links name events of another Space, or things,
+/// facts and events outside the input; its label is less restrictive than the join of what it
+/// cites.
+fn fact_fault(input: &ConsolidationInput, fact: &Fact) -> Option<HunkFault> {
+    let outside_space = fact
+        .links
+        .iter()
+        .any(|l| matches!(l, Link::Event(e) if e.space != input.space));
+    if outside_space {
+        return Some(HunkFault::OutsideSpace);
+    }
+    let labels: Option<Vec<Label>> = fact
+        .links
+        .iter()
+        .map(|link| source_labels(input, link))
+        .collect::<Option<Vec<Vec<Label>>>>()
+        .map(|all| all.into_iter().flatten().collect());
+    let Some(labels) = labels.filter(|l| !l.is_empty()) else {
+        return Some(HunkFault::CitesOutsideInput);
+    };
+    let joined = labels
+        .iter()
+        .skip(1)
+        .fold(labels[0].clone(), |a, b| a.join(b));
+    (fact.label.join(&joined) != fact.label.join(&fact.label)).then_some(HunkFault::LabelLaundered)
+}
+
+/// The labels of what one link cites inside the input (every event naming a thing), or `None`
+/// when it cites something the input does not hold.
+fn source_labels(input: &ConsolidationInput, link: &Link) -> Option<Vec<Label>> {
+    let labels: Vec<Label> = match link {
+        Link::Event(e) => input
+            .events
+            .iter()
+            .filter(|ev| &ev.event == e)
+            .map(|ev| ev.label.clone())
+            .collect(),
+        Link::Fact(id) => input
+            .facts
+            .iter()
+            .filter(|f| &f.id == id)
+            .map(|f| f.label.clone())
+            .collect(),
+        Link::Thing(t) => input
+            .events
+            .iter()
+            .filter(|ev| ev.things.iter().any(|v| &v.thing == t))
+            .map(|ev| ev.label.clone())
+            .collect(),
+        Link::Run(_) => Vec::new(),
+    };
+    (!labels.is_empty()).then_some(labels)
 }
 
 /// Whether the person is at the desktop.

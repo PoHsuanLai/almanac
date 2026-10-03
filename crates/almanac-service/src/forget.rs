@@ -3,12 +3,14 @@
 //! A plan is computed once over snapshots of the log and the facts; its digest covers the whole
 //! closure, so `Forget(token)` refuses when anything new derived from it in between.
 
+use crate::docs::{event_ref, fact_doc_id, indexed_docs, newest_episodes};
 use almanac_core::{
-    Count, FactId, FactState, ForgetCounts, ForgetScope, Link, PlanDigest, PlanToken, Refusal, Seq,
-    SpaceId, UnixSeconds,
+    Actor, AppName, Count, EventBody, FactId, FactState, ForgetCounts, ForgetScope, Link,
+    PlanDigest, PlanToken, Refusal, Seq, SpaceId, UnixSeconds,
 };
-use eventlog::LogRead;
+use eventlog::{BodyState, Entry, LogRead};
 use memfiles::VaultPath;
+use std::collections::BTreeSet;
 
 /// A plan lapses this long after it was made.
 pub const PLAN_TTL_SECONDS: i64 = 600;
@@ -53,18 +55,130 @@ pub struct Plan {
 }
 
 /// Computes the closure of `scope`: events whose subjects or sources match (including `Area`
-/// payloads by their `things`), facts linked to any of them or to the thing, transitively,
-/// pending facts, procedures and index documents. Pure over the snapshots.
+/// payloads by their `things`, and messages by the entities they name), facts linked to any of
+/// them or to the thing, transitively, pending facts, procedures and index documents. Pure over
+/// the snapshots; a log that cannot be read gives an empty event list (the service checks the
+/// log before it plans).
 pub fn plan_forget(
     space: &SpaceId,
     scope: &ForgetScope,
     log: &impl LogRead,
     graph: &FactGraph,
 ) -> Plan {
-    let _ = (space, scope, log, graph);
-    todo!(
-        "scan the log for matching events, walk Link::Fact transitively over graph.nodes, collect index docs"
-    )
+    let entries = log.scan(Seq(0)).unwrap_or_default();
+    let newest = newest_episodes(&entries);
+    let hit: Vec<&Entry> = entries
+        .iter()
+        .filter(|e| matches!(e.body, BodyState::Present(_)) && scope_matches(space, scope, e))
+        .collect();
+    let mut roots: Vec<Link> = hit
+        .iter()
+        .map(|e| Link::Event(event_ref(space, e)))
+        .collect();
+    let seeds: BTreeSet<FactId> = match scope {
+        ForgetScope::Thing(thing) => {
+            roots.push(Link::Thing(thing.clone()));
+            BTreeSet::new()
+        }
+        ForgetScope::Fact(id) => graph
+            .nodes
+            .iter()
+            .filter(|n| &n.id == id)
+            .map(|n| n.id.clone())
+            .collect(),
+        ForgetScope::Space => graph.nodes.iter().map(|n| n.id.clone()).collect(),
+        ForgetScope::Event(_)
+        | ForgetScope::Range(..)
+        | ForgetScope::App(_)
+        | ForgetScope::Kind(_) => BTreeSet::new(),
+    };
+    let closure = derived_closure(graph, roots, seeds);
+    let (pending, facts): (Vec<&FactNode>, Vec<&FactNode>) = graph
+        .nodes
+        .iter()
+        .filter(|n| closure.contains(&n.id))
+        .partition(|n| n.state == FactState::Pending);
+    let indexed_facts = facts
+        .iter()
+        .filter(|n| !matches!(n.state, FactState::Superseded { .. }))
+        .map(|n| fact_doc_id(&n.id));
+    let event_docs = hit
+        .iter()
+        .flat_map(|e| indexed_docs(space, e, &newest))
+        .map(|d| d.id);
+    let index_docs: BTreeSet<String> = indexed_facts.chain(event_docs).collect();
+    Plan {
+        space: space.clone(),
+        scope: scope.clone(),
+        events: hit.iter().map(|e| e.header.seq).collect(),
+        facts: facts.iter().map(|n| n.id.clone()).collect(),
+        pending: pending.iter().map(|n| n.id.clone()).collect(),
+        procedures: match scope {
+            ForgetScope::Space => graph.procedures.clone(),
+            _ => Vec::new(),
+        },
+        index_docs: index_docs.into_iter().collect(),
+    }
+}
+
+/// Every fact derived from `roots`, transitively through `Link::Fact`, and the `seeds`
+/// themselves with what derives from them (strict: any one link is enough, QUESTIONS Me2).
+fn derived_closure(
+    graph: &FactGraph,
+    roots: Vec<Link>,
+    seeds: BTreeSet<FactId>,
+) -> BTreeSet<FactId> {
+    let mut seen = seeds;
+    let mut frontier: Vec<Link> = roots
+        .into_iter()
+        .chain(seen.iter().cloned().map(Link::Fact))
+        .collect();
+    while !frontier.is_empty() {
+        let next: Vec<FactId> = graph
+            .nodes
+            .iter()
+            .filter(|n| !seen.contains(&n.id) && n.links.iter().any(|l| frontier.contains(l)))
+            .map(|n| n.id.clone())
+            .collect();
+        seen.extend(next.iter().cloned());
+        frontier = next.into_iter().map(Link::Fact).collect();
+    }
+    seen
+}
+
+/// Whether the (present) event is in what `scope` asks to forget.
+fn scope_matches(space: &SpaceId, scope: &ForgetScope, entry: &Entry) -> bool {
+    let BodyState::Present(body) = &entry.body else {
+        return false;
+    };
+    let h = &entry.header;
+    match scope {
+        ForgetScope::Event(r) => &r.space == space && r.seq == h.seq && r.replica == h.replica,
+        ForgetScope::Thing(thing) => body.names(thing),
+        ForgetScope::Fact(_) => false,
+        ForgetScope::Range(from, to) => *from <= h.occurred && h.occurred <= *to,
+        ForgetScope::App(app) => involves_app(&h.actor, body, app),
+        ForgetScope::Kind(pattern) => {
+            pattern.covers(h.kind.as_str())
+                || body
+                    .things()
+                    .iter()
+                    .any(|(view, _)| pattern.covers(view.thing.kind.as_str()))
+        }
+        ForgetScope::Space => true,
+    }
+}
+
+/// The apps an event involves: its things' owners, the app searched in, the acting app.
+fn involves_app(actor: &Actor, body: &EventBody, app: &AppName) -> bool {
+    let acting = match actor {
+        Actor::User { via: a } | Actor::App { app: a } | Actor::ThirdParty { app: a, .. } => {
+            a == app
+        }
+        _ => false,
+    };
+    let searched = matches!(body, EventBody::Search { app: a, .. } if a == app);
+    acting || searched || body.thing_refs().iter().any(|(thing, _)| &thing.app == app)
 }
 
 impl Plan {

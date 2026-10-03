@@ -1,26 +1,15 @@
 # Findings
 
 Open items and standing facts. An entry names the condition that closes it. At the freeze
-(porter 4623e18) there are **59 `todo!()` bodies** in library and daemon code (listed below, one
-row per crate or file with the count); the tests contain none, and 16 contract tests are
-`#[ignore]`d with the todo that blocks them.
+(porter 4623e18) there were 59 `todo!()` bodies; fill waves 1 and 2 (eventlog, memfiles, recall, seal,
+watch, almanac-service) removed 53, so **6 remain** (below, one row per crate or file with the
+count), all in the bus and daemon wave. No contract test is `#[ignore]`d except the by-hand
+fastembed one.
 
 ## Stubs behind frozen interfaces
 
 | Where | Count | Closes when |
 | --- | --- | --- |
-| almanac-seal `Oo7Keys::{get, create, destroy}` | 3 | fill wave 1 (D): oo7 0.6 is pinned and a dependency of the `oo7` feature; items with attributes `xdg:schema = org.quire.Memory.SpaceKey`, `space`; `Exists`/`Missing`/`Locked` per `KeyError` |
-| eventlog `SqliteLog::{open, head, checkpoint, page, touching, scan, append, erase_bodies, prune_before}` | 9 | fill wave 1 (A): `SCHEMA_V1` is frozen and tested as SQL; `PRAGMA key`, `secure_delete=ON`, WAL, `wal_checkpoint(TRUNCATE)` after an erase; the `contract` test in `tests/pages.rs` must pass for `SqliteLog` (un-ignore `sqlite_and_memory_logs_agree`, `wrong_key_is_locked`) |
-| memfiles `PlainDir::{list, read, write_atomic, remove}`, `SealedDir::{list, read, write_atomic, remove}` | 8 | fill wave 1 (B): `vault_contract` over `PlainDir` and `SealedDir` (un-ignore both tests); atomic = temporary file, fsync, rename; sealed files use `almanac_seal::seal` with `Aad::file(space, path)` |
-| memfiles `Store::{topics, read, append, stage, pending, settle, derived_from, remove, write_primer}` | 9 | fill wave 1 (B): the rows of `store` in memory.md section 5 (`append_is_add_only`, `untrusted_fact_lands_in_pending`, `confirm_requires_witness`, `derived_from_is_transitive`); `settle(Keep)` declassifies with `prov::declassify`, itself a stub in porter until its fill |
-| recall `Fts5::{create, upsert, remove, search, clear}` | 5 | fill wave 1 (C): `SCHEMA_V1` and `match_expression` are frozen; FTS5 is verified compiled in (`fts5_is_compiled_in_and_the_schema_and_expression_work`) |
-| recall `ExactScan::{in_memory, upsert, remove, nearest, clear}` | 5 | fill wave 1 (C): BLOB encoding and `nearest_exact` are frozen and tested; no `unsafe`, no extension (QUESTIONS P5) |
-| recall `Index::{rebuild, upsert, remove, search}` | 4 | fill wave 1 (C): un-ignore `rebuild_equals_incremental`, `search_degrades_to_lexical`, `remove_drops_from_both_indexes`; the state moves by `recall::step` |
-| recall-fastembed `FastembedEmbedder::{load, embed}` | 2 | fill wave 1 (C), by hand with network (`cargo check -p recall-fastembed`; ort downloads binaries): the crate is excluded from the gate |
-| almanac-watch `InotifyWatch::{new, watch, unwatch, next}` | 4 | fill wave 1 (D): notify 8.2, rename halves paired by cookie; un-ignore `inotify_sees_create_rename_delete_in_scratch_dir` (scratch directory only) |
-| almanac-service `plan_forget` | 1 | fill wave 2: the closure of memory section 4.3 over `FactGraph` and a `LogRead`; `Plan::digest` and `plan_step` are built |
-| almanac-service `check_draft` | 1 | fill wave 2, after porter fills `prov::Label::join` (the check cites the join of the sources' labels) |
-| almanac-service `MemoryService::{handle, export}` | 2 | fill wave 2: authorise with `allowed`, route, run the machines, apply their effects; un-ignore the seven tests in `almanac-fake/tests/service.rs` and `in_process_end_to_end` |
 | almanac-dbus codec `encode_request`, `decode_reply` | 2 | fill wave 3: one match from `MemoryRequest` to member and JSON arguments; a bus error name maps back to `Refusal` (`MemoryError::refusal`) |
 | almanac-client `DbusTransport::call` | 1 | fill wave 3, with the codec |
 | memoryd `InferdEmbedder::embed`, `InferdConsolidator::draft` | 2 | fill wave 3, blocked on porter's `DbusTransport::open` and session fills; the embedder's `DataClass` is the document's, `Usage::Background` for indexing |
@@ -28,7 +17,7 @@ row per crate or file with the count); the tests contain none, and 16 contract t
 | memoryd `main` (serving the bus, systemd unit, Landlock) | 0 todo; skeleton | fill wave 3: serve the three interfaces, the unit with `PrivateNetwork=yes`, `ProtectSystem=strict`, `ReadWritePaths=` for the memory directories only, `ProtectHome=read-only` for watching |
 | daemons serve their bus | | the items above |
 
-Total: 3 + 9 + 8 + 9 + 5 + 5 + 4 + 2 + 4 + 1 + 1 + 2 + 2 + 1 + 2 + 1 = 59.
+Total: 2 + 1 + 2 + 1 = 6 (almanac-dbus codec, almanac-client `DbusTransport::call`, memoryd's embedder, consolidator and `open_index`).
 
 ## Built at the freeze (pinned by tests)
 
@@ -234,3 +223,36 @@ Nothing below is built; the interfaces it will use are.
 - **Cross-repo dependencies are sibling paths** (`../porter/crates/{porter-core, prov, porter-infer,
   porter-client}`), as porter does for stoker; porter itself path-patches `../stoker`. Pinned git
   revs replace them in fill wave 1, stage by stage (quire `CONSUMING.md` section 1).
+
+## Service fill (wave F2, almanac-service)
+
+Decisions the fill made where the frozen text left room:
+
+- **Spaces are provisioned on first use** (key created if `Missing`, sealed vault, replica derived
+  from the Space's digest subkey, so two machines differ). `MemoryService::register(meta)` tells it
+  about `spaces.toml` entries; `metas()` and `rules()` let memoryd persist what the service made or
+  changed. A locked key buffers `Record`s (at most `BUFFER_LIMIT`, flushed when the Space opens);
+  every other request answers `SpaceLocked`.
+- **A Space is checked out for the length of a request** (Index writes hold `&mut` across the
+  embedding and `almanac-service` may not link tokio); a second request for the same Space meanwhile
+  is `Busy`. memoryd serialises per Space or retries.
+- **Search runs the index halves itself** (`Index::lexical`, `VectorIndex::nearest`, `fuse_rrf`):
+  `Index::search` holds a shared borrow of SQLite connections across the query embedding, which makes
+  the future `!Send`. The facet filter (`over`, trust) is the `kind`/`trust` columns of `docs`.
+- **Fact ids and run ids** take their random bits from a keyed hash of the Space's digest subkey, a
+  counter and the time (CONVENTIONS 4: nothing ambient).
+- **Proposals**: the shell's are the person's own words (Trusted); the router's are planner text
+  (Untrusted, so they wait in `pending/`); both are joined with the labels of what they cite. `desktop`
+  refuses anything `desktop_admits` does not `Admit` (`Invalid`).
+- **A `Message` is recorded in the receiving Space** (`to.space`); `Invalid` for a forged sender, a
+  malformed message, an untrusted skeleton or a label less restrictive than its documents.
+- **Not done by the service yet**: Tidy, Stamp, ExternalEdit and Flag hunks are reviewable but not
+  applied (Promote and Supersede are, into topic `consolidated`); the retention sweep is not
+  triggered by any request; `AnchorFinalHead` on Space deletion; marks are not persisted; `FactView.used`
+  is always 0; why an old body is gone after a restart is inferred (retention, else forgotten).
+- **Interface ask (eventlog)**: `rows.rs` writes the `things` table from `body.things()`; the contract
+  is `thing_refs()` (messages naming an entity). `plan_forget` scans the log, so forgetting is right
+  either way, but `LogRead::touching` misses messages.
+- **ContentDigest** is plain unkeyed `blake3` of the file's bytes (documented on the type and on
+  `FileWhyClaim.content`).
+- `FakeEmbedder::with_max_batch` sets the card's `max_batch`.

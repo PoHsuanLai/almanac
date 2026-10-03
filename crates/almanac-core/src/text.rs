@@ -133,7 +133,10 @@ digest!(
     Link32
 );
 digest!(
-    /// A file's content digest, as the app or watcher computed it.
+    /// A file's content digest, as the app or watcher computed it. The convention is plain
+    /// `blake3` of the file's bytes (`*blake3::hash(content).as_bytes()`), unkeyed: it must be
+    /// the same for the app that says why a file changed and the watcher that saw it, so the
+    /// join can compare them. It is not the keyed body digest of the event log (`Digest32`).
     ContentDigest
 );
 

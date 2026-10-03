@@ -102,11 +102,16 @@ impl Backend for SystemBackend {
     fn open_log(
         &self,
         space: &SpaceId,
-        _replica: ReplicaId,
+        replica: ReplicaId,
         key: &SpaceKey,
     ) -> Result<SqliteLog, BackendError> {
         let db_key = DbKey::of(&derive(key, space, Purpose::Eventlog));
-        Ok(SqliteLog::open(&self.dirs.events_db(space), &db_key)?)
+        Ok(SqliteLog::open_for(
+            &self.dirs.events_db(space),
+            &db_key,
+            space,
+            replica,
+        )?)
     }
 
     fn open_files(&self, meta: &SpaceMeta, key: &SpaceKey) -> Result<SpaceVault, BackendError> {

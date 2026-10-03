@@ -45,6 +45,12 @@ impl FakeEmbedder {
         }
     }
 
+    /// A working fake whose card says it takes at most `max_batch` texts at once.
+    pub fn with_max_batch(mut self, max_batch: u32) -> Self {
+        self.card.max_batch = MaxBatch(max_batch);
+        self
+    }
+
     /// A working fake that claims to be another model, so an index built with one is stale for
     /// the other.
     pub fn named(model: &str) -> Self {

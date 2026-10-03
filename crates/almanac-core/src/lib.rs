@@ -86,9 +86,13 @@ pub const MEMORY_WIRE_VERSION: u32 = 1;
 pub use porter_core::{
     AppId, AppName, Bytes, Count, DataClass, Isolation, SpaceId, SpaceScope, Tokens, UnixSeconds,
 };
+/// Why a message is malformed (`prov::Fault`): the service refuses a `Record` whose message
+/// fails `Message::check`.
+pub use prov::Fault as MessageFault;
 pub use prov::{
     ActionName, Actor, ActorKind, Address, AgentRef, AgentRole, Channel, ClientName,
-    Confidentiality, ConfirmId, ConfirmReceipt, Effect, InputProof, Integrity, Label, Message,
-    MessageId, MessageKind, MessageText, ModelRole, OutcomeRef, Part, ReportStatus, RunId,
-    SessionId, Source, SystemPart, TaskId, ThreadId, UndoHandle,
+    Confidentiality, ConfirmId, ConfirmReceipt, DesktopVerdict, Effect, Flow, InputProof,
+    Integrity, Label, Labelled, Message, MessageId, MessageKind, MessageText, ModelRole,
+    OutcomeRef, Part, ReportStatus, RunId, SenderCheck, SessionId, Source, SystemPart, TaskId,
+    ThreadId, UndoHandle, Witness, declassify, desktop_admits, endorse,
 };
