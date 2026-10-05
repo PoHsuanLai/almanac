@@ -1,5 +1,6 @@
-//! Who is calling: the caller table, and the real resolution of a bus connection to a process
-//! and its executable, on a private bus where the caller is this test binary.
+//! Who is calling: the callers file, the identification of a process by its cgroup over a fake
+//! `/proc`, and the real resolution of a bus connection to a process on a private bus where the
+//! caller is this test binary.
 
 mod common;
 
@@ -8,63 +9,154 @@ use almanac_core::*;
 use almanac_dbus::serve_on;
 use common::bus::PrivateBus;
 use common::{SharedKeys, TestBackend, connect, dirs_in, service, space};
-use memoryd::{CallerTable, Daemon, FollowUp, ProcPeers, follow_ups};
-use std::path::{Path, PathBuf};
+use memoryd::{Daemon, FollowUp, ProcPeers, caller_for, follow_ups, load_callers, table_from_toml};
+use porter_dbus::{CallerTable, ProcCallers};
+use std::path::Path;
 use std::sync::Arc;
 
 const TABLE: &str = r#"
-router = ["/usr/libexec/quire/intentd"]
-shell  = ["/usr/bin/sill"]
-cuad   = ["/usr/libexec/quire/cuad"]
+[[caller]]
+app = "org.quire.Intents"
+unit = "intentd.service"
+role = "agent"
 
-[apps]
-"org.quire.Mail" = ["/usr/bin/mailo", "/opt/mailo/bin/mailo"]
-"org.quire.Router" = ["/usr/libexec/quire/intentd"]
+[[caller]]
+app = "org.quire.Cua"
+unit = "cuad.service"
+role = "cua"
+
+[[caller]]
+app = "org.quire.Shell"
+unit = "sill.service"
+role = "sheet_host"
+
+[[caller]]
+app = "org.quire.Companion"
+unit = "companiond.service"
+role = "agent"
 "#;
 
+fn app(name: &str, isolation: Isolation) -> Option<Caller> {
+    Some(Caller::App(AppId {
+        name: AppName::parse(name).expect("app"),
+        isolation,
+    }))
+}
+
+/// Writes `<root>/<pid>/cgroup` with the unit `leaf` under a user slice.
+fn put_cgroup(root: &Path, pid: u32, leaf: &str) {
+    let dir = root.join(pid.to_string());
+    std::fs::create_dir_all(&dir).expect("pid dir");
+    let path = format!("0::/user.slice/user-1000.slice/user@1000.service/app.slice/{leaf}\n");
+    std::fs::write(dir.join("cgroup"), path).expect("cgroup");
+}
+
+fn identify(root: &Path, pid: u32, table: &CallerTable) -> Option<Caller> {
+    ProcCallers::caller_of_pid(root, pid, table).map(caller_for)
+}
+
 #[test]
-fn the_table_names_the_caller_of_each_executable() {
-    let table = CallerTable::from_toml(TABLE).expect("table");
-    let app = |name: &str| {
-        Some(Caller::App(AppId {
-            name: AppName::parse(name).expect("app"),
-            isolation: Isolation::Unsandboxed,
-        }))
-    };
-    for (exe, expected) in [
-        ("/usr/libexec/quire/intentd", Some(Caller::Router)),
-        ("/usr/bin/sill", Some(Caller::ShellUi)),
-        ("/usr/libexec/quire/cuad", Some(Caller::Cuad)),
-        ("/usr/bin/mailo", app("org.quire.Mail")),
-        ("/opt/mailo/bin/mailo", app("org.quire.Mail")),
-        ("/usr/bin/curl", None),
-        ("/usr/bin/sill (deleted)", None),
+fn a_process_is_identified_by_its_cgroup() {
+    let table = table_from_toml(TABLE).expect("table");
+    let scratch = tempfile::tempdir().expect("scratch");
+    let root = scratch.path();
+    for (pid, leaf) in [
+        (10, "intentd.service"),
+        (11, "cuad.service"),
+        (12, "sill.service"),
+        (13, "companiond.service"),
+        (14, "curl.service"),
+        (15, "app-flatpak-org.example.Mail-4242.scope"),
+        (16, "app-org.example.Notes-77.scope"),
+        (17, "app-gnome-org.example.Notes-78.scope"),
+        // A terminal's child: the terminal's app scope names the terminal, not the program.
+        (18, "vte-spawn-3f1e.scope"),
+        // An app scope claiming the router's app name is only an app: the router is the unit.
+        (19, "app-org.quire.Intents-5.scope"),
     ] {
-        assert_eq!(table.resolve(Path::new(exe)), expected, "{exe}");
+        put_cgroup(root, pid, leaf);
     }
-    // An app entry cannot claim a fixed role's executable: the role wins.
+    let flatpak = app("org.example.Mail", Isolation::Flatpak);
+    for (pid, expected) in [
+        (10, Some(Caller::Router)),
+        (11, Some(Caller::Cuad)),
+        (12, Some(Caller::ShellUi)),
+        (13, app("org.quire.Companion", Isolation::Unsandboxed)),
+        (14, None),
+        (15, flatpak),
+        (16, app("org.example.Notes", Isolation::Unsandboxed)),
+        (17, app("org.example.Notes", Isolation::Unsandboxed)),
+        (18, None),
+        (19, app("org.quire.Intents", Isolation::Unsandboxed)),
+        (20, None),
+    ] {
+        assert_eq!(identify(root, pid, &table), expected, "pid {pid}");
+    }
+}
+
+#[test]
+fn an_empty_table_names_no_unit_and_an_app_is_still_an_app() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    put_cgroup(scratch.path(), 1, "intentd.service");
+    put_cgroup(scratch.path(), 2, "app-org.example.Notes-7.scope");
+    let none = CallerTable::default();
+    assert_eq!(identify(scratch.path(), 1, &none), None);
     assert_eq!(
-        table.resolve(Path::new("/usr/libexec/quire/intentd")),
-        Some(Caller::Router)
+        identify(scratch.path(), 2, &none),
+        app("org.example.Notes", Isolation::Unsandboxed)
     );
 }
 
 #[test]
-fn an_empty_table_allows_nobody_and_a_bad_one_is_refused() {
+fn the_roles_map_onto_almanacs_callers() {
+    let table = table_from_toml(TABLE).expect("table");
+    let named = |unit: &str| table.resolve_unit(unit).map(caller_for);
+    assert_eq!(named("intentd.service"), Some(Caller::Router));
+    assert_eq!(named("sill.service"), Some(Caller::ShellUi));
+    assert_eq!(named("cuad.service"), Some(Caller::Cuad));
+    // The same shell app with the `app` role is an app: the role decides, not the name alone.
+    let demoted = table_from_toml(
+        "[[caller]]\napp = \"org.quire.Shell\"\nunit = \"sill.service\"\nrole = \"app\"\n",
+    )
+    .expect("table");
     assert_eq!(
-        CallerTable::default().resolve(Path::new("/usr/bin/sill")),
-        None
+        demoted.resolve_unit("sill.service").map(caller_for),
+        app("org.quire.Shell", Isolation::Unsandboxed)
+    );
+}
+
+#[test]
+fn the_user_file_wins_a_missing_one_is_empty_and_a_bad_one_is_an_error() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let dir = scratch.path();
+    let (system, user, none) = (
+        dir.join("system.toml"),
+        dir.join("user.toml"),
+        dir.join("none.toml"),
+    );
+    std::fs::write(&system, TABLE).expect("system");
+    std::fs::write(
+        &user,
+        "[[caller]]\napp = \"org.example.Mine\"\nunit = \"intentd.service\"\nrole = \"app\"\n",
+    )
+    .expect("user");
+    let merged = load_callers(&system, &user).expect("merged");
+    assert_eq!(
+        merged.resolve_unit("intentd.service").map(caller_for),
+        app("org.example.Mine", Isolation::Unsandboxed)
     );
     assert_eq!(
-        CallerTable::from_toml("").expect("empty is fine"),
+        load_callers(&none, &none).expect("empty"),
         CallerTable::default()
     );
-    assert!(CallerTable::from_toml("router = 3").is_err());
-    assert!(CallerTable::from_toml("[apps]\n\"Not An App!\" = []").is_err());
+    std::fs::write(&user, "[[caller]]\napp = \"org.x.A\"\nrole = \"root\"\n").expect("bad");
+    assert!(load_callers(&system, &user).is_err());
+    assert!(table_from_toml("[[caller]]\napp = \"Not An App!\"\nrole = \"app\"\n").is_err());
 }
 
 async fn world(
     table: CallerTable,
+    proc_root: &Path,
 ) -> (
     tempfile::TempDir,
     PrivateBus,
@@ -75,7 +167,7 @@ async fn world(
     let bus = PrivateBus::start(scratch.path());
     let dirs = dirs_in(&scratch.path().join("home"));
     let server = connect(&bus.address).await;
-    let peers = ProcPeers::new(server.clone(), table);
+    let peers = ProcPeers::with_proc_root(server.clone(), table, proc_root.to_owned());
     let daemon = Arc::new(Daemon::new(
         service(&dirs, &SharedKeys::default()),
         peers,
@@ -87,14 +179,6 @@ async fn world(
     (scratch, bus, daemon, address)
 }
 
-fn this_binary() -> PathBuf {
-    std::env::current_exe().expect("the test binary")
-}
-
-fn table_with(role: &str, exe: &Path) -> CallerTable {
-    CallerTable::from_toml(&format!("{role} = [{:?}]", exe.display().to_string())).expect("table")
-}
-
 fn search() -> RecallQuery {
     RecallQuery {
         space: space("work"),
@@ -104,10 +188,19 @@ fn search() -> RecallQuery {
     }
 }
 
+/// A fake `/proc` in which this test binary runs in `leaf`.
+fn proc_with_me_in(leaf: &str) -> tempfile::TempDir {
+    let proc = tempfile::tempdir().expect("proc");
+    put_cgroup(proc.path(), std::process::id(), leaf);
+    proc
+}
+
 #[tokio::test]
-async fn a_connection_is_resolved_through_its_process_to_its_executable() {
-    // This test binary is the router: its search is allowed.
-    let (_scratch, _bus, _daemon, address) = world(table_with("router", &this_binary())).await;
+async fn a_connection_is_resolved_through_its_process_to_its_cgroup() {
+    let table = table_from_toml(TABLE).expect("table");
+    // This test binary is intentd: its search is allowed.
+    let proc = proc_with_me_in("intentd.service");
+    let (_scratch, _bus, _daemon, address) = world(table.clone(), proc.path()).await;
     let router = Memory::over(DbusTransport::new(connect(&address).await));
     assert!(router.search(search()).await.is_ok());
     // And the router may not do what only the shell may.
@@ -119,9 +212,9 @@ async fn a_connection_is_resolved_through_its_process_to_its_executable() {
         ClientError::Refused(Refusal::NotAllowed)
     );
 
-    // The same binary as the shell may forget (a made-up plan is `Invalid`, not `NotAllowed`) but
-    // may not be told apart from a router for reads: shell reads are allowed too.
-    let (_scratch2, _bus2, _daemon2, address) = world(table_with("shell", &this_binary())).await;
+    // The same binary as the shell may forget (a made-up plan is `Invalid`, not `NotAllowed`).
+    let proc = proc_with_me_in("sill.service");
+    let (_scratch2, _bus2, _daemon2, address) = world(table, proc.path()).await;
     let shell = Memory::over(DbusTransport::new(connect(&address).await));
     let refused = shell
         .forget(PlanToken::parse("p-1").expect("token"))
@@ -131,22 +224,30 @@ async fn a_connection_is_resolved_through_its_process_to_its_executable() {
 }
 
 #[tokio::test]
-async fn a_process_the_table_does_not_name_is_nobody() {
-    let (_scratch, _bus, _daemon, address) = world(CallerTable::default()).await;
+async fn a_process_nothing_names_is_nobody() {
+    let table = table_from_toml(TABLE).expect("table");
+    let refused = |leaf: &'static str, table: CallerTable| async move {
+        let proc = proc_with_me_in(leaf);
+        let (_scratch, _bus, _daemon, address) = world(table, proc.path()).await;
+        let stranger = Memory::over(DbusTransport::new(connect(&address).await));
+        stranger.search(search()).await.expect_err(leaf)
+    };
+    let not_allowed = ClientError::Refused(Refusal::NotAllowed);
+    // A unit the table does not name, a terminal's child, an empty table.
+    assert_eq!(refused("curl.service", table.clone()).await, not_allowed);
+    assert_eq!(refused("vte-spawn-3.scope", table).await, not_allowed);
+    assert_eq!(
+        refused("intentd.service", CallerTable::default()).await,
+        not_allowed
+    );
+    // No cgroup file for the process at all.
+    let empty = tempfile::tempdir().expect("proc");
+    let (_scratch, _bus, _daemon, address) =
+        world(table_from_toml(TABLE).expect("table"), empty.path()).await;
     let stranger = Memory::over(DbusTransport::new(connect(&address).await));
     assert_eq!(
         stranger.search(search()).await.expect_err("nobody"),
-        ClientError::Refused(Refusal::NotAllowed)
-    );
-    let elsewhere = table_with("router", Path::new("/usr/libexec/quire/intentd"));
-    let (_scratch2, _bus2, _daemon2, address) = world(elsewhere).await;
-    let stranger = Memory::over(DbusTransport::new(connect(&address).await));
-    assert_eq!(
-        stranger
-            .search(search())
-            .await
-            .expect_err("another program"),
-        ClientError::Refused(Refusal::NotAllowed)
+        not_allowed
     );
 }
 
@@ -198,4 +299,31 @@ fn what_a_reply_makes_the_bus_say() {
         vec![FollowUp::PendingChanged(space("work"))]
     );
     assert!(follow_ups(&propose, &MemoryReply::Proposed(fact, FactState::Active)).is_empty());
+}
+
+#[test]
+fn the_proc_root_knob_works_in_a_test_build_only() {
+    use memoryd::{ProcRoot, TestProcRoot, proc_root_choice};
+    use std::path::PathBuf;
+    for (var, build, expected) in [
+        (None, TestProcRoot::Built, ProcRoot::System),
+        (None, TestProcRoot::NotBuilt, ProcRoot::System),
+        (Some(""), TestProcRoot::Built, ProcRoot::System),
+        (
+            Some("/x/proc"),
+            TestProcRoot::Built,
+            ProcRoot::Fixture(PathBuf::from("/x/proc")),
+        ),
+        (
+            Some("/x/proc"),
+            TestProcRoot::NotBuilt,
+            ProcRoot::SystemIgnoring("/x/proc".to_owned()),
+        ),
+    ] {
+        assert_eq!(proc_root_choice(var, build), expected, "{var:?} {build:?}");
+    }
+    let ignored = proc_root_choice(Some("/x/proc"), TestProcRoot::NotBuilt);
+    assert_eq!(ignored.path(), PathBuf::from("/proc"));
+    assert!(ignored.said().is_some_and(|l| l.contains("ignoring it")));
+    assert!(ProcRoot::System.said().is_none());
 }

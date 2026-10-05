@@ -1,69 +1,20 @@
 //! Who is calling: the bus connection's unique name to a `Caller`.
 //!
 //! The caller class is derived by the transport, never sent (memory.md section 3.9): the bus
-//! says which process owns a connection, and that process's executable decides the class
-//! through `callers.toml`. This is advisory for unsandboxed processes (porter R12): a process
-//! that can run an allowed executable can be that caller. The router, the shell and cuad are
-//! fixed executables; an app is whichever executable the table names for it.
+//! says which process owns a connection and `/proc/<pid>/cgroup` says which unit or app scope
+//! it runs in (porter's `ProcCallers`; the executable is not read, because a Landlock domain
+//! may not read another process's `exe`). `memory-callers.toml` gives the unit or app its role
+//! and `callers::caller_for` maps that role onto almanac's callers. A process in no named unit
+//! and no app scope (a terminal's child) is refused. This is advisory for unsandboxed
+//! processes (porter R12).
 
-use almanac_core::{AppId, AppName, Caller, Isolation, Refusal};
-use serde::Deserialize;
-use std::collections::{BTreeMap, BTreeSet};
+use crate::callers::caller_for;
+use almanac_core::{Caller, Refusal};
+use porter_dbus::{Callers, ProcCallers};
+use std::collections::BTreeMap;
 use std::future::Future;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::{Mutex, PoisonError};
-
-/// Which executable is which caller: the contents of `callers.toml`.
-///
-/// ```toml
-/// router = ["/usr/libexec/quire/intentd"]
-/// shell  = ["/usr/bin/sill"]
-/// cuad   = ["/usr/libexec/quire/cuad"]
-/// [apps]
-/// "org.quire.Mail" = ["/usr/bin/mailo"]
-/// ```
-#[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize)]
-pub struct CallerTable {
-    #[serde(default)]
-    router: BTreeSet<PathBuf>,
-    #[serde(default)]
-    shell: BTreeSet<PathBuf>,
-    #[serde(default)]
-    cuad: BTreeSet<PathBuf>,
-    #[serde(default)]
-    apps: BTreeMap<AppName, BTreeSet<PathBuf>>,
-}
-
-impl CallerTable {
-    /// The table in `callers.toml` text.
-    pub fn from_toml(text: &str) -> Result<Self, String> {
-        toml::from_str(text).map_err(|e| e.to_string())
-    }
-
-    /// The caller whose executable is `exe`, if the table names it. The fixed roles are checked
-    /// before the apps, so an app entry cannot claim the router's executable.
-    pub fn resolve(&self, exe: &Path) -> Option<Caller> {
-        let named = |set: &BTreeSet<PathBuf>| set.contains(exe);
-        if named(&self.router) {
-            return Some(Caller::Router);
-        }
-        if named(&self.shell) {
-            return Some(Caller::ShellUi);
-        }
-        if named(&self.cuad) {
-            return Some(Caller::Cuad);
-        }
-        self.apps
-            .iter()
-            .find(|(_, exes)| named(exes))
-            .map(|(name, _)| {
-                Caller::App(AppId {
-                    name: name.clone(),
-                    isolation: Isolation::Unsandboxed,
-                })
-            })
-    }
-}
 
 /// Who a bus connection is.
 pub trait Peers: Send + Sync + 'static {
@@ -71,39 +22,32 @@ pub trait Peers: Send + Sync + 'static {
     fn caller_of(&self, sender: &str) -> impl Future<Output = Result<Caller, Refusal>> + Send;
 }
 
-/// Peers by process: the bus names the connection's pid, `/proc/<pid>/exe` names the program,
-/// the [`CallerTable`] names the caller.
+/// Peers by process: porter's [`ProcCallers`] over the connection, mapped onto almanac's callers.
 #[derive(Debug)]
-pub struct ProcPeers {
-    connection: zbus::Connection,
-    table: CallerTable,
-}
+pub struct ProcPeers(ProcCallers);
 
 impl ProcPeers {
-    /// Resolves senders on `connection` through `table`.
-    pub fn new(connection: zbus::Connection, table: CallerTable) -> Self {
-        Self { connection, table }
+    /// Resolves senders on `connection` through `table`, reading the system's `/proc`.
+    pub fn new(connection: zbus::Connection, table: porter_dbus::CallerTable) -> Self {
+        Self(ProcCallers::new(connection, table))
     }
-}
 
-/// The program a process runs. A replaced binary reads back with `" (deleted)"` appended, which
-/// is not the program that was allowed.
-fn exe_of(pid: u32) -> Option<PathBuf> {
-    std::fs::read_link(format!("/proc/{pid}/exe")).ok()
+    /// As [`ProcPeers::new`], reading the `/proc` tree at `proc_root` (a test build's fixture).
+    pub fn with_proc_root(
+        connection: zbus::Connection,
+        table: porter_dbus::CallerTable,
+        proc_root: PathBuf,
+    ) -> Self {
+        Self(ProcCallers::with_proc_root(connection, table, proc_root))
+    }
 }
 
 impl Peers for ProcPeers {
     async fn caller_of(&self, sender: &str) -> Result<Caller, Refusal> {
-        let name = zbus::names::BusName::try_from(sender).map_err(|_| Refusal::NotAllowed)?;
-        let bus = zbus::fdo::DBusProxy::new(&self.connection)
+        self.0
+            .caller_of(sender)
             .await
-            .map_err(|_| Refusal::NotAllowed)?;
-        let pid = bus
-            .get_connection_unix_process_id(name)
-            .await
-            .map_err(|_| Refusal::NotAllowed)?;
-        exe_of(pid)
-            .and_then(|exe| self.table.resolve(&exe))
+            .map(caller_for)
             .ok_or(Refusal::NotAllowed)
     }
 }

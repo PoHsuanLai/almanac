@@ -13,6 +13,11 @@ publish.workspace = true
 # jailed acceptance run with no Secret Service. TEST ONLY: off by default, never in a release or
 # dist build; without it the variable is ignored.
 test-keys = ["almanac-seal/test-keys"]
+# `MEMORYD_PROC_ROOT=<dir>` makes the daemon read `<dir>/<pid>/cgroup` for its callers instead of
+# `/proc/<pid>/cgroup`, so an acceptance run can present its test processes as units. TEST ONLY:
+# off by default, never in a release or dist build (check-boundary.sh fails if a default build
+# has it); without it the variable is ignored.
+test-proc-root = []
 
 [dependencies]
 almanac-core = { workspace = true }
@@ -24,6 +29,7 @@ almanac-service = { workspace = true }
 almanac-watch = { workspace = true }
 almanac-dbus = { workspace = true }
 porter-core = { workspace = true }
+porter-dbus = { workspace = true }
 porter-infer = { workspace = true }
 porter-client = { workspace = true, features = ["dbus"] }
 clap = { workspace = true }
@@ -40,7 +46,6 @@ blake3 = { workspace = true }
 
 [dev-dependencies]
 jiff = { workspace = true }
-porter-dbus = { workspace = true }
 almanac-client = { workspace = true, features = ["dbus"] }
 almanac-fake = { workspace = true }
 almanac-seal = { workspace = true, features = ["testing", "oo7"] }

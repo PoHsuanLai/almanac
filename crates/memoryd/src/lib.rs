@@ -4,12 +4,14 @@
 //! binary is `main.rs`: it builds these over the real system and serves the session bus.
 
 mod backend;
+mod callers;
 mod clock;
 mod daemon;
 mod infer;
 mod keyring;
 mod keysel;
 mod peers;
+mod procroot;
 mod queue;
 mod sandbox;
 mod signals;
@@ -18,6 +20,10 @@ mod xdg;
 pub use almanac_dbus::{MEMORY_BUS, MEMORY_PATH};
 pub use almanac_watch::InotifyWatch as Watcher;
 pub use backend::{SpaceVault, SystemBackend};
+pub use callers::{
+    CallerFileError, ROUTER_APP, SHELL_APP, caller_for, load_callers, table_from_file,
+    table_from_toml,
+};
 pub use clock::SystemClock;
 pub use daemon::Daemon;
 pub use infer::{InferdConsolidator, InferdEmbedder, class_of, parse_draft, render_prompt};
@@ -25,7 +31,8 @@ pub use keyring::{LockChanges, is_lock_change};
 pub use keysel::{
     AnyKeys, KEYS_VAR, SANDBOX_VAR, Sandbox, Selection, TestKeys, sandbox_choice, select,
 };
-pub use peers::{CallerTable, Peers, ProcPeers, TablePeers};
+pub use peers::{Peers, ProcPeers, TablePeers};
+pub use procroot::{PROC_ROOT_VAR, ProcRoot, TestProcRoot, proc_root_choice};
 pub use queue::{Claim, Serialised, claim_of};
 pub use sandbox::{Enforcement, Policy, SandboxError, bus_socket, enforce, policy_for, prepare};
 pub use signals::{FollowUp, follow_ups};

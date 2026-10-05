@@ -1,0 +1,38 @@
+# Who may call memoryd (org.quire.Memory1): a caller is the systemd unit behind the bus
+# connection (the bus names its process, /proc/<pid>/cgroup names the unit). An app in its own
+# app scope (app-<id>-<n>.scope) or Flatpak scope is an app without a row here; any process in
+# neither (a terminal's child, an unlisted unit) is refused.
+#
+# Install as /etc/quire/memory-callers.toml; the user's ~/.config/quire/memory-callers.toml is
+# laid over it (a user row replaces the system row for the same unit).
+#
+# The three fixed callers are told apart by role and app together:
+#   role "agent"      + app org.quire.Intents -> the router (intentd)
+#   role "cua"                                -> cuad
+#   role "sheet_host" + app org.quire.Shell   -> the shell (sill)
+# Every other row is an app with that identity.
+
+[[caller]]
+app = "org.quire.Intents"
+unit = "intentd.service"
+role = "agent"
+
+[[caller]]
+app = "org.quire.Cua"
+unit = "cuad.service"
+role = "cua"
+
+[[caller]]
+app = "org.quire.Shell"
+unit = "sill.service"
+role = "sheet_host"
+
+[[caller]]
+app = "org.quire.Companion"
+unit = "companiond.service"
+role = "agent"
+
+[[caller]]
+app = "org.quire.Reader"
+unit = "readerd.service"
+role = "agent"

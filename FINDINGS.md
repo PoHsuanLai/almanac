@@ -260,12 +260,14 @@ error of its name, one to one. `DbusTransport::call` maps a missing daemon
 (`ServiceUnknown`, `NameHasNoOwner`) to `Absent`; `Export` needs a stream, so it has
 `DbusTransport::export(options, fd)` and `call(Export)` is a `Bus` error.
 
-**Who is calling.** `Peers` turns the sender's unique name into a `Caller`. `ProcPeers` asks the bus
-for the connection's pid, reads `/proc/<pid>/exe` and looks it up in
-`<config>/quire/memory-callers.toml` (`router`, `shell`, `cuad` as lists of executables, `[apps]`
-mapping an `AppName` to its executables; the fixed roles win over an app entry). A missing or
-unreadable file allows nobody. This is advisory for unsandboxed processes (porter R12); a sandbox
-identity (Flatpak, a cgroup scope) would be another `Peers`. `TablePeers` is the test seam.
+**Who is calling.** `Peers` turns the sender's unique name into a `Caller`. `ProcPeers` is porter's
+`ProcCallers` (bus pid, then `/proc/<pid>/cgroup` alone; no `exe`, which a Landlock domain cannot
+read) with `callers::caller_for` mapping porter's caller onto almanac's: role `cua` is `Cuad`,
+role `sheet_host` of app `org.quire.Shell` is `ShellUi`, role `agent` of app `org.quire.Intents` is
+`Router`, every other identified process is `App`. The table is `/etc/quire/memory-callers.toml`
+with `<config>/quire/memory-callers.toml` laid over it (user rows win; a missing file is empty, a
+bad one stops the daemon): porter's `[[caller]]` rows of `app`, optional `unit`, `role`.
+`dbus/memory-callers.toml` is the packaged system file. `TablePeers` is the test seam.
 
 **One queue per Space.** `Serialised` wraps the service: a request that names Spaces holds their
 queues in id order (a message holds the receiver's), one that cannot name them (`Forget`, `Settle`,
@@ -478,14 +480,27 @@ cuad, reads the person's events during the takeover (`Recent`, a `Router` call) 
   tests for both builds, `memoryd/tests/binary.rs` runs the feature-built binary on a private
   bus with `env_clear` and scratch HOME/XDG, claims `org.quire.Memory1` and takes a `Record` into
   `desktop`; the feature-off twin runs in a default-feature build).
-- **Landlock breaks caller identity (found, worked around in test builds only)**: under its own
-  Landlock domain memoryd cannot read `/proc/<pid>/exe` of a process outside the domain (the
-  kernel's ptrace access check), so `ProcPeers` answers `NotAllowed` for every caller. The binary
-  test only passed with the sandbox off. Test builds therefore also honour `MEMORYD_SANDBOX=off`
-  (same `test-keys` feature). The production fix is open: resolve the peer by something Landlock
-  does not gate (for example the unit's cgroup, or `SO_PEERCRED` pids matched to a systemd unit),
-  or apply Landlock only after a different identity source exists. Until then the packaged daemon
-  under Landlock refuses every caller outside the jail.
+- **Landlock broke caller identity** (CLOSED by the f4-almanac-callers lane): under its own
+  Landlock domain memoryd cannot read `/proc/<pid>/exe` of a process outside the domain, so the
+  exe-based `ProcPeers` refused every caller. Callers are now identified by porter's
+  `ProcCallers` from `/proc/<pid>/cgroup` (service unit, `app-*.scope`, Flatpak scope; anything
+  else, such as a terminal's child, is `NotAllowed`). The ruleset reads `/proc` files only
+  (`Policy::read_files`: `ReadFile`, no listing, no execute) and `/proc` is no longer a readable
+  tree. almanac now depends on `porter-dbus` (check-boundary row). `MEMORYD_SANDBOX=off` stays
+  test-only, but `memoryd/tests/binary.rs` runs with the sandbox ON.
+- **`MEMORYD_PROC_ROOT=<dir>` for docket-accept (TEST ONLY, feature `test-proc-root`, separate from `test-keys`; the acceptance build enables both)**: memoryd reads
+  `<dir>/<pid>/cgroup` instead of `/proc/<pid>/cgroup`, and `<dir>` joins the sandbox's
+  read-files rule. A startup line says `TEST BUILD: reading callers from the proc root <dir>, not /proc`. Without the
+  feature the variable is ignored and a line says `ignoring it and reading /proc`. A harness
+  writes, for each test process pid (the bus's pid of the connection), a file
+  `<dir>/<pid>/cgroup` containing `0::/system.slice/intentd.service` (router),
+  `0::/system.slice/sill.service` (shell), `0::/system.slice/cuad.service` (cuad) or
+  `0::/user.slice/app.slice/app-org.example.Mail-1.scope` (an app), plus a callers file with
+  `[[caller]]` rows for the units (the format above). Files may be written after the daemon
+  starts: it reads at call time. Unit names checked: intentd, companiond, readerd, cuad,
+  voiced, actions-mcp (docket/cua `dist/*.service`), sill (`sill/dist/sill.service`), inferd.
+  `~/desktop` has no unit files. `voiced.service` and `actions-mcp.service` have no row (neither
+  calls memoryd yet).
 
 ### Open after the f4 fill
 
@@ -494,3 +509,4 @@ cuad, reads the person's events during the takeover (`Recent`, a `Router` call) 
   line joins quire's file first (CONVENTIONS "dependencies"). Quire's session owns it.
 - **The lock signal against a real Secret Service** is unproven: gnome-keyring and KWallet differ in
   which object carries `Locked` (the collection is the documented one). Needs a real session.
+

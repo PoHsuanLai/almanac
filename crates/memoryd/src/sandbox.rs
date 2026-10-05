@@ -1,6 +1,6 @@
 //! memoryd's Landlock sandbox: after it starts, the daemon may write only the memory directories
 //! (data, cache, its two config files, the runtime edit copies), read the system's libraries and
-//! configuration, talk to the session bus socket and nothing else: no other file, no other unix
+//! configuration, the files under `/proc` (the caller's cgroup), talk to the session bus socket and nothing else: no other file, no other unix
 //! socket, no TCP. It is the kernel-enforced second layer behind the unit file's
 //! `ProtectSystem`/`ReadWritePaths` (the daemon can run outside systemd), and it is applied by
 //! the `landlock` crate: nothing here is `unsafe`.
@@ -24,9 +24,13 @@ const ABI_TOP: ABI = ABI::V9;
 pub struct Policy {
     /// Directories read and written (the memory directories). They must exist when it is applied.
     pub writable: Vec<PathBuf>,
-    /// Read-only trees (libraries, the system's configuration, `/proc`). One that does not exist
-    /// on this system is skipped.
+    /// Read-only trees (libraries, the system's configuration). One that does not exist on this
+    /// system is skipped.
     pub readable: Vec<PathBuf>,
+    /// Trees whose files may be read and nothing else: no listing, no execution. `/proc`, for
+    /// `/proc/<pid>/cgroup` (who is calling); Landlock names trees, not file patterns, and the
+    /// kernel's own ptrace check still guards `exe` and `root` of other domains' processes.
+    pub read_files: Vec<PathBuf>,
     /// Unix sockets it may connect to: the session bus.
     pub sockets: Vec<PathBuf>,
 }
@@ -58,13 +62,12 @@ impl From<RulesetError> for SandboxError {
 
 /// The system trees a process reads to run at all: the dynamic loader's libraries, certificates
 /// and the like, the kernel's views of itself.
-const SYSTEM_READ: [&str; 8] = [
+const SYSTEM_READ: [&str; 7] = [
     "/usr",
     "/lib",
     "/lib64",
     "/bin",
     "/etc",
-    "/proc",
     "/sys",
     "/dev/urandom",
 ];
@@ -94,6 +97,7 @@ pub fn policy_for(dirs: &Dirs, bus_address: Option<&str>) -> Policy {
             dirs.runtime_memory(),
         ],
         readable: SYSTEM_READ.iter().map(PathBuf::from).collect(),
+        read_files: vec![PathBuf::from("/proc")],
         sockets: vec![bus_socket(bus_address, dirs.runtime_dir())],
     }
 }
@@ -117,6 +121,7 @@ pub fn enforce(policy: &Policy) -> Result<Enforcement, SandboxError> {
             &policy.readable,
             AccessFs::from_read(ABI_TOP),
         ))?
+        .add_rules(path_beneath_rules(&policy.read_files, AccessFs::ReadFile))?
         .add_rules(path_beneath_rules(&policy.sockets, AccessFs::ResolveUnix))?
         .restrict_self()?;
     Ok(match status.ruleset {

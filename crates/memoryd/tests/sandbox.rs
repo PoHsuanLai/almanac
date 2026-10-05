@@ -62,6 +62,9 @@ fn the_policy_writes_the_memory_directories_and_nothing_else() {
         );
     }
     assert!(policy.readable.contains(&PathBuf::from("/usr")));
+    // `/proc` is files only (the caller's cgroup), never a readable tree.
+    assert_eq!(policy.read_files, vec![PathBuf::from("/proc")]);
+    assert!(!policy.readable.contains(&PathBuf::from("/proc")));
 }
 
 #[test]
@@ -70,6 +73,7 @@ fn prepare_makes_the_directories_the_policy_names() {
     let policy = Policy {
         writable: vec![scratch.path().join("a/b"), scratch.path().join("c")],
         readable: vec![],
+        read_files: vec![],
         sockets: vec![],
     };
     prepare(&policy).expect("prepare");
@@ -86,6 +90,9 @@ struct Found {
     write_outside: std::io::Result<()>,
     read_outside: std::io::Result<Vec<u8>>,
     read_system: std::io::Result<usize>,
+    proc_cgroup: std::io::Result<String>,
+    proc_exe: std::io::Result<PathBuf>,
+    proc_listing: std::io::Result<usize>,
     bus: std::io::Result<UnixStream>,
     other_socket: std::io::Result<UnixStream>,
     tcp: std::io::Result<TcpStream>,
@@ -112,10 +119,11 @@ fn the_sandbox_confines_the_thread_that_applies_it() {
 
     let policy = Policy {
         writable: vec![inside.clone()],
-        readable: ["/usr", "/lib", "/lib64", "/etc", "/proc"]
+        readable: ["/usr", "/lib", "/lib64", "/etc"]
             .iter()
             .map(PathBuf::from)
             .collect(),
+        read_files: vec![PathBuf::from("/proc")],
         sockets: vec![bus_path.clone()],
     };
     let found = std::thread::spawn(move || {
@@ -128,6 +136,9 @@ fn the_sandbox_confines_the_thread_that_applies_it() {
             write_outside: std::fs::write(outside.join("planted"), b"x"),
             read_outside: std::fs::read(outside.join("secret")),
             read_system: std::fs::read_dir("/usr").map(|d| d.count()),
+            proc_cgroup: std::fs::read_to_string("/proc/1/cgroup"),
+            proc_exe: std::fs::read_link("/proc/1/exe"),
+            proc_listing: std::fs::read_dir("/proc").map(|d| d.count()),
             bus: UnixStream::connect(&bus_path),
             other_socket: UnixStream::connect(&other_path),
             tcp: TcpStream::connect(tcp_addr),
@@ -161,6 +172,15 @@ fn the_sandbox_confines_the_thread_that_applies_it() {
         found.read_system.as_ref().is_ok_and(|n| *n > 0),
         "{found:?}"
     );
+    // Who is calling is read from `/proc/<pid>/cgroup`: files only, no listing, and the
+    // ptrace-gated `exe` of a process outside this domain stays closed.
+    assert!(found.proc_cgroup.is_ok(), "{found:?}");
+    assert_eq!(
+        found.proc_listing.as_ref().err().map(std::io::Error::kind),
+        Some(ErrorKind::PermissionDenied),
+        "{found:?}"
+    );
+    assert!(found.proc_exe.is_err(), "{found:?}");
     // The rights that need a newer kernel are asserted when this kernel is full strength.
     if found.enforcement == Enforcement::Full {
         assert!(

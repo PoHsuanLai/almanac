@@ -75,9 +75,9 @@ pub const SANDBOX_VAR: &str = "MEMORYD_SANDBOX";
 pub enum Sandbox {
     /// Applied (always, in a normal build).
     On,
-    /// Not applied: a test build was told `MEMORYD_SANDBOX=off`. A Landlocked process may not
-    /// read `/proc/<pid>/exe` of a process outside its domain (the kernel's ptrace check), so
-    /// the daemon cannot tell its callers apart under it; the jail is the isolation then.
+    /// Not applied: a test build was told `MEMORYD_SANDBOX=off` (a jailed run that already
+    /// confines the process). The callers are identified through `/proc/<pid>/cgroup`, which
+    /// works under the sandbox too, so the binary's own tests run with it on.
     Off,
 }
 

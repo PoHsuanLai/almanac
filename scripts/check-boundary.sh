@@ -64,7 +64,7 @@ done
 # one the crate no longer has, so the table stays exact. Dev dependencies are outside it. The
 # check passes --all-features, so `almanac-client`'s optional `almanac-service` (feature
 # `in_process`) and `almanac-dbus` (feature `dbus`) both belong to its row.
-# almanac depends on porter (porter-core, prov, and memoryd's porter-infer and porter-client),
+# almanac depends on porter (porter-core, prov, and memoryd's porter-infer, porter-client and porter-dbus),
 # never on stoker, docket or cua: other areas' payloads are opaque `EventBody::Area`.
 EDGES=(
   "almanac-core: porter-core prov"
@@ -78,7 +78,7 @@ EDGES=(
   "almanac-dbus: almanac-core"
   "almanac-client: almanac-core almanac-dbus almanac-service"
   "almanac-fake: almanac-core almanac-seal eventlog memfiles recall almanac-service"
-  "memoryd: almanac-core almanac-seal eventlog memfiles recall almanac-service almanac-watch almanac-dbus porter-core porter-infer porter-client"
+  "memoryd: almanac-core almanac-seal eventlog memfiles recall almanac-service almanac-watch almanac-dbus porter-core porter-dbus porter-infer porter-client"
 )
 for edge in "${EDGES[@]}"; do
   crate="${edge%%:*}"
@@ -101,6 +101,17 @@ for banned in docket-core docket-router intentd cua-run cua-bus cuad companion-w
     fail=1
   fi
 done
+
+# The test-only features are never on in a default build (a dist build uses default features):
+# memoryd's `test-keys` and `test-proc-root`, and almanac-seal's `test-keys` that one turns on.
+enabled=$(cargo tree -p memoryd -e normal,build -f '{p} [{f}]' --prefix none 2>/dev/null \
+  | grep -E '^(memoryd|almanac-seal) ' | grep -oE '\[[^]]*\]' | tr ',[]' '\n\n\n')
+if printf '%s\n' "$enabled" | grep -qE '^test-'; then
+  echo "TEST FEATURE: a default build of memoryd enables: $(printf '%s\n' "$enabled" | grep -E '^test-' | tr '\n' ' ')"
+  fail=1
+else
+  echo "test features (test-keys, test-proc-root) are off in a default build of memoryd"
+fi
 
 # Every workspace member has a row above, so a new crate cannot slip in unchecked.
 for member in $(sed -n 's#^  "crates/\(.*\)",$#\1#p' Cargo.toml); do

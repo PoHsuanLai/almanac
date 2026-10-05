@@ -1,6 +1,6 @@
 //! memoryd: serves `org.quire.Memory1` on the session bus over almanac-service. Keys are in the
 //! Secret Service, the logs and the index in SQLCipher, the files sealed per Space; who is
-//! calling comes from `callers.toml`; inferd is reached over the same session bus
+//! calling comes from the pid's cgroup and `memory-callers.toml`; inferd is reached over the same session bus
 //! (`AnyTransport::Dbus`), and while it is not running recall is lexical-only and consolidation is
 //! off, as the embedder and the consolidator answer `Unavailable`. A Landlock sandbox (`sandbox.rs`)
 //! is applied before anything else runs.
@@ -10,10 +10,12 @@ use almanac_dbus::serve_on;
 use almanac_service::{MemoryService, rules_from_toml, spaces_from_toml};
 use clap::Parser;
 use memoryd::{
-    AnyKeys, CallerTable, Daemon, Enforcement, InferdConsolidator, InferdEmbedder, LockChanges,
-    ProcPeers, Sandbox, SystemBackend, TestKeys, default_card, dirs_from_env, enforce, inferd_link,
-    policy_for, prepare, sandbox_choice, select,
+    AnyKeys, Daemon, Enforcement, InferdConsolidator, InferdEmbedder, LockChanges, ProcPeers,
+    ProcRoot, Sandbox, SystemBackend, TestKeys, TestProcRoot, default_card, dirs_from_env, enforce,
+    inferd_link, load_callers, policy_for, prepare, proc_root_choice, sandbox_choice, select,
 };
+use porter_dbus::CallerTable;
+use std::path::Path;
 use std::process::ExitCode;
 use std::sync::Arc;
 use std::time::Duration;
@@ -27,7 +29,10 @@ struct Args {}
 const SWEEP_EVERY: Duration = Duration::from_secs(24 * 60 * 60);
 const FIRST_SWEEP: Duration = Duration::from_secs(60);
 
-fn callers_toml(dirs: &Dirs) -> std::path::PathBuf {
+/// The system's callers file; the user's is next to `memory.toml` and wins.
+const SYSTEM_CALLERS: &str = "/etc/quire/memory-callers.toml";
+
+fn user_callers(dirs: &Dirs) -> std::path::PathBuf {
     dirs.memory_toml().with_file_name("memory-callers.toml")
 }
 
@@ -41,24 +46,11 @@ fn read_rules(dirs: &Dirs) -> RuleSet {
     }
 }
 
-fn read_callers(dirs: &Dirs) -> CallerTable {
-    let path = callers_toml(dirs);
-    match std::fs::read_to_string(&path) {
-        Ok(text) => CallerTable::from_toml(&text).unwrap_or_else(|e| {
-            eprintln!(
-                "memoryd: {} is unreadable ({e}); no caller is allowed",
-                path.display()
-            );
-            CallerTable::default()
-        }),
-        Err(_) => {
-            eprintln!("memoryd: no {}; no caller is allowed", path.display());
-            CallerTable::default()
-        }
-    }
+fn read_callers(dirs: &Dirs) -> Result<CallerTable, String> {
+    load_callers(Path::new(SYSTEM_CALLERS), &user_callers(dirs)).map_err(|e| e.to_string())
 }
 
-async fn run(dirs: Dirs, keys: AnyKeys) -> Result<(), String> {
+async fn run(dirs: Dirs, keys: AnyKeys, proc_root: ProcRoot) -> Result<(), String> {
     let connection = zbus::connection::Builder::session()
         .map_err(|e| e.to_string())?
         .build()
@@ -78,7 +70,8 @@ async fn run(dirs: Dirs, keys: AnyKeys) -> Result<(), String> {
             .into_iter()
             .for_each(|meta| service.register(meta));
     }
-    let peers = ProcPeers::new(connection.clone(), read_callers(&dirs));
+    let peers =
+        ProcPeers::with_proc_root(connection.clone(), read_callers(&dirs)?, proc_root.path());
     let daemon = Arc::new(Daemon::new(service, peers, dirs));
     serve_on(&connection, daemon.clone())
         .await
@@ -119,8 +112,19 @@ fn start() -> Result<(), String> {
     if let Some(line) = said {
         eprintln!("memoryd: {line}");
     }
+    let proc_root = proc_root_choice(
+        std::env::var(memoryd::PROC_ROOT_VAR).ok().as_deref(),
+        TestProcRoot::THIS_BUILD,
+    );
+    if let Some(line) = proc_root.said() {
+        eprintln!("memoryd: {line}");
+    }
     let bus = std::env::var("DBUS_SESSION_BUS_ADDRESS").ok();
     let mut policy = policy_for(&dirs, bus.as_deref());
+    // A fixture /proc is read like /proc is: files only.
+    if let ProcRoot::Fixture(dir) = &proc_root {
+        policy.read_files.push(dir.clone());
+    }
     // Only a test build's file key store has a directory of its own to write.
     policy.writable.extend(key_dir);
     prepare(&policy).map_err(|e| format!("cannot make the memory directories: {e}"))?;
@@ -148,7 +152,7 @@ fn start() -> Result<(), String> {
         .enable_all()
         .build()
         .map_err(|e| e.to_string())?
-        .block_on(run(dirs, keys))
+        .block_on(run(dirs, keys, proc_root))
 }
 
 fn main() -> ExitCode {

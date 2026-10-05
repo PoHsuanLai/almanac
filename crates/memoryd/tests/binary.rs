@@ -1,6 +1,9 @@
 //! The packaged `memoryd` binary, started the way the acceptance run starts it: on a private bus,
 //! with `env_clear`, scratch HOME and XDG directories and no Secret Service.
 //!
+//! The Landlock sandbox is ON: callers are identified through a fake `/proc` (`MEMORYD_PROC_ROOT`, feature `test-proc-root`)
+//! that puts this test process in `intentd.service`.
+//!
 //! With the `test-keys` feature `MEMORYD_KEYS=file:<path>` gives it file keys, it claims
 //! `org.quire.Memory1` and takes a `Record` into `desktop` (a Space nobody registered). Without
 //! the feature the same variable is ignored, and the daemon says so.
@@ -24,17 +27,24 @@ impl Drop for Daemon {
     }
 }
 
-/// Scratch HOME and XDG roots, and a callers table that names this test binary the router.
+/// Scratch HOME and XDG roots, a callers file with the router's unit row, and a fake `/proc` in
+/// which this test process runs in `intentd.service`.
 fn scratch_home(root: &Path) {
     let config = root.join("config").join("quire");
     std::fs::create_dir_all(&config).expect("config dir");
     std::fs::create_dir_all(root.join("run")).expect("runtime dir");
-    let exe = std::env::current_exe().expect("the test binary");
     std::fs::write(
         config.join("memory-callers.toml"),
-        format!("router = [{:?}]\n", exe.display().to_string()),
+        "[[caller]]\napp = \"org.quire.Intents\"\nunit = \"intentd.service\"\nrole = \"agent\"\n",
     )
-    .expect("callers table");
+    .expect("callers file");
+    let me = root.join("proc").join(std::process::id().to_string());
+    std::fs::create_dir_all(&me).expect("fake proc");
+    std::fs::write(
+        me.join("cgroup"),
+        "0::/user.slice/user-1000.slice/user@1000.service/app.slice/intentd.service\n",
+    )
+    .expect("cgroup");
 }
 
 fn spawn(root: &Path, bus: &PrivateBus, keys: &str) -> (Daemon, ChildStderr) {
@@ -47,7 +57,7 @@ fn spawn(root: &Path, bus: &PrivateBus, keys: &str) -> (Daemon, ChildStderr) {
         .env("XDG_RUNTIME_DIR", root.join("run"))
         .env("DBUS_SESSION_BUS_ADDRESS", &bus.address)
         .env("MEMORYD_KEYS", keys)
-        .env("MEMORYD_SANDBOX", "off")
+        .env("MEMORYD_PROC_ROOT", root.join("proc"))
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::piped())
@@ -65,7 +75,7 @@ fn first_line(stderr: ChildStderr) -> String {
     line
 }
 
-#[cfg(feature = "test-keys")]
+#[cfg(all(feature = "test-keys", feature = "test-proc-root"))]
 #[tokio::test]
 async fn the_test_keys_binary_starts_with_file_keys_and_takes_a_desktop_record() {
     use almanac_client::{DbusTransport, Memory, Recorded};

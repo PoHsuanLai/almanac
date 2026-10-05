@@ -27,7 +27,7 @@ trait), section 5 (what is built), section 6 (copy the recipe).
 | `almanac-dbus` | `org.quire.Memory1` (`Record`, `Recall`, `Control`) as zbus proxies and skeletons (the introspection source), `MemoryError`, the argument codec (`encode_request`/`decode_request`, `encode_reply`/`decode_reply`), `invoke` (the caller's half) and the served objects over a `Serve` handler (the daemon's half) | zbus |
 | `almanac-client` | the app-facing `Memory` over a `Transport`: `Absent` (no-op on other desktops), `DbusTransport` (feature `dbus`), `InProcess` (feature `in_process`, off by default: only it links `almanac-service`, SQLCipher and OpenSSL) | through its transport |
 | `almanac-fake` | test-only: `fake_service`, `FakeBackend`, `FixedClock`, `SteppedClock`, `SharedVault`, `ScriptedConsolidator`, `Scratch`, the five fixtures | none |
-| `memoryd` | the daemon and its library: `SystemBackend` (over any key store, embedder and consolidator), `SystemClock`, `InferdEmbedder`, `InferdConsolidator`, the XDG roots, `Serialised` (a queue per Space), `Peers` (who is calling), `Daemon` (the bus handler), the Landlock `sandbox` policy, `keysel` (which key store: the Secret Service, or with the test-only `test-keys` feature a sealed file named by `MEMORYD_KEYS=file:<path>`; the same feature lets `MEMORYD_SANDBOX=off` skip Landlock, see FINDINGS); the binary applies the sandbox, then serves the session bus | everything |
+| `memoryd` | the daemon and its library: `SystemBackend` (over any key store, embedder and consolidator), `SystemClock`, `InferdEmbedder`, `InferdConsolidator`, the XDG roots, `Serialised` (a queue per Space), `Peers` (who is calling), `Daemon` (the bus handler), the Landlock `sandbox` policy, `keysel` (which key store: the Secret Service, or with the test-only `test-keys` feature a sealed file named by `MEMORYD_KEYS=file:<path>`; the same feature lets `MEMORYD_SANDBOX=off` skip Landlock, see FINDINGS; `procroot`: the test-only `test-proc-root` feature's `MEMORYD_PROC_ROOT=<dir>`, a fixture `/proc` for callers); `callers` (the callers file and porter's caller mapped onto almanac's); the binary applies the sandbox, then serves the session bus | everything |
 
 Allowed direct edges (checked by `scripts/check-boundary.sh`; dev-dependencies are outside it):
 
@@ -42,7 +42,7 @@ Allowed direct edges (checked by `scripts/check-boundary.sh`; dev-dependencies a
 | `almanac-watch`, `almanac-dbus` | `almanac-core` |
 | `almanac-client` | `almanac-core`; `almanac-service` with feature `in_process`; `almanac-dbus` with feature `dbus` |
 | `almanac-fake` | `almanac-core`, `almanac-seal`, `eventlog`, `memfiles`, `recall`, `almanac-service` |
-| `memoryd` | every crate above except `almanac-client`, `almanac-fake`, `recall-fastembed`; and `porter-core`, `porter-infer`, `porter-client` |
+| `memoryd` | every crate above except `almanac-client`, `almanac-fake`, `recall-fastembed`; and `porter-core`, `porter-dbus` (its `callers`: who is calling), `porter-infer`, `porter-client` |
 
 almanac never depends on stoker, docket or cua: their payloads (policy, consent, computer-use
 steps, sessions) are `EventBody::Area` in their owners' serde form, and `check-boundary.sh`
