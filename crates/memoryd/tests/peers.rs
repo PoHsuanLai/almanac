@@ -71,8 +71,8 @@ fn a_process_is_identified_by_its_cgroup() {
         (17, "app-gnome-org.example.Notes-78.scope"),
         // A terminal's child: the terminal's app scope names the terminal, not the program.
         (18, "vte-spawn-3f1e.scope"),
-        // Known limit (porter's `role_of` keys by app name, advisory per R12): an app scope
-        // named for the router's app takes the router's row role.
+        // An app scope named for the router's app is only an app: the unit row gives its role
+        // to that unit alone.
         (19, "app-org.quire.Intents-5.scope"),
     ] {
         put_cgroup(root, pid, leaf);
@@ -88,7 +88,7 @@ fn a_process_is_identified_by_its_cgroup() {
         (16, app("org.example.Notes", Isolation::Unsandboxed)),
         (17, app("org.example.Notes", Isolation::Unsandboxed)),
         (18, None),
-        (19, Some(Caller::Router)),
+        (19, app("org.quire.Intents", Isolation::Unsandboxed)),
         (20, None),
     ] {
         assert_eq!(identify(root, pid, &table), expected, "pid {pid}");

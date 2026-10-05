@@ -488,11 +488,6 @@ cuad, reads the person's events during the takeover (`Recent`, a `Router` call) 
   (`Policy::read_files`: `ReadFile`, no listing, no execute) and `/proc` is no longer a readable
   tree. almanac now depends on `porter-dbus` (check-boundary row). `MEMORYD_SANDBOX=off` stays
   test-only, but `memoryd/tests/binary.rs` runs with the sandbox ON.
-- **A scope can claim a unit's app (porter ask)**: porter's `CallerTable::role_of(app)` finds a row
-  by app name, so a process that can start `app-org.quire.Intents-1.scope` (any user process can)
-  gets the router's role through the scope, though the row also names `intentd.service`. Same
-  advisory limit as R12 for unsandboxed processes; the fix is porter's: `role_of` ignores rows
-  that name a unit when the caller came from a scope (pinned by `a_process_is_identified_by_its_cgroup`).
 - **`MEMORYD_PROC_ROOT=<dir>` for docket-accept (TEST ONLY, feature `test-proc-root`, separate from `test-keys`; the acceptance build enables both)**: memoryd reads
   `<dir>/<pid>/cgroup` instead of `/proc/<pid>/cgroup`, and `<dir>` joins the sandbox's
   read-files rule. A startup line says `TEST BUILD: reading callers from the proc root <dir>, not /proc`. Without the
