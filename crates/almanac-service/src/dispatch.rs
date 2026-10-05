@@ -191,6 +191,13 @@ impl<B: Backend> MemoryService<B> {
             .space()
             .cloned()
             .ok_or_else(|| failed("no Space named"))?;
+        if matches!(&request, MemoryRequest::PlanForget(_, ForgetScope::Space))
+            && id == SpaceId::desktop()
+        {
+            // The `desktop` Space holds memory outside every Space, and the final head of each
+            // Space that is deleted: it is always there.
+            return Err(failed("the desktop Space cannot be deleted"));
+        }
         let mut lease = self.checkout(caller, &id).await?;
         let cx = self.cx(caller);
         let open: &mut Open<B> = lease.open().ok_or(Refusal::Busy)?;

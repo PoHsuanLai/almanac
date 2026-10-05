@@ -18,14 +18,19 @@ zeroize = { workspace = true }
 oo7 = { workspace = true, optional = true }
 
 [dev-dependencies]
-almanac-seal = { path = ".", features = ["testing", "oo7"] }
+almanac-seal = { path = ".", features = ["testing", "oo7", "test-keys"] }
 tokio = { workspace = true }
+tempfile = { workspace = true }
 
 [features]
 # `MemoryKeys`, for tests and almanac-fake.
 testing = []
 # `Oo7Keys`, the Secret Service key store.
 oo7 = ["dep:oo7"]
+
+# `FileKeys`: keys in a sealed file, for a jailed test with no Secret Service. TEST ONLY: never
+# enabled in a release or dist build (memoryd's `test-keys` feature turns it on).
+test-keys = []
 
 [lints]
 workspace = true

@@ -27,7 +27,7 @@ trait), section 5 (what is built), section 6 (copy the recipe).
 | `almanac-dbus` | `org.quire.Memory1` (`Record`, `Recall`, `Control`) as zbus proxies and skeletons (the introspection source), `MemoryError`, the argument codec (`encode_request`/`decode_request`, `encode_reply`/`decode_reply`), `invoke` (the caller's half) and the served objects over a `Serve` handler (the daemon's half) | zbus |
 | `almanac-client` | the app-facing `Memory` over a `Transport`: `Absent` (no-op on other desktops), `DbusTransport` (feature `dbus`), `InProcess` (feature `in_process`, off by default: only it links `almanac-service`, SQLCipher and OpenSSL) | through its transport |
 | `almanac-fake` | test-only: `fake_service`, `FakeBackend`, `FixedClock`, `SteppedClock`, `SharedVault`, `ScriptedConsolidator`, `Scratch`, the five fixtures | none |
-| `memoryd` | the daemon and its library: `SystemBackend` (over any key store, embedder and consolidator), `SystemClock`, `InferdEmbedder`, `InferdConsolidator`, the XDG roots, `Serialised` (a queue per Space), `Peers` (who is calling), `Daemon` (the bus handler), the Landlock `sandbox` policy; the binary applies the sandbox, then serves the session bus | everything |
+| `memoryd` | the daemon and its library: `SystemBackend` (over any key store, embedder and consolidator), `SystemClock`, `InferdEmbedder`, `InferdConsolidator`, the XDG roots, `Serialised` (a queue per Space), `Peers` (who is calling), `Daemon` (the bus handler), the Landlock `sandbox` policy, `keysel` (which key store: the Secret Service, or with the test-only `test-keys` feature a sealed file named by `MEMORYD_KEYS=file:<path>`; the same feature lets `MEMORYD_SANDBOX=off` skip Landlock, see FINDINGS); the binary applies the sandbox, then serves the session bus | everything |
 
 Allowed direct edges (checked by `scripts/check-boundary.sh`; dev-dependencies are outside it):
 
@@ -71,7 +71,7 @@ may reach `notify` and never `rusqlite`; `almanac-dbus` reaches `tokio` only thr
 | `almanac-dbus` | `names`, `error`, `record`, `recall`, `control` (skeletons and proxies), `codec` (`request`, `reply`), `invoke`, `serve`, `introspect` |
 | `almanac-client` | `transport` < `memory` |
 | `almanac-fake` | `clock`, `consolidator`, `fixtures`, `scratch` < `backend` |
-| `memoryd` | `xdg`, `clock`, `infer` (`embed`, `consolidate`, `prompt`), `peers`, `signals`, `sandbox` < `backend`, `queue` < `daemon` < `main` |
+| `memoryd` | `xdg`, `clock`, `infer` (`embed`, `consolidate`, `prompt`), `peers`, `signals`, `sandbox`, `keysel` < `backend`, `queue` < `daemon` < `main` |
 
 ## 3. One home per concept
 
@@ -103,7 +103,7 @@ may reach `notify` and never `rusqlite`; `almanac-dbus` reaches `tokio` only thr
 ## 4. Traits (the seams) and closed enums
 
 ```rust
-// almanac-seal: the Secret Service, or MemoryKeys.
+// almanac-seal: the Secret Service, or MemoryKeys (tests); FileKeys (feature `test-keys`, TEST ONLY).
 pub trait KeyStore: Send + Sync {
     fn get(&self, space: &SpaceId) -> impl Future<Output = Result<SpaceKey, KeyError>> + Send;
     fn create(&self, space: &SpaceId) -> impl Future<Output = Result<SpaceKey, KeyError>> + Send;

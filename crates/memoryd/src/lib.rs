@@ -8,6 +8,7 @@ mod clock;
 mod daemon;
 mod infer;
 mod keyring;
+mod keysel;
 mod peers;
 mod queue;
 mod sandbox;
@@ -21,6 +22,9 @@ pub use clock::SystemClock;
 pub use daemon::Daemon;
 pub use infer::{InferdConsolidator, InferdEmbedder, class_of, parse_draft, render_prompt};
 pub use keyring::{LockChanges, is_lock_change};
+pub use keysel::{
+    AnyKeys, KEYS_VAR, SANDBOX_VAR, Sandbox, Selection, TestKeys, sandbox_choice, select,
+};
 pub use peers::{CallerTable, Peers, ProcPeers, TablePeers};
 pub use queue::{Claim, Serialised, claim_of};
 pub use sandbox::{Enforcement, Policy, SandboxError, bus_socket, enforce, policy_for, prepare};

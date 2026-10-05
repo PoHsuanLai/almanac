@@ -3,6 +3,8 @@
 //!
 //! Pure over its seams; `oo7` is behind the `oo7` feature.
 
+#[cfg(feature = "test-keys")]
+mod file;
 mod keys;
 #[cfg(feature = "testing")]
 mod memory;
@@ -11,6 +13,8 @@ mod oo7;
 mod seal;
 mod store;
 
+#[cfg(feature = "test-keys")]
+pub use file::FileKeys;
 pub use keys::{DbKey, Purpose, SpaceKey, SubKey, derive};
 #[cfg(feature = "testing")]
 pub use memory::MemoryKeys;

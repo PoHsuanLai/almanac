@@ -461,6 +461,32 @@ cuad, reads the person's events during the takeover (`Recent`, a `Router` call) 
 - Checked and already closed by the w4 fill: asks 73, 74, 75, 76, 91 (Cli/Terminal bucket), 93, 94
   (Mcp bucket).
 
+### Closed by the f4-almanac-2 lane (docket's acceptance asks 2 and 3)
+
+- **`desktop` is always there** (docket FINDINGS "The f4-e2e acceptance" 2; SPEC 3.1, QUESTIONS P6):
+  the service never refused an unregistered Space (a Space is provisioned on first use), so a
+  record for `desktop` already worked; what was missing was the guarantee. `PlanForget(desktop,
+  Space)` is now refused (`Invalid`, "the desktop Space cannot be deleted"): it holds memory outside
+  every Space and the final head of each deleted Space. Tests: `memoryd/tests/desktop.rs`.
+- **File keys for the packaged binary, TEST ONLY** (docket ask 3): feature `test-keys` (memoryd,
+  and almanac-seal's `FileKeys`), off by default and never in a release or dist build.
+  `MEMORYD_KEYS=file:<path>` selects a sealed file of Space keys; the daemon says so on standard
+  error and adds the file's directory to its Landlock policy. The wrapping key is a constant in
+  the source: the file keeps keys from sitting as plain text and protects nothing else, so it is
+  never a production downgrade. Without the feature the variable is ignored and, if set, a startup
+  line says `ignoring it and using the Secret Service` (`memoryd/src/keysel.rs`, pure `select`;
+  tests for both builds, `memoryd/tests/binary.rs` runs the feature-built binary on a private
+  bus with `env_clear` and scratch HOME/XDG, claims `org.quire.Memory1` and takes a `Record` into
+  `desktop`; the feature-off twin runs in a default-feature build).
+- **Landlock breaks caller identity (found, worked around in test builds only)**: under its own
+  Landlock domain memoryd cannot read `/proc/<pid>/exe` of a process outside the domain (the
+  kernel's ptrace access check), so `ProcPeers` answers `NotAllowed` for every caller. The binary
+  test only passed with the sandbox off. Test builds therefore also honour `MEMORYD_SANDBOX=off`
+  (same `test-keys` feature). The production fix is open: resolve the peer by something Landlock
+  does not gate (for example the unit's cgroup, or `SO_PEERCRED` pids matched to a systemd unit),
+  or apply Landlock only after a different identity source exists. Until then the packaged daemon
+  under Landlock refuses every caller outside the jail.
+
 ### Open after the f4 fill
 
 - **`landlock` is not in quire's pinned dependency block** (`docs/workspace-deps.toml`): almanac's

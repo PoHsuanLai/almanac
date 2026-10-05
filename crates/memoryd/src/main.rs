@@ -7,12 +7,12 @@
 
 use almanac_core::{Dirs, RuleSet};
 use almanac_dbus::serve_on;
-use almanac_seal::Oo7Keys;
 use almanac_service::{MemoryService, rules_from_toml, spaces_from_toml};
 use clap::Parser;
 use memoryd::{
-    CallerTable, Daemon, Enforcement, InferdConsolidator, InferdEmbedder, LockChanges, ProcPeers,
-    SystemBackend, default_card, dirs_from_env, enforce, inferd_link, policy_for, prepare,
+    AnyKeys, CallerTable, Daemon, Enforcement, InferdConsolidator, InferdEmbedder, LockChanges,
+    ProcPeers, Sandbox, SystemBackend, TestKeys, default_card, dirs_from_env, enforce, inferd_link,
+    policy_for, prepare, sandbox_choice, select,
 };
 use std::process::ExitCode;
 use std::sync::Arc;
@@ -58,7 +58,7 @@ fn read_callers(dirs: &Dirs) -> CallerTable {
     }
 }
 
-async fn run(dirs: Dirs) -> Result<(), String> {
+async fn run(dirs: Dirs, keys: AnyKeys) -> Result<(), String> {
     let connection = zbus::connection::Builder::session()
         .map_err(|e| e.to_string())?
         .build()
@@ -67,7 +67,7 @@ async fn run(dirs: Dirs) -> Result<(), String> {
     let inferd = inferd_link(&connection);
     let backend = SystemBackend::with(
         dirs.clone(),
-        Oo7Keys,
+        keys,
         InferdEmbedder::new(inferd.clone(), default_card()),
         InferdConsolidator::new(inferd),
     );
@@ -110,10 +110,32 @@ async fn run(dirs: Dirs) -> Result<(), String> {
 /// comes before the runtime builds its workers), then the daemon.
 fn start() -> Result<(), String> {
     let dirs = dirs_from_env().map_err(|e| e.to_string())?;
+    let selection = select(
+        std::env::var(memoryd::KEYS_VAR).ok().as_deref(),
+        TestKeys::THIS_BUILD,
+    );
+    let key_dir = selection.writable_dir();
+    let (keys, said) = AnyKeys::from_selection(selection)?;
+    if let Some(line) = said {
+        eprintln!("memoryd: {line}");
+    }
     let bus = std::env::var("DBUS_SESSION_BUS_ADDRESS").ok();
-    let policy = policy_for(&dirs, bus.as_deref());
+    let mut policy = policy_for(&dirs, bus.as_deref());
+    // Only a test build's file key store has a directory of its own to write.
+    policy.writable.extend(key_dir);
     prepare(&policy).map_err(|e| format!("cannot make the memory directories: {e}"))?;
-    match enforce(&policy).map_err(|e| e.to_string())? {
+    let sandbox = sandbox_choice(
+        std::env::var(memoryd::SANDBOX_VAR).ok().as_deref(),
+        TestKeys::THIS_BUILD,
+    );
+    let enforcement = match sandbox {
+        Sandbox::On => enforce(&policy).map_err(|e| e.to_string())?,
+        Sandbox::Off => {
+            eprintln!("memoryd: TEST BUILD: the Landlock sandbox is off");
+            Enforcement::Full
+        }
+    };
+    match enforcement {
         Enforcement::Full => {}
         Enforcement::Partial => eprintln!(
             "memoryd: this kernel's Landlock is older than the policy; part of it is enforced"
@@ -126,7 +148,7 @@ fn start() -> Result<(), String> {
         .enable_all()
         .build()
         .map_err(|e| e.to_string())?
-        .block_on(run(dirs))
+        .block_on(run(dirs, keys))
 }
 
 fn main() -> ExitCode {
