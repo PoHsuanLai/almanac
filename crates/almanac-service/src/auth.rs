@@ -127,9 +127,9 @@ pub fn allowed(caller: &Caller, request: &MemoryRequest) -> Allowed {
         | R::Inject(_)
         | R::Recent(..)
         | R::Propose(..)
-        | R::PlanForget(..) => yes_if(router_or_shell),
-        R::Spaces
-        | R::Status(_)
+        | R::PlanForget(..)
+        | R::Spaces => yes_if(router_or_shell),
+        R::Status(_)
         | R::Timeline(..)
         | R::Forget(_)
         | R::Pending(_)

@@ -242,11 +242,22 @@ fn reading_proposing_and_planning_belong_to_the_router_and_the_shell() {
     }
 }
 
+/// docket lists the Spaces to name the one a task works in; it is the router's call as well.
+#[test]
+fn listing_the_spaces_is_the_routers_and_the_shells() {
+    for (who, caller) in callers() {
+        assert_eq!(
+            yes(allowed(&caller, &MemoryRequest::Spaces)),
+            who == "router" || who == "shell",
+            "Spaces by {who}"
+        );
+    }
+}
+
 #[test]
 fn control_is_the_shells_alone() {
     let w = space("work");
     let control: Vec<MemoryRequest> = vec![
-        MemoryRequest::Spaces,
         MemoryRequest::Status(w.clone()),
         MemoryRequest::Timeline(
             w.clone(),

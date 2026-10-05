@@ -68,6 +68,8 @@ pub(crate) struct Open<B: Backend> {
     pub dirty: BTreeSet<TopicPath>,
     /// What happened during the request that the bus should hear of (drained by the service).
     pub outbox: Vec<crate::events::ServiceEvent>,
+    /// The index state the bus was last told of (or found when the Space opened).
+    pub announced: recall::IndexState,
 }
 
 /// A fact as the files hold it.
@@ -96,6 +98,16 @@ pub(crate) fn files_refusal(e: MemfilesError) -> Refusal {
 impl<B: Backend> Open<B> {
     pub(crate) fn space(&self) -> &SpaceId {
         &self.rt.meta.id
+    }
+
+    /// `StatusChanged` for this Space if the index is not where the bus last heard it was (a
+    /// background rebuild finished, the embedder went away or came back); said once per change.
+    pub(crate) fn index_news(&mut self) -> Option<crate::events::ServiceEvent> {
+        let now = self.rt.index.state();
+        (now != self.announced).then(|| {
+            self.announced = now;
+            crate::events::ServiceEvent::StatusChanged(self.space().clone())
+        })
     }
 
     /// Entropy for an id: a keyed hash over the Space's digest subkey, a counter, the time, the

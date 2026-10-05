@@ -420,12 +420,12 @@ cuad, reads the person's events during the takeover (`Recent`, a `Router` call) 
   `PendingChanged` after `Settle` and after pending facts age out (14 days; ageing now also runs in
   the daily `Sweep`, so it happens without anyone reading `Pending`); `Locked` when a Space is found
   without its key, once until it opens again (`StatusChanged` when it does). `MemoryService::
-  check_keys()` is the minute timer's work: an open Space whose key the store no longer gives is
+  check_keys()` is the key check's work (the minute timer then, the lock signal since the f4 fill): an open Space whose key the store no longer gives is
   closed and announced, a locked one whose key is back is opened (which flushes its buffered
   records). memoryd's `Daemon` drains the events after every request and after its timers
   (`flush_events`, `check_keys`, `sweep_all`) and sends the signals; a locked Space's
   `StatusChanged` carries `locked_status()`. The Secret Service's own lock signal would be a
-  better trigger than polling (an event source for `check_keys`; not built).
+  better trigger than polling (built in the f4 fill).
 - **Landlock** (77): `memoryd/src/sandbox.rs`. The policy (`policy_for(dirs, bus_address)`, pure,
   a table test) is read-write on the four memory directories (data, cache, `<config>/quire`,
   `<runtime>/quire/memory`), read-only on `/usr /lib /lib64 /bin /etc /proc /sys /dev/urandom`,
@@ -442,12 +442,29 @@ cuad, reads the person's events during the takeover (`Recent`, a `Router` call) 
   (the optional half of ask 77) is not done: the served objects equal them by test and the XML is
   generated from them.
 
-### Open after the w4 fill
+### Closed by the f4 fill (branch f4-almanac; ask 115 and docket's `Spaces` ask)
+
+- **The key check listens** (115): `memoryd/src/keyring.rs`. `LockChanges::on(connection)` matches
+  `org.freedesktop.DBus.Properties.PropertiesChanged` under `/org/freedesktop/secrets`;
+  `is_lock_change` (pure) keeps only a `Locked` change of `org.freedesktop.Secret.Collection`.
+  `Daemon::follow_keyring` calls `check_keys` per lock change; `main` subscribes before it serves
+  and the minute timer is gone. The match is by path, not sender, so another bus client can cause
+  one needless (idempotent) check. Tested over a private bus with a fake Secret Service
+  (`memoryd/tests/keyring.rs`: lock then unlock close and reopen the Space and each says
+  `StatusChanged`; an unrelated property change is not a lock change).
+- **A changed index state is announced** (115): an open Space remembers the index state the bus last
+  heard (what it opened with); when a request leaves it different (the embedder went away or came
+  back, a rebuild finished) the service raises `StatusChanged` once. A `Rebuild` request also has its
+  own follow-up signal, so a rebuild that changes the state says it twice (harmless).
+- **`Spaces` is the router's as well** (docket's ask): `allowed` gives `R::Spaces` to `Router` and
+  `ShellUi`; the caller matrix has its own row.
+- Checked and already closed by the w4 fill: asks 73, 74, 75, 76, 91 (Cli/Terminal bucket), 93, 94
+  (Mcp bucket).
+
+### Open after the f4 fill
 
 - **`landlock` is not in quire's pinned dependency block** (`docs/workspace-deps.toml`): almanac's
   `Cargo.toml` names `landlock = "0.4"` (0.4.7 in the lockfile, MIT OR Apache-2.0) ahead of it. The
-  line joins quire's file first (CONVENTIONS "dependencies").
-- **The key check polls** (a minute). Closes when memoryd listens for the Secret Service's own lock
-  signal and calls `check_keys` on it.
-- **The service raises no event for a changed index state** (building done, lexical only): the
-  signal exists (`StatusChanged`) and nothing calls for it after a background rebuild.
+  line joins quire's file first (CONVENTIONS "dependencies"). Quire's session owns it.
+- **The lock signal against a real Secret Service** is unproven: gnome-keyring and KWallet differ in
+  which object carries `Locked` (the collection is the documented one). Needs a real session.

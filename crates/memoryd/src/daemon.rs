@@ -178,6 +178,13 @@ impl<B: Backend, P: Peers> Daemon<B, P> {
         self.flush_events().await;
     }
 
+    /// The key check on every lock change the keyring announces, until the connection goes.
+    pub async fn follow_keyring(&self, mut changes: crate::keyring::LockChanges) {
+        while changes.next().await.is_some() {
+            self.check_keys().await;
+        }
+    }
+
     /// The daily sweep over every Space, then the events it caused (aged-out pending facts).
     pub async fn sweep_all(
         &self,

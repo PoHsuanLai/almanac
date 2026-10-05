@@ -11,8 +11,8 @@ use almanac_seal::Oo7Keys;
 use almanac_service::{MemoryService, rules_from_toml, spaces_from_toml};
 use clap::Parser;
 use memoryd::{
-    CallerTable, Daemon, Enforcement, InferdConsolidator, InferdEmbedder, ProcPeers, SystemBackend,
-    default_card, dirs_from_env, enforce, inferd_link, policy_for, prepare,
+    CallerTable, Daemon, Enforcement, InferdConsolidator, InferdEmbedder, LockChanges, ProcPeers,
+    SystemBackend, default_card, dirs_from_env, enforce, inferd_link, policy_for, prepare,
 };
 use std::process::ExitCode;
 use std::sync::Arc;
@@ -25,8 +25,6 @@ struct Args {}
 
 /// The retention sweep runs this often (and once a minute after the daemon starts).
 const SWEEP_EVERY: Duration = Duration::from_secs(24 * 60 * 60);
-/// The keyring is asked whether each open Space's key is still there this often.
-const KEY_CHECK_EVERY: Duration = Duration::from_secs(60);
 const FIRST_SWEEP: Duration = Duration::from_secs(60);
 
 fn callers_toml(dirs: &Dirs) -> std::path::PathBuf {
@@ -85,14 +83,13 @@ async fn run(dirs: Dirs) -> Result<(), String> {
     serve_on(&connection, daemon.clone())
         .await
         .map_err(|e| e.to_string())?;
+    // The keyring says when it locks or unlocks; no timer asks.
+    let changes = LockChanges::on(&connection)
+        .await
+        .map_err(|e| e.to_string())?;
     daemon.attach(connection);
     let watcher = daemon.clone();
-    tokio::spawn(async move {
-        loop {
-            tokio::time::sleep(KEY_CHECK_EVERY).await;
-            watcher.check_keys().await;
-        }
-    });
+    tokio::spawn(async move { watcher.follow_keyring(changes).await });
     let sweeper = daemon.clone();
     tokio::spawn(async move {
         tokio::time::sleep(FIRST_SWEEP).await;

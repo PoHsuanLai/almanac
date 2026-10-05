@@ -137,7 +137,7 @@ impl<B: Backend> Serialised<B> {
             .await
     }
 
-    /// The key check over every Space (the minute timer): a lost key closes its Space, a
+    /// The key check over every Space (the keyring's lock signal): a lost key closes its Space, a
     /// returned one opens it again.
     pub async fn check_keys(&self) {
         self.holding(Claim::Everything, self.service.check_keys())

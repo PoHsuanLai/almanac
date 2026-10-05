@@ -107,7 +107,8 @@ impl<B: Backend> Lease<'_, B> {
 
 impl<B: Backend> Drop for Lease<'_, B> {
     fn drop(&mut self) {
-        if let Some(open) = self.open.take() {
+        if let Some(mut open) = self.open.take() {
+            self.service.raise_all(open.index_news());
             locked(&self.service.spaces).insert(self.id.clone(), Slot::Ready(open));
         }
     }
@@ -309,9 +310,12 @@ impl<B: Backend> MemoryService<B> {
             baseline,
             dirty: std::collections::BTreeSet::new(),
             outbox: Vec::new(),
+            announced: recall::IndexState::Absent,
         };
         let cx = self.cx(caller);
         open.sync_index(&cx).await?;
+        // What a Space opens with is what its first reader finds; only later changes are news.
+        open.announced = open.rt.index.state();
         open.guard_topics()?;
         let waiting = locked(&self.buffers).remove(id).unwrap_or_default();
         for record in waiting {
