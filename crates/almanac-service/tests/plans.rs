@@ -296,6 +296,62 @@ fn consolidation_run_table() {
             vec![],
         ),
         ("cannot apply a due run", S::Due, V::Proceed, S::Due, vec![]),
+        (
+            "discard a proposal",
+            S::Proposed,
+            V::Discard,
+            S::Discarded,
+            vec![],
+        ),
+        (
+            "a newer run supersedes",
+            S::Proposed,
+            V::Supersede,
+            S::Superseded,
+            vec![],
+        ),
+        (
+            "an applied run cannot be discarded",
+            S::Applied,
+            V::Discard,
+            S::Applied,
+            vec![],
+        ),
+        (
+            "a discarded run cannot be applied",
+            S::Discarded,
+            V::Proceed,
+            S::Discarded,
+            vec![],
+        ),
+        (
+            "a superseded run cannot be applied",
+            S::Superseded,
+            V::Proceed,
+            S::Superseded,
+            vec![],
+        ),
+        (
+            "a superseded run cannot be discarded",
+            S::Superseded,
+            V::Discard,
+            S::Superseded,
+            vec![],
+        ),
+        (
+            "next night after discarding",
+            S::Discarded,
+            night,
+            S::Due,
+            vec![],
+        ),
+        (
+            "next night after superseding",
+            S::Superseded,
+            night,
+            S::Due,
+            vec![],
+        ),
     ];
     for (name, from, event, to, effects) in cases {
         assert_eq!(consolidation::step(from, event), (to, effects), "{name}");

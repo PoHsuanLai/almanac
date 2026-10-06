@@ -144,6 +144,10 @@ impl<B: Backend, P: Peers> Daemon<B, P> {
                 match event {
                     ServiceEvent::PendingChanged(space) => self.pending_changed(space).await,
                     ServiceEvent::StatusChanged(space) => self.status_changed(space).await,
+                    ServiceEvent::ConsolidationChanged(space, run) => {
+                        let (space, run) = (space.to_string(), run.to_string());
+                        self.signal(Signal::ConsolidationReady { space, run }).await;
+                    }
                     ServiceEvent::Locked(space) => {
                         let status = serde_json::to_string(&locked_status()).unwrap_or_default();
                         let space = space.to_string();

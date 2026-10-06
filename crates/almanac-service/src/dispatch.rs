@@ -8,7 +8,7 @@ use crate::record::Stored;
 use crate::service::MemoryService;
 use almanac_core::{
     Caller, Count, EXPORT_FORMAT, ExportCounts, ExportManifest, ExportOptions, ExportedSpace,
-    FactState, ForgetScope, Head, MemoryOp, MemoryReply, MemoryRequest, Refusal, SpaceId,
+    FactState, ForgetScope, Head, MemoryOp, MemoryReply, MemoryRequest, Refusal, RunId, SpaceId,
     VerificationKey, hex_of,
 };
 use eventlog::LogRead;
@@ -116,9 +116,7 @@ impl<B: Backend> MemoryService<B> {
                 Ok(MemoryReply::Ok)
             }
             R::ApplyConsolidation(run) => {
-                let id = self
-                    .space_of_run(&run)
-                    .ok_or_else(|| failed("no such run"))?;
+                let id = self.find_run(caller, &run).await?;
                 let mut lease = self.checkout(caller, &id).await?;
                 let cx = self.cx(caller);
                 let open = lease.open().ok_or(Refusal::Busy)?;
@@ -128,8 +126,32 @@ impl<B: Backend> MemoryService<B> {
                 self.raise_all(open.outbox.drain(..));
                 Ok(MemoryReply::Consolidation(view))
             }
+            R::DiscardConsolidation(run) => {
+                let id = self.find_run(caller, &run).await?;
+                let mut lease = self.checkout(caller, &id).await?;
+                let cx = self.cx(caller);
+                let open = lease.open().ok_or(Refusal::Busy)?;
+                let view = open.discard_consolidation(&cx, &run)?;
+                self.raise_all(open.outbox.drain(..));
+                Ok(MemoryReply::Consolidation(view))
+            }
             other => self.in_space(caller, other).await,
         }
+    }
+
+    /// The Space holding the proposal `run`: an open Space's last run, else the Spaces are opened
+    /// one by one (after a restart the proposals are in their files until a Space opens).
+    async fn find_run(&self, caller: &Caller, run: &RunId) -> Result<SpaceId, Refusal> {
+        if let Some(id) = self.space_of_run(run) {
+            return Ok(id);
+        }
+        for id in self.all_spaces() {
+            let opened = self.checkout(caller, &id).await.is_ok();
+            if opened && self.space_of_run(run).as_ref() == Some(&id) {
+                return Ok(id);
+            }
+        }
+        Err(failed("no such run"))
     }
 
     async fn forget_in(

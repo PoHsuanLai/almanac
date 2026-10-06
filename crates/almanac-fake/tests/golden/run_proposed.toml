@@ -1,0 +1,36 @@
+format = 1
+run = "RUN"
+state = "proposed"
+drafted = 1790000000
+cut = 0
+head = 0
+
+[[hunks]]
+kind = "tidy"
+
+[hunks.v]
+topic = "people/ana"
+before = """
+---
+format: quire-memory 1
+topic: people/ana
+title: people/ana
+---
+
+## 2026-09-21
+
+- Ana is the CFO.
+  <!-- fact: 0000000001040g2081040g2081; at: 2026-09-21T14:13:20Z; by: {"kind":"user","v":{"via":"org.quire.Shell"}}; label: {"integrity":"trusted","confidentiality":{"kind":"public"},"classes":[],"sources":[{"kind":"user"}]} -->
+"""
+after = """
+---
+format: quire-memory 1
+topic: people/ana
+title: people/ana
+---
+
+## 2026-09-21
+
+- Ana is the chief financial officer.
+  <!-- fact: 0000000001040g2081040g2081; at: 2026-09-21T14:13:20Z; by: {"kind":"user","v":{"via":"org.quire.Shell"}}; label: {"integrity":"trusted","confidentiality":{"kind":"public"},"classes":[],"sources":[{"kind":"user"}]} -->
+"""

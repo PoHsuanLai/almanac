@@ -8,6 +8,7 @@ use crate::consolidation::{
     ConsolidationInput, Consolidator, Draft, InputEvent, RunEffect, RunEvent, check_draft, step,
 };
 use crate::docs::{fact_doc, fact_doc_id};
+use crate::events::ServiceEvent;
 use crate::facts::lands_for;
 use crate::grounds::Grounds;
 use crate::hunks::PreImage;
@@ -15,7 +16,7 @@ use crate::open::{Cx, LastRun, Open, failed, files_refusal};
 use crate::settings::{ConsolidateApply, ConsolidateWhen};
 use almanac_core::{
     DraftView, Fact, FactId, FactState, Hunk, Lands, MemoryOp, Refusal, RunId, RunState, Seq,
-    TopicPath, hex_of,
+    SkipReason, SkippedHunk, TopicPath, hex_of,
 };
 use eventlog::BodyState;
 
@@ -30,6 +31,9 @@ pub(crate) struct Applied {
     pre_images: Vec<PreImage>,
     topics: Vec<TopicPath>,
     hunks: u32,
+    /// The hunks that were applied, and those left out with the reason.
+    done: Vec<Hunk>,
+    skipped: Vec<SkippedHunk>,
 }
 
 impl<B: Backend> Open<B> {
@@ -108,14 +112,18 @@ impl<B: Backend> Open<B> {
             // next run (or the apply) still sees the events this one read.
             ConsolidateApply::Review => (state, Applied::default(), cut),
         };
+        let (hunks, skipped) = match cx.settings.apply {
+            ConsolidateApply::Auto => (applied.done.clone(), applied.skipped.clone()),
+            ConsolidateApply::Review => (checked.kept, Vec::new()),
+        };
         let view = DraftView {
             run: run.clone(),
-            hunks: checked.kept,
+            hunks,
             state,
+            skipped,
         };
-        self.run = state;
-        self.last = Some(LastRun {
-            run,
+        let last = LastRun {
+            run: run.clone(),
             view: view.clone(),
             added: applied.added,
             superseded: applied.superseded,
@@ -123,7 +131,17 @@ impl<B: Backend> Open<B> {
             topics: applied.topics,
             cut,
             head,
-        });
+        };
+        // A proposal is a file before it is anything else: if it cannot be written the run
+        // fails (nothing was applied). An applied run is already in the Space and the log; its
+        // record is best effort.
+        match state {
+            RunState::Proposed => self.write_run(&last, now)?,
+            _ => drop(self.write_run(&last, now)),
+        }
+        self.supersede_others(&run, now);
+        self.run = state;
+        self.last = Some(last);
         Ok(view)
     }
 
@@ -135,15 +153,15 @@ impl<B: Backend> Open<B> {
         cx: &Cx<'_, B>,
         run: &RunId,
     ) -> Result<DraftView, Refusal> {
-        let last = match self.last.as_ref() {
-            Some(l) if &l.run == run && l.view.state == RunState::Proposed => l.clone(),
-            Some(l) if &l.run == run => return Err(failed("the run is not waiting to be applied")),
-            _ => return Err(failed("no such run")),
-        };
+        let last = self.waiting(run, "apply")?;
         let (state, applied) = self.proceed(cx, run, &last.view.hunks).await?;
-        let view = DraftView { state, ..last.view };
-        self.run = state;
-        self.last = Some(LastRun {
+        let view = DraftView {
+            state,
+            hunks: applied.done.clone(),
+            skipped: applied.skipped.clone(),
+            ..last.view
+        };
+        let next = LastRun {
             run: run.clone(),
             view: view.clone(),
             added: applied.added,
@@ -152,7 +170,16 @@ impl<B: Backend> Open<B> {
             topics: applied.topics,
             cut: last.head,
             head: last.head,
-        });
+        };
+        // The Space has changed and the log says so; a record that cannot be written is
+        // reported by the next start (the file still says `proposed`, and apply re-checks).
+        drop(self.write_run(&next, cx.now()));
+        self.run = state;
+        self.last = Some(next);
+        self.outbox.push(ServiceEvent::ConsolidationChanged(
+            self.space().clone(),
+            run.clone(),
+        ));
         Ok(view)
     }
 
@@ -169,8 +196,18 @@ impl<B: Backend> Open<B> {
             match effect {
                 RunEffect::ApplyHunks => {
                     let grounds = self.grounds()?;
-                    for hunk in hunks.iter().filter(|h| grounds.holds(h)) {
-                        self.apply_hunk(cx, run, hunk, &mut applied).await?;
+                    for hunk in hunks {
+                        let left_out = match grounds.why_not(hunk) {
+                            Some(reason) => Some(reason),
+                            None => self.apply_hunk(cx, run, hunk, &mut applied).await?,
+                        };
+                        match left_out {
+                            Some(reason) => applied.skipped.push(SkippedHunk {
+                                hunk: hunk.clone(),
+                                reason,
+                            }),
+                            None => applied.done.push(hunk.clone()),
+                        }
                     }
                 }
                 RunEffect::LogConsolidated => {
@@ -194,7 +231,7 @@ impl<B: Backend> Open<B> {
         run: &RunId,
         hunk: &Hunk,
         applied: &mut Applied,
-    ) -> Result<(), Refusal> {
+    ) -> Result<Option<SkipReason>, Refusal> {
         let (fact, to, old): (&Fact, Lands, Option<&FactId>) = match hunk {
             Hunk::Promote { fact, to } => (fact, *to, None),
             Hunk::Supersede { old, new } => (new, Lands::Active, Some(old)),
@@ -204,8 +241,9 @@ impl<B: Backend> Open<B> {
                     applied.topics.push(tidy.topic.clone());
                     applied.hunks += 1;
                     self.reindex_topic(cx, &tidy.topic).await?;
+                    return Ok(None);
                 }
-                return Ok(());
+                return Ok(Some(SkipReason::FileChanged));
             }
             Hunk::Stamp { topic, text } => {
                 if let Some((pre, fact)) = self.apply_stamp(cx, topic, text)? {
@@ -213,19 +251,20 @@ impl<B: Backend> Open<B> {
                     applied.added.push(fact.id.clone());
                     applied.hunks += 1;
                     self.index_put(cx, vec![fact_doc(&fact)]).await;
+                    return Ok(None);
                 }
-                return Ok(());
+                return Ok(Some(SkipReason::FileChanged));
             }
             Hunk::ExternalEdit { topic, before, .. } => {
                 self.apply_external_edit(cx, topic, before).await?;
                 self.absorb_edit(topic);
                 applied.hunks += 1;
-                return Ok(());
+                return Ok(None);
             }
             Hunk::Flag { facts, note } => {
                 self.apply_flag(run, facts, note)?;
                 applied.hunks += 1;
-                return Ok(());
+                return Ok(None);
             }
         };
         let topic = TopicPath::parse(TOPIC).map_err(failed)?;
@@ -250,7 +289,7 @@ impl<B: Backend> Open<B> {
         }
         applied.added.push(fact.id.clone());
         applied.hunks += 1;
-        Ok(())
+        Ok(None)
     }
 
     /// What the Space holds now, for the check that a proposed hunk still stands.
@@ -329,6 +368,9 @@ impl<B: Backend> Open<B> {
         self.audit(cx.now(), MemoryOp::Reverted { run: run.clone() })?;
         if let Some(l) = self.last.as_mut() {
             l.view.state = RunState::Reverted;
+        }
+        if let Some(l) = self.last.clone() {
+            self.write_run(&l, cx.now())?;
         }
         Ok(())
     }

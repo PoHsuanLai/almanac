@@ -105,6 +105,9 @@
    <method name="ApplyConsolidation">
      <arg name="run" type="s" direction="in"/>
    </method>
+   <method name="DiscardConsolidation">
+     <arg name="run" type="s" direction="in"/>
+   </method>
    <method name="Rules">
      <arg type="s" direction="out"/>
    </method>

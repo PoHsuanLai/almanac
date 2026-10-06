@@ -210,11 +210,39 @@ pub enum RunState {
     Applied,
     /// Reverted from the pre-images.
     Reverted,
+    /// The person discarded the proposal; it stays on disk and cannot be applied.
+    Discarded,
+    /// A newer run replaced the proposal before it was applied; it stays on disk.
+    Superseded,
     /// Failed; retried next night.
     Failed(ConsolidateFailure),
 }
 
-/// One run's diff for review.
+slug_enum!(
+    /// Why a proposed hunk was skipped when its run was applied.
+    SkipReason {
+        /// An event it cites is gone or its body was erased.
+        EventGone => "event_gone",
+        /// A fact it cites is gone.
+        FactGone => "fact_gone",
+        /// The fact it would replace is no longer active.
+        ReplacedFactGone => "replaced_fact_gone",
+        /// The file it rewrites is not as it was when the hunk was drafted.
+        FileChanged => "file_changed"
+    }
+);
+
+/// A hunk that was proposed but not applied, and why.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct SkippedHunk {
+    /// The hunk.
+    pub hunk: Hunk,
+    /// Why it was left out.
+    pub reason: SkipReason,
+}
+
+/// One run's diff for review. Once a run is applied, `hunks` holds only what was applied and
+/// `skipped` what was left out (a proposal has none skipped yet).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct DraftView {
     /// The run.
@@ -223,4 +251,7 @@ pub struct DraftView {
     pub hunks: Vec<Hunk>,
     /// Where it is.
     pub state: RunState,
+    /// Proposed hunks that were not applied, with the reason.
+    #[serde(default)]
+    pub skipped: Vec<SkippedHunk>,
 }

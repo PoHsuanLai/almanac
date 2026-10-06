@@ -34,6 +34,8 @@ pub trait Control {
     fn revert(&self, run: &str) -> zbus::Result<()>;
     /// Applies a proposed run (`RunId` JSON).
     fn apply_consolidation(&self, run: &str) -> zbus::Result<()>;
+    /// Discards a proposed run (`RunId` JSON); it stays on disk, marked discarded.
+    fn discard_consolidation(&self, run: &str) -> zbus::Result<()>;
     /// The rules (`RuleSet` JSON).
     fn rules(&self) -> zbus::Result<String>;
     /// Adds or replaces a rule (`RememberRule` JSON).
@@ -128,6 +130,11 @@ impl ControlSkeleton {
     }
 
     fn apply_consolidation(&self, run: String) -> fdo::Result<()> {
+        let _ = run;
+        Err(crate::introspect::frozen())
+    }
+
+    fn discard_consolidation(&self, run: String) -> fdo::Result<()> {
         let _ = run;
         Err(crate::introspect::frozen())
     }

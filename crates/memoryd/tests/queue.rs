@@ -169,6 +169,10 @@ fn what_a_request_holds() {
             Claim::Everything,
         ),
         (
+            MemoryRequest::DiscardConsolidation(RunId::parse("run-1").expect("r")),
+            Claim::Everything,
+        ),
+        (
             MemoryRequest::Export(ExportOptions {
                 spaces: vec![],
                 verification_key: VerificationKey::Omit,

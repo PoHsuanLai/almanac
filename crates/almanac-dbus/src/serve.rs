@@ -369,6 +369,24 @@ impl<S: Serve> ControlObject<S> {
         )
     }
 
+    async fn discard_consolidation(
+        &self,
+        #[zbus(header)] h: Header<'_>,
+        run: String,
+    ) -> Result<(), MemoryError> {
+        none(
+            forward(
+                &*self.0,
+                &h,
+                Iface::Control,
+                "DiscardConsolidation",
+                vec![text(run)],
+                None,
+            )
+            .await?,
+        )
+    }
+
     async fn rules(&self, #[zbus(header)] h: Header<'_>) -> Result<String, MemoryError> {
         first(forward(&*self.0, &h, Iface::Control, "Rules", vec![], None).await?)
     }

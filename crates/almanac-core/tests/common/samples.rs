@@ -176,6 +176,7 @@ pub fn requests() -> Vec<MemoryRequest> {
         }),
         MemoryRequest::Sweep(w.clone()),
         MemoryRequest::ApplyConsolidation(RunId::parse("run-1").expect("run")),
+        MemoryRequest::DiscardConsolidation(RunId::parse("run-1").expect("run")),
         MemoryRequest::Recent(
             w,
             RecentQuery {
@@ -275,6 +276,7 @@ pub fn replies() -> Vec<MemoryReply> {
         MemoryReply::Consolidation(DraftView {
             run: RunId::parse("run-1").expect("r"),
             state: RunState::Failed(ConsolidateFailure::Unparseable),
+            skipped: vec![],
             hunks: vec![
                 Hunk::Tidy(TidyHunk {
                     topic: TopicPath::parse("a").expect("t"),

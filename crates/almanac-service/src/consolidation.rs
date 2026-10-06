@@ -246,6 +246,10 @@ pub enum RunEvent {
     Proceed,
     /// The person reverted the run.
     Revert,
+    /// The person discarded the proposal.
+    Discard,
+    /// A newer run replaced the proposal.
+    Supersede,
     /// The failure was logged.
     Reported,
 }
@@ -284,7 +288,9 @@ pub fn step(state: RunState, event: RunEvent) -> (RunState, Vec<RunEffect>) {
         power: Power::Ac,
     };
     match (state, event) {
-        (S::Idle | S::Applied | S::Reverted, e) if e == tonight => (S::Due, vec![]),
+        (S::Idle | S::Applied | S::Reverted | S::Discarded | S::Superseded, e) if e == tonight => {
+            (S::Due, vec![])
+        }
         (S::Due, V::Start) => (S::Gathering, vec![E::Gather]),
         (S::Gathering, V::InputReady) => (S::Drafting, vec![E::Draft]),
         (S::Drafting, V::DraftOk) => (S::Checking, vec![E::Check]),
@@ -296,6 +302,8 @@ pub fn step(state: RunState, event: RunEvent) -> (RunState, Vec<RunEffect>) {
             S::Applied,
             vec![E::ApplyHunks, E::EmitReady, E::LogConsolidated],
         ),
+        (S::Proposed, V::Discard) => (S::Discarded, vec![]),
+        (S::Proposed, V::Supersede) => (S::Superseded, vec![]),
         (S::Applied, V::Revert) => (S::Reverted, vec![E::RestorePreImages, E::LogReverted]),
         (S::Failed(_), V::Reported) => (S::Idle, vec![]),
         (unchanged, _) => (unchanged, vec![]),

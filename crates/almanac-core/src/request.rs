@@ -91,6 +91,9 @@ pub enum MemoryRequest {
     /// Apply a proposed consolidation run (`memory.consolidation.apply = review` stops a run at
     /// `Proposed`; this is the person's go-ahead).
     ApplyConsolidation(RunId),
+    /// Discard a proposed consolidation run: it stays on disk marked discarded and can no longer
+    /// be applied. Any other state of the run is `Invalid`.
+    DiscardConsolidation(RunId),
     /// List rules.
     Rules,
     /// Add or replace a rule.
@@ -144,6 +147,7 @@ impl MemoryRequest {
             | MemoryRequest::Settle(..)
             | MemoryRequest::Revert(_)
             | MemoryRequest::ApplyConsolidation(_)
+            | MemoryRequest::DiscardConsolidation(_)
             | MemoryRequest::Rules
             | MemoryRequest::SetRule(_)
             | MemoryRequest::RemoveRule(_)

@@ -70,6 +70,7 @@ pub async fn invoke(
                 "RunConsolidation" => done(p.run_consolidation(a.text()?).await),
                 "Revert" => done(p.revert(a.text()?).await),
                 "ApplyConsolidation" => done(p.apply_consolidation(a.text()?).await),
+                "DiscardConsolidation" => done(p.discard_consolidation(a.text()?).await),
                 "Rules" => Ok(vec![p.rules().await?]),
                 "SetRule" => done(p.set_rule(a.text()?).await),
                 "RemoveRule" => done(p.remove_rule(a.text()?).await),

@@ -127,6 +127,7 @@ dependencies = [
  "tar",
  "tempfile",
  "tokio",
+ "toml",
 ]
 
 [[package]]

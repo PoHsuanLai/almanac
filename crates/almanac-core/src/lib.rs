@@ -77,7 +77,7 @@ pub use timeline::{
 };
 pub use views::{
     ConsolidateFailure, DraftView, EventSummary, FactView, FileHistoryEntry, FileProvenance,
-    FlagNote, ForgetPlanView, Hunk, Lands, RunState, SourceView, TidyHunk,
+    FlagNote, ForgetPlanView, Hunk, Lands, RunState, SkipReason, SkippedHunk, SourceView, TidyHunk,
 };
 
 /// The wire version of `org.quire.Memory1` (its `Version` property).

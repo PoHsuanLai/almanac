@@ -11,6 +11,8 @@ pub enum ServiceEvent {
     PendingChanged(SpaceId),
     /// The Space is open again, or its state changed in a way its own status shows: read it.
     StatusChanged(SpaceId),
+    /// A consolidation run was applied or discarded: its `Consolidation` view changed.
+    ConsolidationChanged(SpaceId, almanac_core::RunId),
     /// The Space's key is gone: its status is [`locked_status`] (nothing else can be read).
     Locked(SpaceId),
 }

@@ -113,6 +113,10 @@ impl<B: Backend> Open<B> {
                 let ids: Vec<FactId> = plan.facts.iter().chain(&plan.pending).cloned().collect();
                 self.rt.store.remove(&ids, digest).map_err(files_refusal)?;
                 self.prune_flags(&ids)?;
+                self.scrub_runs(&crate::runfile::Gone {
+                    facts: ids.clone(),
+                    events: plan.events.clone(),
+                })?;
                 self.forget_in_baseline(&ids)?;
                 for path in &plan.procedures {
                     self.rt.store.vault().remove(path).map_err(failed)?;

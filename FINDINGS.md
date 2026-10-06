@@ -582,8 +582,8 @@ f4-settings item 2. Closed here.
 | `Open::run_consolidation` under `Review` keeps the checked hunks, applies nothing, leaves the run `Proposed` and the cut where it was | done |
 | `Open::apply_consolidation` runs the machine's `Proceed` step (`ApplyHunks`, `LogConsolidated`) over the kept hunks | done |
 | `Grounds` (pure): a Promote or Supersede whose cited event (body present), cited fact or replaced active fact is gone is skipped | done |
-| A `Proposed` run survives a restart | open: `LastRun` is in memory, so a restart drops the proposal (nothing was applied; the next run drafts again) |
-| `ConsolidationReady` on apply | open: the apply request names only a run, so memoryd has no Space for the signal; the signal fires when the run is proposed |
+| A `Proposed` run survives a restart | done in "proposal-file" below |
+| `ConsolidationReady` on apply | done in "proposal-file" below |
 
 Behaviour: under `Review` a run stops at `Proposed` (its `DraftView` is readable with `Consolidation`
 and `ConsolidationReady` fires, as for any run). `ApplyConsolidation(run)` applies only the last run
@@ -595,7 +595,60 @@ fact, a supersede only changes the derived state (the old fact stays in its file
 refused for a run that was only proposed. A newer run replaces an unapplied proposal (the old one
 changed nothing).
 
-Owner questions: (1) should a proposal be discardable (a `DiscardConsolidation`, or `Revert` of a
-`Proposed` run)? Today it is refused and a newer run replaces it. (2) Persist `Proposed` runs to
-`consolidation/<run>.toml` (the spec's place) so a restart keeps them? (3) Hunks skipped at apply are
-still listed in the applied view; should the view list only what was applied?
+Owner questions (1)-(3) and the apply-time signal are answered in "proposal-file" below.
+
+
+## proposal-file: a proposal is a file
+
+The owner's four answers to the "consolidate-apply" questions, built. `todo!()` bodies 0 before, 0 after.
+
+1. **A proposal is a file** (spec: `<space>/consolidation/<run>.toml`, in the Space's vault, so sealed
+   when the vault is). It is written (the vault's atomic temporary file + rename) when the run is
+   drafted, before the run is reported: a Review run whose file cannot be written fails and applies
+   nothing. Fields: `format = 1`, `run`, `state` (`proposed | applied | reverted | discarded |
+   superseded`), `drafted`, `settled` (when it left `proposed`), `cut` and `head` (the log cut the run
+   was drafted from and the head it read to), `erased`, `[[hunks]]` (the serde form of `Hunk`) and
+   `[[skipped]]` (`hunk` + `reason`). Golden: `almanac-fake/tests/golden/run_proposed.toml`.
+   A hunk is its own pre-image for the apply-time re-check (Tidy and ExternalEdit carry `before`,
+   Promote and Supersede carry the facts and links `Grounds` looks up), so no separate pre-image
+   table is stored for a proposal (nothing has been changed yet).
+2. **Outcomes are recorded, files are kept.** Proposed -> Applied (then Reverted), Discarded or
+   Superseded; each rewrites the same file. Every run, auto-applied ones too, has a file. The state
+   changes are steps of the run machine (`RunEvent::{Discard, Supersede}`; `RunState` gains
+   `Discarded` and `Superseded`). The pre-images of files an applied run rewrote are **not** written
+   to the file (they hold whole topic files; a later forget would have to scrub them, and a revert
+   after a restart is not asked for): `Revert` still works only in the daemon run that applied.
+3. **`MemoryRequest::DiscardConsolidation(RunId)`**, shell only (ShellUi), queue claim `Everything`,
+   bus `org.quire.Memory1.DiscardConsolidation(run)` with `run` a `RunId` JSON, no output (the
+   `Consolidation(space)` view then shows `state: discarded`). Anything but a still-proposed last run
+   is `Invalid`.
+4. **A newer run marks a proposal `superseded`** in its file (written after the new file, so a crash
+   in between leaves two `proposed` files; start resolves them: the newest by `drafted`, `head`, run
+   id is the Space's proposal, the rest are marked superseded). Applying or discarding a superseded
+   or discarded run is `Invalid` ("no such run" or "cannot apply a run that is superseded").
+5. **At start** (`Open::restore_proposal`, when a Space opens) the newest `proposed` file becomes the
+   Space's last run with its `cut`, so `Consolidation(space)` reads it and `ApplyConsolidation` works
+   after a restart; the apply-time `Grounds` check and the Tidy/ExternalEdit `before` comparison still
+   guard staleness. Because a Space only opens on first use, `ApplyConsolidation` and
+   `DiscardConsolidation` open the known Spaces until one holds the run. A torn or foreign file (a
+   truncated TOML, bytes that are not TOML, another `format`, a temporary file) is not a record and
+   is skipped, never overwritten or deleted.
+6. **The applied view lists what was applied.** `DraftView.hunks` is the applied hunks only, and the
+   new `DraftView.skipped: Vec<SkippedHunk { hunk, reason }>` (`#[serde(default)]`) the rest, with
+   `SkipReason::{EventGone, FactGone, ReplacedFactGone, FileChanged}` (`Grounds::why_not`; a Tidy or
+   Stamp that no longer fits its file is `FileChanged`). A proposal itself has `skipped = []`. The
+   same holds for an auto-applied run.
+7. **`ConsolidationReady` on apply and discard.** The service knows the Space (it is the one that
+   holds the run), so it raises `ServiceEvent::ConsolidationChanged(space, run)` and memoryd's
+   `flush_events` emits `ConsolidationReady(space, run)`; `RunConsolidation` still emits it from the
+   reply. `Revert` does not emit it.
+8. **Forget scrubs the files.** A forget that removes facts or event bodies takes out of every run
+   file the hunks that carry their text (hunks citing a forgotten event or fact, a Promote or
+   Supersede of a forgotten fact, a Flag on one; and, when any fact went, every Tidy, Stamp and
+   ExternalEdit hunk, because they hold whole topic text) and adds the count to `erased`. The record
+   stays; the text goes.
+
+Open: (a) in-memory `pre_images` of the last applied run still hold topic files as they were, so a
+`Revert` after a forget can put forgotten text back (as before this lane); (b) after a restart the
+log cut is `Seq(0)` again for the first run unless a proposal is loaded (as before); (c) hunks the
+checks dropped before the proposal (`check_draft`) are not recorded anywhere.

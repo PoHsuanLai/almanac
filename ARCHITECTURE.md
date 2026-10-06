@@ -206,7 +206,7 @@ system/events.db                    desktop-level log: Space created or deleted,
 <space>/facts/<topic>.md            topic files (sealed or plain per vault)
 <space>/pending/<fact-id>.md        facts derived from untrusted text, awaiting the person
 <space>/procedures/<app>/<name>.md  CUA procedures (the cua area's format; the same trailer)
-<space>/consolidation/<run>.toml    one run's diff and pre-images (kept until the next run)
+<space>/consolidation/<run>.toml    one run: its hunks, skipped hunks, cut and outcome (proposed, applied, reverted, discarded, superseded); written when drafted, rewritten on each outcome, never deleted
 <space>/meta/marks.json             "do not remember" marks (vault file)
 <space>/meta/baseline.json          each topic file's text as the service last left it (an edit is a difference)
 <space>/flags/<run>.json            the notes a run's Flag hunks left, by fact

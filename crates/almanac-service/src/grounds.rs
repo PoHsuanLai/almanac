@@ -4,7 +4,7 @@
 //! something no longer there is skipped, never applied, so a proposal cannot bring back what the
 //! person forgot. Pure: the facts and events are passed in.
 
-use almanac_core::{EventRef, Fact, FactId, Hunk, Link};
+use almanac_core::{EventRef, Fact, FactId, Hunk, Link, SkipReason};
 use std::collections::BTreeSet;
 
 /// The events (with a readable body) and facts the Space holds now.
@@ -19,21 +19,26 @@ pub(crate) struct Grounds {
 }
 
 impl Grounds {
-    /// Whether everything `hunk` cites or replaces is still there.
-    pub(crate) fn holds(&self, hunk: &Hunk) -> bool {
+    /// The first thing `hunk` stands on that is gone, if any.
+    pub(crate) fn why_not(&self, hunk: &Hunk) -> Option<SkipReason> {
         match hunk {
-            Hunk::Promote { fact, .. } => self.fact_holds(fact),
-            Hunk::Supersede { old, new } => self.active.contains(old) && self.fact_holds(new),
-            Hunk::Flag { facts, .. } => facts.iter().all(|f| self.known.contains(f)),
-            Hunk::Tidy(_) | Hunk::Stamp { .. } | Hunk::ExternalEdit { .. } => true,
+            Hunk::Promote { fact, .. } => self.fact_gap(fact),
+            Hunk::Supersede { old, new } => (!self.active.contains(old))
+                .then_some(SkipReason::ReplacedFactGone)
+                .or_else(|| self.fact_gap(new)),
+            Hunk::Flag { facts, .. } => facts
+                .iter()
+                .any(|f| !self.known.contains(f))
+                .then_some(SkipReason::FactGone),
+            Hunk::Tidy(_) | Hunk::Stamp { .. } | Hunk::ExternalEdit { .. } => None,
         }
     }
 
-    fn fact_holds(&self, fact: &Fact) -> bool {
-        fact.links.iter().all(|l| match l {
-            Link::Event(e) => self.events.contains(e),
-            Link::Fact(id) => self.known.contains(id),
-            Link::Thing(_) | Link::Run(_) => true,
+    fn fact_gap(&self, fact: &Fact) -> Option<SkipReason> {
+        fact.links.iter().find_map(|l| match l {
+            Link::Event(e) => (!self.events.contains(e)).then_some(SkipReason::EventGone),
+            Link::Fact(id) => (!self.known.contains(id)).then_some(SkipReason::FactGone),
+            Link::Thing(_) | Link::Run(_) => None,
         })
     }
 }

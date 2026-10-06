@@ -335,6 +335,7 @@ impl<B: Backend> MemoryService<B> {
         open.sync_index(&cx).await?;
         // What a Space opens with is what its first reader finds; only later changes are news.
         open.announced = open.rt.index.state();
+        open.restore_proposal(cx.now());
         open.guard_topics()?;
         let waiting = locked(&self.buffers).remove(id).unwrap_or_default();
         for record in waiting {

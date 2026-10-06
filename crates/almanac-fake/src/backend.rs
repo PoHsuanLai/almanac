@@ -65,6 +65,21 @@ impl FakeBackend {
         }
     }
 
+    /// A backend for the same machine after the daemon restarted: the vaults (the files outlive
+    /// the process) are the same, everything else (keys, log, index, clock) starts again.
+    pub fn restarted(&self, consolidator: ScriptedConsolidator) -> Self {
+        let backend = Self::new(consolidator);
+        *backend
+            .vaults
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner) = self
+            .vaults
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone();
+        backend
+    }
+
     /// Moves the clock forward (retention, expiry and plan lapse tests).
     pub fn advance_clock(&self, seconds: i64) {
         self.clock.advance(seconds);

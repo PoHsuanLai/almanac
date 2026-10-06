@@ -40,6 +40,7 @@ fn request_index(r: &MemoryRequest) -> usize {
         MemoryRequest::Recent(..) => 29,
         MemoryRequest::Sweep(_) => 30,
         MemoryRequest::ApplyConsolidation(_) => 31,
+        MemoryRequest::DiscardConsolidation(_) => 32,
     }
 }
 
@@ -50,7 +51,7 @@ fn wire_round_trip_every_request() {
     let covered: std::collections::BTreeSet<usize> = all.iter().map(request_index).collect();
     assert_eq!(
         covered,
-        (0..=31).collect(),
+        (0..=32).collect(),
         "a request variant has no sample"
     );
 }
@@ -96,8 +97,25 @@ fn requests_name_their_space() {
         let named = request.space().is_some();
         let by_index = !matches!(
             request_index(&request),
-            1 | 10 | 14 | 16 | 19 | 20 | 21 | 22 | 27 | 31
+            1 | 10 | 14 | 16 | 19 | 20 | 21 | 22 | 27 | 31 | 32
         );
         assert_eq!(named, by_index, "{request:?}");
+    }
+}
+
+#[test]
+fn a_draft_view_without_skipped_hunks_still_reads_and_the_new_states_are_pinned() {
+    let old = r#"{"run":"c-1","hunks":[],"state":{"kind":"proposed"}}"#;
+    let view: DraftView = serde_json::from_str(old).expect("an older view");
+    assert!(view.skipped.is_empty());
+    for (state, json) in [
+        (RunState::Discarded, r#"{"kind":"discarded"}"#),
+        (RunState::Superseded, r#"{"kind":"superseded"}"#),
+    ] {
+        assert_eq!(serde_json::to_string(&state).expect("json"), json);
+    }
+    for reason in SkipReason::ALL {
+        let json = serde_json::to_string(reason).expect("json");
+        assert_eq!(json, format!("\"{}\"", reason.slug()));
     }
 }
