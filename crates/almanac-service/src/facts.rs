@@ -9,8 +9,8 @@ use crate::search::caller_actor;
 use crate::timeline::timeline_entry;
 use almanac_core::{
     Caller, Confidentiality, Count, DesktopVerdict, EventBody, Fact, FactDraft, FactId, FactState,
-    FactView, Integrity, Label, Link, MemoryOp, ModelRole, PENDING_TTL_DAYS, Refusal, Settlement,
-    Source, SourceView, SpaceId, UnixSeconds, UseCount, Validity, desktop_admits,
+    FactView, Integrity, Label, Link, MemoryOp, ModelRole, Refusal, Settlement, Source, SourceView,
+    SpaceId, UnixSeconds, UseCount, Validity, desktop_admits,
 };
 use eventlog::Entry;
 use std::collections::{BTreeMap, BTreeSet};
@@ -236,7 +236,7 @@ impl<B: Backend> Open<B> {
 
     /// Pending facts, after letting the old ones age out (14 days, QUESTIONS Me5).
     pub(crate) fn pending(&mut self, cx: &Cx<'_, B>) -> Result<Vec<FactView>, Refusal> {
-        self.age_pending(cx.now())?;
+        self.age_pending(cx.now(), cx.settings.pending_ttl)?;
         let stored = self.stored()?;
         let pending: Vec<&Stored> = stored
             .iter()
@@ -245,22 +245,19 @@ impl<B: Backend> Open<B> {
         self.fact_views(cx, &pending)
     }
 
-    /// Discards the pending facts that waited past their 14 days, and says so.
-    pub(crate) fn age_pending(&mut self, now: UnixSeconds) -> Result<(), Refusal> {
+    /// Discards the pending facts that waited past `ttl` (14 days unless the person's settings
+    /// say otherwise), and says so.
+    pub(crate) fn age_pending(
+        &mut self,
+        now: UnixSeconds,
+        ttl: almanac_core::DayCount,
+    ) -> Result<(), Refusal> {
         let old: Vec<FactId> = self
             .stored()?
             .into_iter()
             .filter(|s| s.state == FactState::Pending)
             .filter(|s| {
-                let days = now.0.saturating_sub(s.fact.recorded.0) / SECONDS_PER_DAY;
-                step(
-                    FactLife::Pending,
-                    FactEvent::Age(almanac_core::DayCount(
-                        u32::try_from(days).unwrap_or(u32::MAX),
-                    )),
-                )
-                .0 == FactLife::Removed
-                    && days >= i64::from(PENDING_TTL_DAYS.0)
+                now.0.saturating_sub(s.fact.recorded.0) / SECONDS_PER_DAY >= i64::from(ttl.0)
             })
             .map(|s| s.fact.id)
             .collect();

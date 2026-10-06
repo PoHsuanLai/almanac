@@ -11,6 +11,7 @@ use crate::docs::{fact_doc, fact_doc_id};
 use crate::facts::lands_for;
 use crate::hunks::PreImage;
 use crate::open::{Cx, LastRun, Open, failed, files_refusal};
+use crate::settings::ConsolidateWhen;
 use almanac_core::{
     DraftView, Fact, FactId, FactState, Hunk, Lands, MemoryOp, Refusal, RunId, RunState, Seq,
     TopicPath, hex_of,
@@ -33,6 +34,11 @@ pub(crate) struct Applied {
 impl<B: Backend> Open<B> {
     /// Runs consolidation now (the nightly tick's work, on demand).
     pub(crate) async fn run_consolidation(&mut self, cx: &Cx<'_, B>) -> Result<DraftView, Refusal> {
+        if cx.settings.consolidate == ConsolidateWhen::Never {
+            return Err(failed(
+                "consolidation is turned off (memory.consolidation.when)",
+            ));
+        }
         let now = cx.now();
         let run =
             RunId::parse(&format!("c-{}", hex_of(&self.entropy(cx, b"run")))).map_err(failed)?;

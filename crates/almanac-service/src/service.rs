@@ -10,9 +10,10 @@ use crate::events::ServiceEvent;
 use crate::forget::{Plan, PlanState};
 use crate::open::{Cx, ErasedNotes, Open};
 use crate::record::Stored;
+use crate::settings::MemorySettings;
 use almanac_core::{
     Caller, ChainHealth, Count, ExportOptions, Marks, MemoryReply, MemoryRequest, PlanToken,
-    Record, Refusal, RuleSet, RunState, SpaceId, SpaceMeta, SpaceState, SpaceSummary, VaultKind,
+    Record, Refusal, RuleSet, RunState, SpaceId, SpaceMeta, SpaceState, SpaceSummary,
 };
 use almanac_seal::{KeyError, KeyStore, Purpose, derive};
 use memfiles::Store;
@@ -61,6 +62,8 @@ enum Slot<B: Backend> {
 pub struct MemoryService<B: Backend> {
     backend: B,
     rules: Mutex<RuleSet>,
+    /// The person's settings in force: every request reads them afresh.
+    settings: Mutex<MemorySettings>,
     spaces: Mutex<BTreeMap<SpaceId, Slot<B>>>,
     metas: Mutex<BTreeMap<SpaceId, SpaceMeta>>,
     buffers: Mutex<BTreeMap<SpaceId, Vec<Record>>>,
@@ -120,6 +123,7 @@ impl<B: Backend> MemoryService<B> {
         Self {
             backend,
             rules: Mutex::new(rules),
+            settings: Mutex::new(MemorySettings::default()),
             spaces: Mutex::new(BTreeMap::new()),
             metas: Mutex::new(BTreeMap::new()),
             buffers: Mutex::new(BTreeMap::new()),
@@ -194,15 +198,30 @@ impl<B: Backend> MemoryService<B> {
         locked(&self.metas).values().cloned().collect()
     }
 
+    /// The person's settings in force now.
+    pub fn settings(&self) -> MemorySettings {
+        *locked(&self.settings)
+    }
+
+    /// Puts the person's settings in force for every request after this one. A Space that exists
+    /// keeps the way its files are held; `at_rest` is for the Spaces made from now on.
+    pub fn apply_settings(&self, settings: MemorySettings) {
+        *locked(&self.settings) = settings;
+    }
+
     /// The rules now (memoryd persists them after a `SetRule` or `RemoveRule`).
     pub fn rules(&self) -> RuleSet {
         locked(&self.rules).clone()
     }
 
     pub(crate) fn cx<'a>(&'a self, caller: &'a Caller) -> Cx<'a, B> {
+        let settings = self.settings();
         Cx {
             backend: &self.backend,
-            rules: self.rules(),
+            // The person's retention over the rules' defaults, for this request only: what
+            // `rules()` gives (and memoryd persists) stays what `SetRule` made it.
+            rules: self.rules().with_retention(&settings.retention),
+            settings,
             caller,
         }
     }
@@ -270,7 +289,7 @@ impl<B: Backend> MemoryService<B> {
                     id: id.clone(),
                     created: self.backend.clock().now(),
                     replica: almanac_core::ReplicaId(replica),
-                    vault: VaultKind::Sealed,
+                    vault: self.settings().at_rest,
                     format: 1,
                 }
             })

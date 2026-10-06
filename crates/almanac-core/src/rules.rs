@@ -106,7 +106,59 @@ pub const PENDING_TTL_DAYS: DayCount = DayCount(14);
 /// Used when no default matches.
 pub const FALLBACK_DAYS: DayCount = DayCount(30);
 
+/// How many days each class of record is kept: design/22 `memory.retention.*`, the values the
+/// person's settings give over the shipped defaults.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct RetentionDays {
+    /// Searches and selections (`search.*`): 30.
+    pub search: DayCount,
+    /// File changes no app explained, header and body: 7.
+    pub file_unexplained: DayCount,
+    /// Session and computer-use records (`session.*`, `cua.*`): 30.
+    pub session: DayCount,
+    /// Bodies of policy, consent and memory audit events (`policy.*`, `consent.*`, `memory.*`): 90.
+    pub audit_body: DayCount,
+    /// Their headers, once the body is gone: 365.
+    pub audit_header: DayCount,
+}
+
+impl Default for RetentionDays {
+    fn default() -> Self {
+        Self {
+            search: DayCount(30),
+            file_unexplained: UNEXPLAINED_FILE_DAYS,
+            session: DayCount(30),
+            audit_body: DayCount(90),
+            audit_header: HEADER_DAYS,
+        }
+    }
+}
+
 impl RuleSet {
+    /// These rules with the default body retention of the classes `days` names set to `days`:
+    /// each kind pattern of the class is replaced, or added when the rules have none. Every other
+    /// default, and every rule, is untouched.
+    pub fn with_retention(mut self, days: &RetentionDays) -> RuleSet {
+        let classes = [
+            (&["search.*"][..], days.search),
+            (&["session.*", "cua.*"][..], days.session),
+            (&["policy.*", "consent.*", "memory.*"][..], days.audit_body),
+        ];
+        for (patterns, keep) in classes {
+            for text in patterns {
+                let Ok(kind) = KindPattern::parse(text) else {
+                    continue;
+                };
+                let retention = Retention::Days(keep);
+                match self.defaults.iter_mut().find(|d| d.kind == kind) {
+                    Some(existing) => existing.retention = retention,
+                    None => self.defaults.push(KindRetention { kind, retention }),
+                }
+            }
+        }
+        self
+    }
+
     /// The shipped defaults (design/22 `memory.retention.*`), with no rules.
     pub fn standard() -> RuleSet {
         let days = |kind: &str, n: u32| KindRetention {

@@ -22,6 +22,7 @@ use std::collections::{BTreeMap, BTreeSet};
 pub(crate) struct Cx<'a, B: Backend> {
     pub backend: &'a B,
     pub rules: RuleSet,
+    pub settings: crate::settings::MemorySettings,
     pub caller: &'a Caller,
 }
 

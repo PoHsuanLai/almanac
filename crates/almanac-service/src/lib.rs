@@ -30,6 +30,7 @@ mod retention;
 mod run;
 mod search;
 mod service;
+mod settings;
 pub mod space;
 mod sweep;
 mod timeline;
@@ -55,7 +56,11 @@ pub use forget::{
     plan_forget, plan_step, token_for,
 };
 pub use hunks::tidy_is_acceptable;
-pub use retention::{SourceState, Sweep, header_expired, sweep_body};
+pub use retention::{SourceState, Sweep, header_expired, header_expired_after, sweep_body};
 pub use service::{MemoryService, SpaceRuntime};
+pub use settings::{
+    ConsolidateWhen, Fallback, Loaded, Locator, MemorySettings, SCHEMA, SETTINGS_FILE, Why,
+    read as read_settings,
+};
 pub use space::{BUFFER_LIMIT, SpaceEffect, SpaceEvent};
 pub use timeline::timeline_entry;

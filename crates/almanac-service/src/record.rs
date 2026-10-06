@@ -7,7 +7,7 @@ use crate::space::{SpaceEffect, SpaceEvent, step};
 use almanac_core::{
     Admission, Confidentiality, Count, DataClass, EventBody, EventRef, FileChange, FileView,
     FileWhy, FileWhyClaim, IndexPart, Integrity, KindPattern, Label, MarkKind, MarkRequest, Record,
-    Refusal, Source, Verb, admit,
+    Refusal, Source, Verb, admit_with,
 };
 use eventlog::{BodyState, LogRead};
 use std::collections::BTreeSet;
@@ -46,7 +46,13 @@ impl<B: Backend> Open<B> {
         }
         self.tick(cx)?;
         let now = cx.now();
-        let (body, header_only) = match admit(&record, &cx.rules, &self.rt.state, &self.rt.marks) {
+        let (body, header_only) = match admit_with(
+            &record,
+            &cx.rules,
+            &self.rt.state,
+            &self.rt.marks,
+            cx.settings.retention.file_unexplained,
+        ) {
             Admission::Drop(_) => return Ok(Stored::Dropped),
             Admission::Keep { .. } => (Some(record.body.clone()), false),
             Admission::HeaderOnly { .. } => (None, true),

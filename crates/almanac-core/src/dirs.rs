@@ -45,6 +45,12 @@ impl Dirs {
         self.config_home.join("quire")
     }
 
+    /// `<config>/almanac`: where the person's settings file lives (`settings.toml`, written by the
+    /// Settings app; memoryd only reads it).
+    pub fn settings(&self) -> PathBuf {
+        self.config_home.join("almanac")
+    }
+
     /// `<runtime>/quire/memory`: the edit copies of every Space.
     pub fn runtime_memory(&self) -> PathBuf {
         self.runtime_dir.join("quire").join("memory")

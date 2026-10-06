@@ -1,0 +1,170 @@
+# almanac's settings schema in the design/22 format (section 9.2). Installed to
+# $XDG_DATA_DIRS/quire/settings/almanac.settings.toml; `memoryd --write-schema <dir>` writes it for a
+# local install. The values live in $XDG_CONFIG_HOME/almanac/settings.toml, for example `[memory.files]`
+# then `at_rest = "plain"`; memoryd reads them live (crates/almanac-service/src/settings). Every row
+# is hands-off for an agent (no `agent = "settable"`): memory.* is never agent-settable, so the
+# companion can never loosen what memory keeps or how it is held. The rows design/22 section 5 puts
+# on the Intelligence page are Memory's; the retention rows are Advanced. Not here, because nothing
+# reads them yet: `memory.consolidation.apply` (applying a proposed run needs a request on
+# org.quire.Memory1 that does not exist) and `memory.join_window_ms` (memoryd does not run the file
+# watch yet). See FINDINGS.
+app = "almanac"
+file = "almanac/settings.toml"
+version = 1
+
+[[key]]
+path = "memory.files.at_rest"
+default = "sealed"
+label = "Keep memory files"
+help = "Sealed keeps each Space's memory files encrypted on disk and opens one in the editor through memory only. Plain keeps ordinary markdown files that any app on this computer can read. A Space that exists keeps the way it was made; this is for new Spaces."
+section = "Memory"
+exposure = "basic"
+
+[key.kind]
+kind = "toggle"
+
+[key.kind.v]
+variants = ["sealed", "plain"]
+
+[key.page]
+kind = "intelligence"
+
+[key.labels]
+sealed = "Sealed"
+plain = "Plain"
+
+[[key]]
+path = "memory.consolidation.when"
+default = "nightly"
+label = "Tidy memory"
+help = "Consolidation reads what happened, proposes facts and tidies the memory files, and you can revert any run. Nightly runs it every night; Manual only when you ask; Never not at all."
+section = "Memory"
+exposure = "basic"
+
+[key.kind]
+kind = "segmented"
+
+[key.kind.v]
+variants = ["nightly", "manual", "never"]
+
+[key.page]
+kind = "intelligence"
+
+[key.labels]
+nightly = "Nightly"
+manual = "Only when I ask"
+never = "Never"
+
+[[key]]
+path = "memory.retention.search_days"
+default = 30
+label = "Keep searches for"
+help = "How long searches and selections are remembered."
+section = "Retention"
+exposure = "advanced"
+
+[key.kind]
+kind = "bounded"
+
+[key.kind.v]
+min = 1
+max = 3650
+unit = "days"
+
+[key.page]
+kind = "intelligence"
+
+[[key]]
+path = "memory.retention.file_unexplained_days"
+default = 7
+label = "Keep unexplained file changes for"
+help = "How long a file change that no app explained is remembered, header and all."
+section = "Retention"
+exposure = "advanced"
+
+[key.kind]
+kind = "bounded"
+
+[key.kind.v]
+min = 1
+max = 3650
+unit = "days"
+
+[key.page]
+kind = "intelligence"
+
+[[key]]
+path = "memory.retention.session_days"
+default = 30
+label = "Keep sessions for"
+help = "How long the assistant's sessions and computer-use runs are remembered."
+section = "Retention"
+exposure = "advanced"
+
+[key.kind]
+kind = "bounded"
+
+[key.kind.v]
+min = 1
+max = 3650
+unit = "days"
+
+[key.page]
+kind = "intelligence"
+
+[[key]]
+path = "memory.retention.audit_body_days"
+default = 90
+label = "Keep audit details for"
+help = "How long the details of policy, consent and memory events are kept."
+section = "Retention"
+exposure = "advanced"
+
+[key.kind]
+kind = "bounded"
+
+[key.kind.v]
+min = 1
+max = 3650
+unit = "days"
+
+[key.page]
+kind = "intelligence"
+
+[[key]]
+path = "memory.retention.audit_header_days"
+default = 365
+label = "Keep audit records for"
+help = "How long the bare record of those events is kept after their details are gone."
+section = "Retention"
+exposure = "advanced"
+
+[key.kind]
+kind = "bounded"
+
+[key.kind.v]
+min = 1
+max = 3650
+unit = "days"
+
+[key.page]
+kind = "intelligence"
+
+[[key]]
+path = "memory.pending_ttl_days"
+default = 14
+label = "Wait for me to settle a fact for"
+help = "How long a fact the assistant is not sure of waits for you to accept or discard it before it is dropped."
+section = "Retention"
+exposure = "advanced"
+
+[key.kind]
+kind = "bounded"
+
+[key.kind.v]
+min = 1
+max = 365
+unit = "days"
+
+[key.page]
+kind = "intelligence"
