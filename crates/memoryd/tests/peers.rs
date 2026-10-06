@@ -31,6 +31,11 @@ unit = "sill.service"
 role = "sheet_host"
 
 [[caller]]
+app = "org.quire.Shell"
+unit = "sill-shell.scope"
+role = "sheet_host"
+
+[[caller]]
 app = "org.quire.Companion"
 unit = "companiond.service"
 role = "agent"
@@ -74,6 +79,10 @@ fn a_process_is_identified_by_its_cgroup() {
         // An app scope named for the router's app is only an app: the unit row gives its role
         // to that unit alone.
         (19, "app-org.quire.Intents-5.scope"),
+        // The shell's transient scope matches its row exactly; near misses are refused.
+        (21, "sill-shell.scope"),
+        (22, "sill-shell-2.scope"),
+        (23, "xsill-shell.scope"),
     ] {
         put_cgroup(root, pid, leaf);
     }
@@ -90,6 +99,9 @@ fn a_process_is_identified_by_its_cgroup() {
         (18, None),
         (19, app("org.quire.Intents", Isolation::Unsandboxed)),
         (20, None),
+        (21, Some(Caller::ShellUi)),
+        (22, None),
+        (23, None),
     ] {
         assert_eq!(identify(root, pid, &table), expected, "pid {pid}");
     }
@@ -216,6 +228,19 @@ async fn a_connection_is_resolved_through_its_process_to_its_cgroup() {
     // The same binary as the shell may forget (a made-up plan is `Invalid`, not `NotAllowed`).
     let proc = proc_with_me_in("sill.service");
     let (_scratch2, _bus2, _daemon2, address) = world(table, proc.path()).await;
+    let shell = Memory::over(DbusTransport::new(connect(&address).await));
+    let refused = shell
+        .forget(PlanToken::parse("p-1").expect("token"))
+        .await
+        .expect_err("no such plan");
+    assert!(matches!(refused, ClientError::Refused(Refusal::Invalid(_))));
+}
+
+#[tokio::test]
+async fn the_shell_in_its_transient_scope_may_forget() {
+    let table = table_from_toml(TABLE).expect("table");
+    let proc = proc_with_me_in("sill-shell.scope");
+    let (_scratch, _bus, _daemon, address) = world(table, proc.path()).await;
     let shell = Memory::over(DbusTransport::new(connect(&address).await));
     let refused = shell
         .forget(PlanToken::parse("p-1").expect("token"))

@@ -3,6 +3,10 @@
 # app scope (app-<id>-<n>.scope) or Flatpak scope is an app without a row here; any process in
 # neither (a terminal's child, an unlisted unit) is refused.
 #
+# The shell runs either as sill.service or in the transient scope sill-shell.scope that
+# sill-session starts. A named scope outside the app- namespace matches only exactly, so
+# sill-shell-2.scope and xsill-shell.scope are refused.
+#
 # Install as /etc/quire/memory-callers.toml; the user's ~/.config/quire/memory-callers.toml is
 # laid over it (a user row replaces the system row for the same unit).
 #
@@ -25,6 +29,11 @@ role = "cua"
 [[caller]]
 app = "org.quire.Shell"
 unit = "sill.service"
+role = "sheet_host"
+
+[[caller]]
+app = "org.quire.Shell"
+unit = "sill-shell.scope"
 role = "sheet_host"
 
 [[caller]]
