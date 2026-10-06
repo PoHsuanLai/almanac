@@ -14,6 +14,7 @@ mod peers;
 mod procroot;
 mod queue;
 mod sandbox;
+mod settings_watch;
 mod signals;
 mod xdg;
 
@@ -35,6 +36,7 @@ pub use peers::{Peers, ProcPeers, TablePeers};
 pub use procroot::{PROC_ROOT_VAR, ProcRoot, TestProcRoot, proc_root_choice};
 pub use queue::{Claim, Serialised, claim_of};
 pub use sandbox::{Enforcement, Policy, SandboxError, bus_socket, enforce, policy_for, prepare};
+pub use settings_watch::{DEBOUNCE, SettingsWatch, WatchState, apply, apply_next};
 pub use signals::{FollowUp, follow_ups};
 pub use xdg::{XdgError, dirs_from, dirs_from_env};
 

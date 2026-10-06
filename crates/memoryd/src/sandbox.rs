@@ -24,6 +24,10 @@ const ABI_TOP: ABI = ABI::V9;
 pub struct Policy {
     /// Directories read and written (the memory directories). They must exist when it is applied.
     pub writable: Vec<PathBuf>,
+    /// Directories other programs write and the daemon only reads (the Settings app's `almanac`
+    /// directory, where `settings.toml` lives and is watched). `prepare` makes them so the rule can
+    /// name them; they are read-only in force.
+    pub read_dirs: Vec<PathBuf>,
     /// Read-only trees (libraries, the system's configuration). One that does not exist on this
     /// system is skipped.
     pub readable: Vec<PathBuf>,
@@ -96,6 +100,7 @@ pub fn policy_for(dirs: &Dirs, bus_address: Option<&str>) -> Policy {
             dirs.config(),
             dirs.runtime_memory(),
         ],
+        read_dirs: vec![dirs.settings()],
         readable: SYSTEM_READ.iter().map(PathBuf::from).collect(),
         read_files: vec![PathBuf::from("/proc")],
         sockets: vec![bus_socket(bus_address, dirs.runtime_dir())],
@@ -105,7 +110,11 @@ pub fn policy_for(dirs: &Dirs, bus_address: Option<&str>) -> Policy {
 /// Makes the directories the daemon writes, so the policy can name them (Landlock rules name
 /// existing paths) and a first run needs nothing from outside the sandbox.
 pub fn prepare(policy: &Policy) -> std::io::Result<()> {
-    policy.writable.iter().try_for_each(std::fs::create_dir_all)
+    policy
+        .writable
+        .iter()
+        .chain(&policy.read_dirs)
+        .try_for_each(std::fs::create_dir_all)
 }
 
 /// Applies `policy` to the calling thread and the threads it creates later.
@@ -118,7 +127,7 @@ pub fn enforce(policy: &Policy) -> Result<Enforcement, SandboxError> {
         .create()?
         .add_rules(path_beneath_rules(&policy.writable, all_files))?
         .add_rules(path_beneath_rules(
-            &policy.readable,
+            policy.readable.iter().chain(&policy.read_dirs),
             AccessFs::from_read(ABI_TOP),
         ))?
         .add_rules(path_beneath_rules(&policy.read_files, AccessFs::ReadFile))?

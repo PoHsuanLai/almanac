@@ -197,6 +197,29 @@ impl<B: Backend, P: Peers> Daemon<B, P> {
         swept
     }
 
+    /// The nightly consolidation of every Space the service knows (the person's setting
+    /// `memory.consolidation.when = "nightly"` is the caller's to check), each run announced the
+    /// way a requested one is. A Space whose run is refused (a locked key) is skipped until the next
+    /// night.
+    pub async fn consolidate_all(&self) -> Vec<(SpaceId, MemoryReply)> {
+        let spaces: Vec<SpaceId> = self
+            .queue
+            .service()
+            .metas()
+            .into_iter()
+            .map(|meta| meta.id)
+            .collect();
+        let mut out = Vec::with_capacity(spaces.len());
+        for space in spaces {
+            let request = MemoryRequest::RunConsolidation(space.clone());
+            let reply = self.queue.handle(&Caller::ShellUi, request.clone()).await;
+            self.persist();
+            self.follow(&request, &reply).await;
+            out.push((space, reply));
+        }
+        out
+    }
+
     /// Serves `call` as `caller`.
     pub async fn serve_as(
         &self,

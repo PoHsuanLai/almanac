@@ -51,6 +51,9 @@ fn the_policy_writes_the_memory_directories_and_nothing_else() {
             "/run/user/7/quire/memory"
         ]
     );
+    // The person's settings directory is read, never written.
+    assert_eq!(policy.read_dirs, vec![PathBuf::from("/cfg/almanac")]);
+    assert!(!policy.writable.contains(&PathBuf::from("/cfg/almanac")));
     assert_eq!(policy.sockets, vec![PathBuf::from("/run/user/7/bus")]);
     for tree in &policy.readable {
         assert!(
@@ -72,12 +75,17 @@ fn prepare_makes_the_directories_the_policy_names() {
     let scratch = tempfile::tempdir().expect("scratch");
     let policy = Policy {
         writable: vec![scratch.path().join("a/b"), scratch.path().join("c")],
+        read_dirs: vec![scratch.path().join("settings")],
         readable: vec![],
         read_files: vec![],
         sockets: vec![],
     };
     prepare(&policy).expect("prepare");
     assert!(scratch.path().join("a/b").is_dir() && scratch.path().join("c").is_dir());
+    assert!(
+        scratch.path().join("settings").is_dir(),
+        "a read-only directory is made too"
+    );
     prepare(&policy).expect("and again");
 }
 
@@ -119,6 +127,7 @@ fn the_sandbox_confines_the_thread_that_applies_it() {
 
     let policy = Policy {
         writable: vec![inside.clone()],
+        read_dirs: vec![],
         readable: ["/usr", "/lib", "/lib64", "/etc"]
             .iter()
             .map(PathBuf::from)

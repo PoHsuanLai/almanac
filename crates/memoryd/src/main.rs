@@ -7,12 +7,15 @@
 
 use almanac_core::{Dirs, RuleSet};
 use almanac_dbus::serve_on;
-use almanac_service::{MemoryService, rules_from_toml, spaces_from_toml};
+use almanac_service::{
+    ConsolidateWhen, Locator, MemoryService, MemorySettings, rules_from_toml, spaces_from_toml,
+};
 use clap::Parser;
 use memoryd::{
     AnyKeys, Daemon, Enforcement, InferdConsolidator, InferdEmbedder, LockChanges, ProcPeers,
-    ProcRoot, Sandbox, SystemBackend, TestKeys, TestProcRoot, default_card, dirs_from_env, enforce,
-    inferd_link, load_callers, policy_for, prepare, proc_root_choice, sandbox_choice, select,
+    ProcRoot, Sandbox, SettingsWatch, SystemBackend, TestKeys, TestProcRoot, WatchState, apply,
+    apply_next, default_card, dirs_from_env, enforce, inferd_link, load_callers, policy_for,
+    prepare, proc_root_choice, sandbox_choice, select,
 };
 use porter_dbus::CallerTable;
 use std::path::Path;
@@ -23,11 +26,21 @@ use std::time::Duration;
 /// almanac's memory daemon (`org.quire.Memory1`).
 #[derive(Debug, Parser)]
 #[command(name = "memoryd", version)]
-struct Args {}
+struct Args {
+    /// Write the settings schema (`almanac.settings.toml`) into this directory and stop.
+    #[arg(long, value_name = "DIR")]
+    write_schema: Option<std::path::PathBuf>,
+}
 
 /// The retention sweep runs this often (and once a minute after the daemon starts).
 const SWEEP_EVERY: Duration = Duration::from_secs(24 * 60 * 60);
 const FIRST_SWEEP: Duration = Duration::from_secs(60);
+
+/// Nightly consolidation (`memory.consolidation.when = "nightly"`) runs this often, the first time
+/// an hour after the daemon starts. The desktop's idle and power state are not asked yet
+/// (FINDINGS), so it is a daily timer, like the sweep.
+const CONSOLIDATE_EVERY: Duration = Duration::from_secs(24 * 60 * 60);
+const FIRST_CONSOLIDATION: Duration = Duration::from_secs(60 * 60);
 
 /// The system's callers file; the user's is next to `memory.toml` and wins.
 const SYSTEM_CALLERS: &str = "/etc/quire/memory-callers.toml";
@@ -64,6 +77,15 @@ async fn run(dirs: Dirs, keys: AnyKeys, proc_root: ProcRoot) -> Result<(), Strin
         InferdConsolidator::new(inferd),
     );
     let service = MemoryService::new(backend, read_rules(&dirs));
+    // The person's settings (`almanac/settings.toml`) now, and whenever the file changes.
+    let mut watched = SettingsWatch::start(
+        Locator::from_env(&|key| std::env::var(key).ok()),
+        MemorySettings::default(),
+    );
+    if let WatchState::Blind { reason } = watched.state() {
+        eprintln!("memoryd: settings are read once, not watched: {reason}");
+    }
+    apply(&service, &watched.current());
     if let Ok(text) = std::fs::read_to_string(dirs.spaces_toml()) {
         let file = spaces_from_toml(&text).map_err(|e| format!("spaces.toml: {e}"))?;
         file.spaces
@@ -83,6 +105,28 @@ async fn run(dirs: Dirs, keys: AnyKeys, proc_root: ProcRoot) -> Result<(), Strin
     daemon.attach(connection);
     let watcher = daemon.clone();
     tokio::spawn(async move { watcher.follow_keyring(changes).await });
+    let following = daemon.clone();
+    tokio::spawn(async move {
+        while apply_next(following.queue().service(), &mut watched)
+            .await
+            .is_some()
+        {}
+    });
+    let consolidator = daemon.clone();
+    tokio::spawn(async move {
+        tokio::time::sleep(FIRST_CONSOLIDATION).await;
+        loop {
+            // The setting is read afresh each night, so turning it off takes effect tonight.
+            if consolidator.queue().service().settings().consolidate == ConsolidateWhen::Nightly {
+                for (space, reply) in consolidator.consolidate_all().await {
+                    if let almanac_core::MemoryReply::Refused(why) = reply {
+                        eprintln!("memoryd: consolidation of {space}: {why:?}");
+                    }
+                }
+            }
+            tokio::time::sleep(CONSOLIDATE_EVERY).await;
+        }
+    });
     let sweeper = daemon.clone();
     tokio::spawn(async move {
         tokio::time::sleep(FIRST_SWEEP).await;
@@ -156,7 +200,19 @@ fn start() -> Result<(), String> {
 }
 
 fn main() -> ExitCode {
-    let Args {} = Args::parse();
+    let Args { write_schema } = Args::parse();
+    if let Some(dir) = write_schema {
+        let written = std::fs::create_dir_all(&dir).and_then(|()| {
+            std::fs::write(dir.join("almanac.settings.toml"), almanac_service::SCHEMA)
+        });
+        return match written {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(why) => {
+                eprintln!("memoryd: {}: {why}", dir.display());
+                ExitCode::from(1)
+            }
+        };
+    }
     // The daemon's one log path is standard error, prefixed with its name.
     match start() {
         Ok(()) => ExitCode::SUCCESS,

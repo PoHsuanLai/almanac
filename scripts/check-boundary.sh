@@ -12,7 +12,7 @@ cd "$(dirname "$0")/.."
 # crates never reach a bus, a runtime, an HTTP client, a keyring, an ONNX runtime or an
 # embedding library. rusqlite is allowed to eventlog, recall and everything above them (it is
 # their storage), but never to almanac-core, almanac-seal or memfiles; notify only to
-# almanac-watch. almanac-seal reaches oo7 only through its `oo7` feature, almanac-client reaches
+# almanac-watch (the Space roots) and memoryd (the directory watch on the person's settings file). almanac-seal reaches oo7 only through its `oo7` feature, almanac-client reaches
 # zbus only through its `dbus` feature and rusqlite and openssl-sys (SQLCipher, vendored OpenSSL)
 # only through its `in_process` feature, and almanac-dbus reaches tokio only through zbus's
 # `tokio` feature. recall-fastembed and memoryd are the places that reach fastembed and the

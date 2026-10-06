@@ -510,3 +510,68 @@ cuad, reads the person's events during the takeover (`Recent`, a `Router` call) 
 - **The lock signal against a real Secret Service** is unproven: gnome-keyring and KWallet differ in
   which object carries `Locked` (the collection is the documented one). Needs a real session.
 
+
+## f4-settings: the settings schema and its reader
+
+The Settings app (detent) builds its Intelligence page from the schema each daemon ships (design/22
+section 9.2). almanac's covers the `memory.*` keys of section 3.28 that memoryd reads, and memoryd
+reads them.
+
+1. **`dist/settings/almanac.settings.toml` has 8 rows**, none `agent = "settable"` (`memory.*` is never
+   agent-settable). **On the Intelligence page** (section 5, Memory): `memory.files.at_rest` (toggle),
+   `memory.consolidation.when` (segmented: nightly, manual, never). **Advanced:** `memory.retention.
+   {search,file_unexplained,session,audit_body,audit_header}_days` (1..=3650) and `memory.pending_ttl_days`
+   (1..=365).
+2. **Left out of the schema, because nothing could read them:**
+   - **`memory.consolidation.apply`** (a page key in section 5). `Review` means "wait for each hunk", and
+     the service applies a run's hunks the moment it drafts them (`RunEffect::ApplyHunks` after `Proceed`);
+     there is no request that applies a proposed run. A row that stops at `Proposed` with no way to proceed
+     would make `review` mean "never apply". **Interface ask (almanac-core, almanac-dbus, almanac-service):**
+     `MemoryRequest::ApplyConsolidation(RunId)` (ShellUi only; codec, `org.quire.Memory1` method, introspection,
+     proxy, auth row, fake), `Open::run_consolidation` under `apply = review` keeps the checked hunks and
+     returns the `DraftView` in `RunState::Proposed`, and the new request runs the `Proceed` step on them. Then
+     add the row (`ConsolidateApply::{Auto,Review}`, words `auto`, `review`) to the schema and to
+     `settings/keys.rs`; the schema test fails until both are there.
+   - **`memory.join_window_ms`** (Advanced). memoryd does not run the file watch yet (`Watcher` is exported,
+     nothing starts it, so `almanac_watch::join` never runs and `JoinWindow::PROPOSED` is used by nobody).
+     Closes when memoryd wires the watch: `JoinWindow(ms)` from this setting, 100..=10000.
+3. **The reader is `almanac_service::settings`** (`read(text, base)`, `Locator`, `MemorySettings`). The file is
+   `$XDG_CONFIG_HOME/almanac/settings.toml` (then `$XDG_CONFIG_DIRS`; the first file that reads wins whole). A
+   value of the wrong type, out of range or not a word of its key falls back **to the base value of that key**
+   (`MemorySettings::default()`, the shipped defaults) and is logged (`memoryd: settings: memory.pending_ttl_days:
+   outside 1..=365; using the previous value`). A file that is not TOML keeps every base value; a key the file
+   stops setting is its base again. Unknown keys (including the two above) are listed and ignored.
+4. **memoryd follows the file live** (`settings_watch.rs`: a `notify` watch on `$XDG_CONFIG_HOME/almanac`, 30 ms
+   debounce, the whole file read again, `MemoryService::apply_settings`). Every request builds its `Cx` from the
+   settings in force, so a change applies to the next request:
+   - retention: `RuleSet::with_retention(&RetentionDays)` lays the person's days over the rules' defaults
+     (`search.*`; `session.*` and `cua.*`; `policy.*`, `consent.*` and `memory.*`) **for the request only**:
+     `service.rules()`, which memoryd writes to `memory.toml`, is still what `SetRule` made it, so the settings
+     never become sticky in `memory.toml`. Unexplained file changes: `admit_with` and `default_retention_with`
+     take the days (the old `admit` and `default_retention` pass the shipped 7). Audit headers:
+     `header_expired_after(days, ..)` (the old `header_expired` passes 365). The `companion.*`, `thing.*` and
+     `file.*` defaults are not settings and are untouched.
+   - `memory.pending_ttl_days`: `age_pending(now, ttl)` compares the fact's age with it. The fact machine's own
+     `Age` arm still says 14 days (its table test stands); the service no longer asks it.
+   - `memory.files.at_rest`: the vault of a Space made **after** the change. A Space that exists keeps the way
+     it was made (its `spaces.toml` entry); design/22 says "per Space", and a per-Space override is not built.
+   - `memory.consolidation.when`: `Never` makes `RunConsolidation` answer `Invalid("consolidation is turned
+     off ...")`; `Manual` is today's behaviour; `Nightly` is a new daily timer in memoryd
+     (`Daemon::consolidate_all`, first run an hour after start, each Space, announced like a requested run),
+     which reads the setting afresh each night. **The nightly run does not ask whether the desktop is idle or
+     on AC power** (`RunEvent::Tick { Idle, Ac }` is not consulted): memoryd has no idle or power source yet.
+     Closes when sill's idle state reaches memoryd.
+5. **The sandbox names the settings directory** (`Policy.read_dirs`, `<config>/almanac`): `prepare` makes it at
+   start and Landlock gives it read rights only, so a settings file the Settings app writes later is covered
+   (a rule can only name a path that exists when it is applied). memoryd never writes it.
+6. **`memoryd --write-schema DIR`** writes `almanac.settings.toml` for a local install. `notify` is now a
+   dependency of memoryd as well as almanac-watch (`scripts/check-boundary.sh` comment updated); the watch
+   code has the same shape as docket's intentd and cua's cuad (`SettingsWatch`): one shared crate replaces the
+   three copies when porter has a place for it.
+7. **Tests.** The schema is held structurally to the key table (ranges, words, on-page rows, no `agent` mark) and
+   parses with the Settings app's loader (`ds_settings::Schema::from_toml`, run by hand from a scratch
+   project: a dev-dependency on ds-settings would unify zbus's executor features); every schema key is read
+   (table test), every key has a bad-value fallback case; `almanac-fake/tests/settings.rs` changes the
+   settings under a serving service (pending ttl, new Space vault, sweep retention, `when`);
+   `almanac-core/tests/retention_days.rs`; `memoryd/tests/settings.rs` changes the file under a running
+   service and waits on the watch's own event.
