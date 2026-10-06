@@ -175,6 +175,7 @@ pub fn requests() -> Vec<MemoryRequest> {
             trust: TrustFilter::TrustedOnly,
         }),
         MemoryRequest::Sweep(w.clone()),
+        MemoryRequest::ApplyConsolidation(RunId::parse("run-1").expect("run")),
         MemoryRequest::Recent(
             w,
             RecentQuery {

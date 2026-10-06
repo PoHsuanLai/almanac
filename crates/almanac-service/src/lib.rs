@@ -22,6 +22,7 @@ mod export;
 pub mod fact;
 mod facts;
 pub mod forget;
+mod grounds;
 mod hunks;
 mod marks;
 mod open;
@@ -59,8 +60,8 @@ pub use hunks::tidy_is_acceptable;
 pub use retention::{SourceState, Sweep, header_expired, header_expired_after, sweep_body};
 pub use service::{MemoryService, SpaceRuntime};
 pub use settings::{
-    ConsolidateWhen, Fallback, Loaded, Locator, MemorySettings, SCHEMA, SETTINGS_FILE, Why,
-    read as read_settings,
+    ConsolidateApply, ConsolidateWhen, Fallback, Loaded, Locator, MemorySettings, SCHEMA,
+    SETTINGS_FILE, Why, read as read_settings,
 };
 pub use space::{BUFFER_LIMIT, SpaceEffect, SpaceEvent};
 pub use timeline::timeline_entry;

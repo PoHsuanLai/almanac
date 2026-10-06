@@ -137,6 +137,7 @@ pub fn allowed(caller: &Caller, request: &MemoryRequest) -> Allowed {
         | R::Consolidation(_)
         | R::RunConsolidation(_)
         | R::Revert(_)
+        | R::ApplyConsolidation(_)
         | R::Rules
         | R::SetRule(_)
         | R::RemoveRule(_)

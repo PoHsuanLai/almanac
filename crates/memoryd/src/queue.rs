@@ -46,6 +46,7 @@ pub fn claim_of(request: &MemoryRequest) -> Claim {
         R::Forget(_)
         | R::Settle(..)
         | R::Revert(_)
+        | R::ApplyConsolidation(_)
         | R::SetRule(_)
         | R::RemoveRule(_)
         | R::Export(_) => Claim::Everything,

@@ -517,21 +517,13 @@ The Settings app (detent) builds its Intelligence page from the schema each daem
 section 9.2). almanac's covers the `memory.*` keys of section 3.28 that memoryd reads, and memoryd
 reads them.
 
-1. **`dist/settings/almanac.settings.toml` has 8 rows**, none `agent = "settable"` (`memory.*` is never
+1. **`dist/settings/almanac.settings.toml` has 9 rows**, none `agent = "settable"` (`memory.*` is never
    agent-settable). **On the Intelligence page** (section 5, Memory): `memory.files.at_rest` (toggle),
-   `memory.consolidation.when` (segmented: nightly, manual, never). **Advanced:** `memory.retention.
+   `memory.consolidation.when` (segmented: nightly, manual, never), `memory.consolidation.apply` (toggle: auto, review). **Advanced:** `memory.retention.
    {search,file_unexplained,session,audit_body,audit_header}_days` (1..=3650) and `memory.pending_ttl_days`
    (1..=365).
-2. **Left out of the schema, because nothing could read them:**
-   - **`memory.consolidation.apply`** (a page key in section 5). `Review` means "wait for each hunk", and
-     the service applies a run's hunks the moment it drafts them (`RunEffect::ApplyHunks` after `Proceed`);
-     there is no request that applies a proposed run. A row that stops at `Proposed` with no way to proceed
-     would make `review` mean "never apply". **Interface ask (almanac-core, almanac-dbus, almanac-service):**
-     `MemoryRequest::ApplyConsolidation(RunId)` (ShellUi only; codec, `org.quire.Memory1` method, introspection,
-     proxy, auth row, fake), `Open::run_consolidation` under `apply = review` keeps the checked hunks and
-     returns the `DraftView` in `RunState::Proposed`, and the new request runs the `Proceed` step on them. Then
-     add the row (`ConsolidateApply::{Auto,Review}`, words `auto`, `review`) to the schema and to
-     `settings/keys.rs`; the schema test fails until both are there.
+2. **Left out of the schema, because nothing could read it:**
+   - ~~`memory.consolidation.apply`~~ is built (see "consolidate-apply" below).
    - **`memory.join_window_ms`** (Advanced). memoryd does not run the file watch yet (`Watcher` is exported,
      nothing starts it, so `almanac_watch::join` never runs and `JoinWindow::PROPOSED` is used by nobody).
      Closes when memoryd wires the watch: `JoinWindow(ms)` from this setting, 100..=10000.
@@ -540,7 +532,7 @@ reads them.
    value of the wrong type, out of range or not a word of its key falls back **to the base value of that key**
    (`MemorySettings::default()`, the shipped defaults) and is logged (`memoryd: settings: memory.pending_ttl_days:
    outside 1..=365; using the previous value`). A file that is not TOML keeps every base value; a key the file
-   stops setting is its base again. Unknown keys (including the two above) are listed and ignored.
+   stops setting is its base again. Unknown keys (including `memory.join_window_ms`) are listed and ignored.
 4. **memoryd follows the file live** (`settings_watch.rs`: a `notify` watch on `$XDG_CONFIG_HOME/almanac`, 30 ms
    debounce, the whole file read again, `MemoryService::apply_settings`). Every request builds its `Cx` from the
    settings in force, so a change applies to the next request:
@@ -575,3 +567,35 @@ reads them.
    settings under a serving service (pending ttl, new Space vault, sweep retention, `when`);
    `almanac-core/tests/retention_days.rs`; `memoryd/tests/settings.rs` changes the file under a running
    service and waits on the watch's own event.
+
+
+## consolidate-apply: applying a proposed consolidation run
+
+Todo table (this lane): `todo!()` bodies 0 before, 0 after. The apply step itself (every hunk kind,
+pre-images, `Revert`) was built in Me4; what was open was the review path, the interface ask of
+f4-settings item 2. Closed here.
+
+| Item | State |
+|---|---|
+| `MemoryRequest::ApplyConsolidation(RunId)` (ShellUi only; codec, `org.quire.Memory1.ApplyConsolidation(run)`, introspection XML, proxy, serve, invoke, auth row, queue claim `Everything`) | done |
+| `memory.consolidation.apply` (`ConsolidateApply::{Auto,Review}`, words `auto`, `review`; schema row on the Intelligence page, key table, `MemorySettings.apply`) | done |
+| `Open::run_consolidation` under `Review` keeps the checked hunks, applies nothing, leaves the run `Proposed` and the cut where it was | done |
+| `Open::apply_consolidation` runs the machine's `Proceed` step (`ApplyHunks`, `LogConsolidated`) over the kept hunks | done |
+| `Grounds` (pure): a Promote or Supersede whose cited event (body present), cited fact or replaced active fact is gone is skipped | done |
+| A `Proposed` run survives a restart | open: `LastRun` is in memory, so a restart drops the proposal (nothing was applied; the next run drafts again) |
+| `ConsolidationReady` on apply | open: the apply request names only a run, so memoryd has no Space for the signal; the signal fires when the run is proposed |
+
+Behaviour: under `Review` a run stops at `Proposed` (its `DraftView` is readable with `Consolidation`
+and `ConsolidationReady` fires, as for any run). `ApplyConsolidation(run)` applies only the last run
+and only while it is `Proposed` (else `Invalid`); each hunk is checked again against the Space as it is
+then (Tidy and ExternalEdit already compare `before`; Promote and Supersede through `Grounds`), so a
+proposal cannot bring back what was forgotten in between. The result is an ordinary applied run, so
+`Revert` works exactly as in auto mode. Nothing is deleted at any point: a draft never removes a
+fact, a supersede only changes the derived state (the old fact stays in its file), and `Revert` is
+refused for a run that was only proposed. A newer run replaces an unapplied proposal (the old one
+changed nothing).
+
+Owner questions: (1) should a proposal be discardable (a `DiscardConsolidation`, or `Revert` of a
+`Proposed` run)? Today it is refused and a newer run replaces it. (2) Persist `Proposed` runs to
+`consolidation/<run>.toml` (the spec's place) so a restart keeps them? (3) Hunks skipped at apply are
+still listed in the applied view; should the view list only what was applied?

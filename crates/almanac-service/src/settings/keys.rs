@@ -1,7 +1,7 @@
 //! The key table: every `memory.*` key of the schema (`dist/settings/almanac.settings.toml`), its
 //! rule and where its value goes. The tests hold the schema and this table to each other.
 
-use super::{ConsolidateWhen, MemorySettings};
+use super::{ConsolidateApply, ConsolidateWhen, MemorySettings};
 use almanac_core::{DayCount, VaultKind};
 use std::ops::RangeInclusive;
 
@@ -45,6 +45,8 @@ const WHEN: [ConsolidateWhen; 3] = [
     ConsolidateWhen::Never,
 ];
 
+const APPLY: [ConsolidateApply; 2] = [ConsolidateApply::Auto, ConsolidateApply::Review];
+
 /// Every key, in the order the schema lists them.
 pub(crate) fn table() -> Vec<Key> {
     vec![
@@ -60,6 +62,13 @@ pub(crate) fn table() -> Vec<Key> {
             rule: Rule::Word {
                 words: &["nightly", "manual", "never"],
                 set: |s, i| s.consolidate = WHEN[i],
+            },
+        },
+        Key {
+            path: "memory.consolidation.apply",
+            rule: Rule::Word {
+                words: &["auto", "review"],
+                set: |s, i| s.apply = APPLY[i],
             },
         },
         num("memory.retention.search_days", 1..=3650, |s, v| {

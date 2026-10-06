@@ -88,6 +88,9 @@ pub enum MemoryRequest {
     RunConsolidation(SpaceId),
     /// Revert a consolidation run.
     Revert(RunId),
+    /// Apply a proposed consolidation run (`memory.consolidation.apply = review` stops a run at
+    /// `Proposed`; this is the person's go-ahead).
+    ApplyConsolidation(RunId),
     /// List rules.
     Rules,
     /// Add or replace a rule.
@@ -140,6 +143,7 @@ impl MemoryRequest {
             | MemoryRequest::Forget(_)
             | MemoryRequest::Settle(..)
             | MemoryRequest::Revert(_)
+            | MemoryRequest::ApplyConsolidation(_)
             | MemoryRequest::Rules
             | MemoryRequest::SetRule(_)
             | MemoryRequest::RemoveRule(_)

@@ -39,7 +39,7 @@ pub fn decode_reply(call: &Call, outputs: &[String]) -> Result<MemoryReply, Code
             _ => Err(CodecError::Shape),
         },
         "ExplainFile" | "Mark" | "Settle" | "RunConsolidation" | "Revert" | "SetRule"
-        | "RemoveRule" | "Pause" | "Resume" | "Rebuild" => {
+        | "ApplyConsolidation" | "RemoveRule" | "Pause" | "Resume" | "Rebuild" => {
             outputs.is_empty().then_some(R::Ok).ok_or(CodecError::Shape)
         }
         "Search" | "Inject" => one_json(outputs).map(R::Hits),
@@ -94,7 +94,7 @@ pub fn encode_reply(call: &Call, reply: &MemoryReply) -> Result<Vec<String>, Mem
             R::Ok,
         ) => nothing,
         // The draft of a run is read with `Consolidation`; the member itself returns nothing.
-        ("RunConsolidation", R::Ok | R::Consolidation(_)) => nothing,
+        ("RunConsolidation" | "ApplyConsolidation", R::Ok | R::Consolidation(_)) => nothing,
         ("Search" | "Inject", R::Hits(v)) => single(v),
         ("Facts", R::Facts(v)) => single(v),
         ("Recent", R::Recent(v)) => single(v),

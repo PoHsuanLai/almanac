@@ -34,6 +34,15 @@ pub enum ConsolidateWhen {
     Never,
 }
 
+/// `memory.consolidation.apply`: whether a drafted run is applied at once.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ConsolidateApply {
+    /// The service applies a run's hunks the moment it has drafted and checked them (revertible).
+    Auto,
+    /// A run stops at `Proposed`; nothing changes until the person sends `ApplyConsolidation`.
+    Review,
+}
+
 /// Every value of the file, typed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MemorySettings {
@@ -46,6 +55,8 @@ pub struct MemorySettings {
     pub pending_ttl: DayCount,
     /// `memory.consolidation.when`.
     pub consolidate: ConsolidateWhen,
+    /// `memory.consolidation.apply`.
+    pub apply: ConsolidateApply,
 }
 
 impl Default for MemorySettings {
@@ -55,6 +66,7 @@ impl Default for MemorySettings {
             retention: RetentionDays::default(),
             pending_ttl: almanac_core::PENDING_TTL_DAYS,
             consolidate: ConsolidateWhen::Nightly,
+            apply: ConsolidateApply::Auto,
         }
     }
 }

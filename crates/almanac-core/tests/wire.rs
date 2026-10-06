@@ -39,6 +39,7 @@ fn request_index(r: &MemoryRequest) -> usize {
         MemoryRequest::Inject(_) => 28,
         MemoryRequest::Recent(..) => 29,
         MemoryRequest::Sweep(_) => 30,
+        MemoryRequest::ApplyConsolidation(_) => 31,
     }
 }
 
@@ -49,7 +50,7 @@ fn wire_round_trip_every_request() {
     let covered: std::collections::BTreeSet<usize> = all.iter().map(request_index).collect();
     assert_eq!(
         covered,
-        (0..=30).collect(),
+        (0..=31).collect(),
         "a request variant has no sample"
     );
 }
@@ -95,7 +96,7 @@ fn requests_name_their_space() {
         let named = request.space().is_some();
         let by_index = !matches!(
             request_index(&request),
-            1 | 10 | 14 | 16 | 19 | 20 | 21 | 22 | 27
+            1 | 10 | 14 | 16 | 19 | 20 | 21 | 22 | 27 | 31
         );
         assert_eq!(named, by_index, "{request:?}");
     }

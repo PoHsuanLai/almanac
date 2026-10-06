@@ -51,7 +51,11 @@ pub(crate) struct LastRun {
     pub pre_images: Vec<crate::hunks::PreImage>,
     /// Topics whose facts the run reworded.
     pub topics: Vec<TopicPath>,
+    /// Where the next run starts reading: the log head once the run is applied, the previous
+    /// cut while it is only proposed.
     pub cut: Seq,
+    /// The log head the run read up to.
+    pub head: Seq,
 }
 
 /// A Space the service has open.

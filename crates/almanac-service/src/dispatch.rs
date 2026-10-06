@@ -115,6 +115,19 @@ impl<B: Backend> MemoryService<B> {
                 open.accept_topics()?;
                 Ok(MemoryReply::Ok)
             }
+            R::ApplyConsolidation(run) => {
+                let id = self
+                    .space_of_run(&run)
+                    .ok_or_else(|| failed("no such run"))?;
+                let mut lease = self.checkout(caller, &id).await?;
+                let cx = self.cx(caller);
+                let open = lease.open().ok_or(Refusal::Busy)?;
+                open.guard_topics()?;
+                let view = open.apply_consolidation(&cx, &run).await?;
+                open.accept_topics()?;
+                self.raise_all(open.outbox.drain(..));
+                Ok(MemoryReply::Consolidation(view))
+            }
             other => self.in_space(caller, other).await,
         }
     }

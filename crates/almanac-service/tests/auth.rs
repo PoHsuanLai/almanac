@@ -279,6 +279,7 @@ fn control_is_the_shells_alone() {
         MemoryRequest::Consolidation(w.clone()),
         MemoryRequest::RunConsolidation(w.clone()),
         MemoryRequest::Revert(RunId::parse("run-1").expect("r")),
+        MemoryRequest::ApplyConsolidation(RunId::parse("run-1").expect("r")),
         MemoryRequest::Rules,
         MemoryRequest::RemoveRule(RuleId::parse("r-1").expect("r")),
         MemoryRequest::Pause(w.clone(), NOW),

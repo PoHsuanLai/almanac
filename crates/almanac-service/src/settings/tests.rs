@@ -135,7 +135,14 @@ fn the_intelligence_page_shows_memory_and_the_retention_rows_are_advanced() {
         .filter(|r| r["exposure"].as_str() == Some("basic"))
         .map(|r| path(r).to_owned())
         .collect();
-    assert_eq!(shown, ["memory.files.at_rest", "memory.consolidation.when"]);
+    assert_eq!(
+        shown,
+        [
+            "memory.files.at_rest",
+            "memory.consolidation.when",
+            "memory.consolidation.apply"
+        ]
+    );
 }
 
 #[test]
@@ -212,6 +219,10 @@ fn each_key_lands_in_the_typed_value_the_design_names() {
     assert_eq!(
         read_one("memory.files.at_rest", word("plain")).at_rest,
         VaultKind::Plain
+    );
+    assert_eq!(
+        read_one("memory.consolidation.apply", word("review")).apply,
+        ConsolidateApply::Review
     );
     assert_eq!(
         read_one("memory.consolidation.when", word("never")).consolidate,
@@ -312,10 +323,8 @@ fn unknown_keys_are_reported_and_the_unread_ones_are_among_them() {
         MemorySettings::default(),
     );
     assert_eq!(loaded.value.consolidate, ConsolidateWhen::Manual);
-    assert_eq!(
-        loaded.unknown,
-        ["memory.consolidation.apply", "memory.join_window_ms"]
-    );
+    assert_eq!(loaded.value.apply, ConsolidateApply::Review);
+    assert_eq!(loaded.unknown, ["memory.join_window_ms"]);
 }
 
 #[test]

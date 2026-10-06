@@ -5,9 +5,7 @@
 # is hands-off for an agent (no `agent = "settable"`): memory.* is never agent-settable, so the
 # companion can never loosen what memory keeps or how it is held. The rows design/22 section 5 puts
 # on the Intelligence page are Memory's; the retention rows are Advanced. Not here, because nothing
-# reads them yet: `memory.consolidation.apply` (applying a proposed run needs a request on
-# org.quire.Memory1 that does not exist) and `memory.join_window_ms` (memoryd does not run the file
-# watch yet). See FINDINGS.
+# reads it yet: `memory.join_window_ms` (memoryd does not run the file watch yet). See FINDINGS.
 app = "almanac"
 file = "almanac/settings.toml"
 version = 1
@@ -54,6 +52,27 @@ kind = "intelligence"
 nightly = "Nightly"
 manual = "Only when I ask"
 never = "Never"
+
+[[key]]
+path = "memory.consolidation.apply"
+default = "auto"
+label = "Apply tidy-ups"
+help = "Auto applies each run's changes as soon as they are drafted, keeping what is needed to revert them. Review stops a run at its proposal; nothing changes until you apply it."
+section = "Memory"
+exposure = "basic"
+
+[key.kind]
+kind = "toggle"
+
+[key.kind.v]
+variants = ["auto", "review"]
+
+[key.page]
+kind = "intelligence"
+
+[key.labels]
+auto = "Automatically"
+review = "After I review"
 
 [[key]]
 path = "memory.retention.search_days"

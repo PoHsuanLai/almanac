@@ -9,9 +9,10 @@ use crate::consolidation::{
 };
 use crate::docs::{fact_doc, fact_doc_id};
 use crate::facts::lands_for;
+use crate::grounds::Grounds;
 use crate::hunks::PreImage;
 use crate::open::{Cx, LastRun, Open, failed, files_refusal};
-use crate::settings::ConsolidateWhen;
+use crate::settings::{ConsolidateApply, ConsolidateWhen};
 use almanac_core::{
     DraftView, Fact, FactId, FactState, Hunk, Lands, MemoryOp, Refusal, RunId, RunState, Seq,
     TopicPath, hex_of,
@@ -98,27 +99,15 @@ impl<B: Backend> Open<B> {
         state = step(state, RunEvent::DraftOk).0;
         let checked = check_draft(&input, draft);
         state = step(state, RunEvent::ChecksDone).0;
-        let (state, effects) = step(state, RunEvent::Proceed);
-        let mut applied = Applied::default();
-        for effect in effects {
-            match effect {
-                RunEffect::ApplyHunks => {
-                    for hunk in &checked.kept {
-                        self.apply_hunk(cx, &run, hunk, &mut applied).await?;
-                    }
-                }
-                RunEffect::LogConsolidated => {
-                    self.audit(
-                        now,
-                        MemoryOp::Consolidated {
-                            run: run.clone(),
-                            hunks: almanac_core::Count(applied.hunks),
-                        },
-                    )?;
-                }
-                _ => {}
+        let (state, applied, cut) = match cx.settings.apply {
+            ConsolidateApply::Auto => {
+                let (state, applied) = self.proceed(cx, &run, &checked.kept).await?;
+                (state, applied, head)
             }
-        }
+            // The proposal waits: nothing is applied, and the cut stays where it was so the
+            // next run (or the apply) still sees the events this one read.
+            ConsolidateApply::Review => (state, Applied::default(), cut),
+        };
         let view = DraftView {
             run: run.clone(),
             hunks: checked.kept,
@@ -132,9 +121,71 @@ impl<B: Backend> Open<B> {
             superseded: applied.superseded,
             pre_images: applied.pre_images,
             topics: applied.topics,
-            cut: head,
+            cut,
+            head,
         });
         Ok(view)
+    }
+
+    /// The person's go-ahead for a proposed run (`memory.consolidation.apply = review`): runs
+    /// the machine's `Proceed` step over the hunks the proposal kept, each checked again against
+    /// what the Space holds now. The run must be the last one and still `Proposed`.
+    pub(crate) async fn apply_consolidation(
+        &mut self,
+        cx: &Cx<'_, B>,
+        run: &RunId,
+    ) -> Result<DraftView, Refusal> {
+        let last = match self.last.as_ref() {
+            Some(l) if &l.run == run && l.view.state == RunState::Proposed => l.clone(),
+            Some(l) if &l.run == run => return Err(failed("the run is not waiting to be applied")),
+            _ => return Err(failed("no such run")),
+        };
+        let (state, applied) = self.proceed(cx, run, &last.view.hunks).await?;
+        let view = DraftView { state, ..last.view };
+        self.run = state;
+        self.last = Some(LastRun {
+            run: run.clone(),
+            view: view.clone(),
+            added: applied.added,
+            superseded: applied.superseded,
+            pre_images: applied.pre_images,
+            topics: applied.topics,
+            cut: last.head,
+            head: last.head,
+        });
+        Ok(view)
+    }
+
+    /// The machine's `Proceed` step: applies `hunks`, then logs the run.
+    async fn proceed(
+        &mut self,
+        cx: &Cx<'_, B>,
+        run: &RunId,
+        hunks: &[Hunk],
+    ) -> Result<(RunState, Applied), Refusal> {
+        let (state, effects) = step(RunState::Proposed, RunEvent::Proceed);
+        let mut applied = Applied::default();
+        for effect in effects {
+            match effect {
+                RunEffect::ApplyHunks => {
+                    let grounds = self.grounds()?;
+                    for hunk in hunks.iter().filter(|h| grounds.holds(h)) {
+                        self.apply_hunk(cx, run, hunk, &mut applied).await?;
+                    }
+                }
+                RunEffect::LogConsolidated => {
+                    self.audit(
+                        cx.now(),
+                        MemoryOp::Consolidated {
+                            run: run.clone(),
+                            hunks: almanac_core::Count(applied.hunks),
+                        },
+                    )?;
+                }
+                _ => {}
+            }
+        }
+        Ok((state, applied))
     }
 
     async fn apply_hunk(
@@ -202,6 +253,25 @@ impl<B: Backend> Open<B> {
         Ok(())
     }
 
+    /// What the Space holds now, for the check that a proposed hunk still stands.
+    fn grounds(&self) -> Result<Grounds, Refusal> {
+        let stored = self.stored()?;
+        Ok(Grounds {
+            events: self
+                .entries()?
+                .iter()
+                .filter(|e| matches!(e.body, BodyState::Present(_)))
+                .map(|e| self.event_ref(e))
+                .collect(),
+            active: stored
+                .iter()
+                .filter(|s| s.state == FactState::Active)
+                .map(|s| s.fact.id.clone())
+                .collect(),
+            known: stored.iter().map(|s| s.fact.id.clone()).collect(),
+        })
+    }
+
     /// Indexes the active facts of one topic again.
     pub(crate) async fn reindex_topic(
         &mut self,
@@ -224,6 +294,9 @@ impl<B: Backend> Open<B> {
         let Some(last) = self.last.clone().filter(|l| &l.run == run) else {
             return Err(failed("no such run"));
         };
+        if last.view.state != RunState::Applied {
+            return Err(failed("the run was not applied"));
+        }
         self.restore(&last.pre_images)?;
         self.rt
             .store
