@@ -13,6 +13,7 @@ use crate::facts::lands_for;
 use crate::grounds::Grounds;
 use crate::hunks::PreImage;
 use crate::open::{Cx, LastRun, Open, failed, files_refusal};
+use crate::revert_guard::{self, RevertGuard};
 use crate::settings::{ConsolidateApply, ConsolidateWhen};
 use almanac_core::{
     DraftView, Fact, FactId, FactState, Hunk, Lands, MemoryOp, Refusal, RunId, RunState, Seq,
@@ -128,6 +129,7 @@ impl<B: Backend> Open<B> {
             added: applied.added,
             superseded: applied.superseded,
             pre_images: applied.pre_images,
+            revert: RevertGuard::default(),
             topics: applied.topics,
             cut,
             head,
@@ -167,6 +169,7 @@ impl<B: Backend> Open<B> {
             added: applied.added,
             superseded: applied.superseded,
             pre_images: applied.pre_images,
+            revert: RevertGuard::default(),
             topics: applied.topics,
             cut: last.head,
             head: last.head,
@@ -335,6 +338,9 @@ impl<B: Backend> Open<B> {
         };
         if last.view.state != RunState::Applied {
             return Err(failed("the run was not applied"));
+        }
+        if last.revert == RevertGuard::Forgotten {
+            return Err(failed(revert_guard::REFUSED));
         }
         self.restore(&last.pre_images)?;
         self.rt

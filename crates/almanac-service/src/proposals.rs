@@ -69,6 +69,7 @@ impl<B: Backend> Open<B> {
             added: vec![],
             superseded: vec![],
             pre_images: vec![],
+            revert: crate::revert_guard::RevertGuard::default(),
             topics: vec![],
             cut: newest.cut,
             head: newest.head,
@@ -128,6 +129,13 @@ impl<B: Backend> Open<B> {
             last.view
                 .skipped
                 .retain(|s| !runfile::must_go(&s.hunk, gone));
+            let (guard, pre_images) = crate::revert_guard::after_forget(
+                last.revert,
+                std::mem::take(&mut last.pre_images),
+                gone,
+            );
+            last.revert = guard;
+            last.pre_images = pre_images;
         }
         Ok(())
     }

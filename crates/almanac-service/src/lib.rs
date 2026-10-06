@@ -29,6 +29,7 @@ mod open;
 mod proposals;
 mod record;
 mod retention;
+mod revert_guard;
 mod run;
 mod runfile;
 mod search;

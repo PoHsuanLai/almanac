@@ -49,6 +49,8 @@ pub(crate) struct LastRun {
     pub superseded: Vec<FactId>,
     /// Files the run rewrote, as they were.
     pub pre_images: Vec<crate::hunks::PreImage>,
+    /// Whether `Revert` may still use them (a forget closes it).
+    pub revert: crate::revert_guard::RevertGuard,
     /// Topics whose facts the run reworded.
     pub topics: Vec<TopicPath>,
     /// Where the next run starts reading: the log head once the run is applied, the previous

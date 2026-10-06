@@ -648,7 +648,27 @@ The owner's four answers to the "consolidate-apply" questions, built. `todo!()` 
    ExternalEdit hunk, because they hold whole topic text) and adds the count to `erased`. The record
    stays; the text goes.
 
-Open: (a) in-memory `pre_images` of the last applied run still hold topic files as they were, so a
-`Revert` after a forget can put forgotten text back (as before this lane); (b) after a restart the
+Open: (a) closed in "forget-revert" below; (b) after a restart the
 log cut is `Seq(0)` again for the first run unless a proposal is loaded (as before); (c) hunks the
 checks dropped before the proposal (`check_draft`) are not recorded anywhere.
+
+
+## forget-revert: forget wins over Revert
+
+Closes open question (a) of "proposal-file". `todo!()` bodies 0 before, 0 after.
+
+The last applied run keeps whole topic files as they were (`LastRun.pre_images`) so `Revert` can
+restore them; a forget could therefore have been undone by a revert. The rule (`revert_guard.rs`,
+pure), the simplest that is obviously safe: any forget that erases anything (facts or event bodies)
+while the run's pre-images are held drops **all** of them and sets `LastRun.revert` to
+`RevertGuard::Forgotten`. `Revert` of that run is then refused with `Refusal::Invalid("a memory this
+run touched was forgotten since")`; nothing is partially restored, and the run stays `Applied`. No
+text is matched, so a forgotten event whose text lives only in a pre-image is covered too. A
+`Revert` with no forget in between works as before.
+
+Wire: none. The refusal is the existing `Invalid(String)`; a shell may match that reason text to
+say so. The same forget already scrubbed the served `DraftView` and the run files (`must_go`); the
+`LastRun` held nothing else with text (`added` and `superseded` are ids). Tests:
+`almanac-fake/tests/forget_revert.rs` (six).
+
+The earlier gap (a forgotten event whose text lives only in a pre-image) is closed by the rule above.
