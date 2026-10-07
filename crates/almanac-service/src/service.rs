@@ -297,15 +297,15 @@ impl<B: Backend> MemoryService<B> {
         let log = self
             .backend
             .open_log(id, meta.replica, &key)
-            .map_err(crate::open::failed)?;
+            .map_err(crate::open::backend_refusal)?;
         let files = self
             .backend
             .open_files(&meta, &key)
-            .map_err(crate::open::failed)?;
+            .map_err(crate::open::backend_refusal)?;
         let index = self
             .backend
             .open_index(id, &key)
-            .map_err(crate::open::failed)?;
+            .map_err(crate::open::backend_refusal)?;
         let store = Store::new(files, id.clone(), jiff::tz::TimeZone::UTC);
         let marks = crate::marks::load(store.vault());
         let baseline = crate::baseline::Baseline::load(store.vault());

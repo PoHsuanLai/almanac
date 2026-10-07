@@ -699,10 +699,12 @@ What an app must provide:
   (`spaces.toml`, each Space's `events.db` and sealed files), `cache/quire/memory/<space>/index.db` (rebuildable).
 - **A master key**: `ProvidedKeys::new(SpaceKey)`, 32 bytes from its own sign-in or keychain, the same on every
   run. A different one is not an error at open: the first request on a Space answers `Refusal::SpaceLocked`
-  (`LogError::Locked` underneath; a sealed file read is `VaultError::Sealed`). `ProvidedKeys` persists nothing, so
+  (`LogError::Locked` underneath, mapped by the service's `backend_refusal` as is a locked key store; a sealed file read is `VaultError::Sealed`). `ProvidedKeys` persists nothing, so
   erasing a Space for good is the app discarding the key it provided (`destroy` bars it only for this process).
-- **A clock** (`almanac_service::Clock`): the crate ships none, by the rule that only a daemon reads the
-  system clock; the app implements it with one `SystemTime::now` (interface ask).
+- **A clock** (`almanac_service::Clock`): `almanac_local::WallClock` (one `SystemTime::now`) is the ready-made
+  one; `LocalBackend` takes the clock as a parameter, so tests pass a stepped one and only `WallClock`'s own
+  smoke test reads the time. It lives here, not in `almanac-service`, which stays free of ambient reads
+  (`almanac-local` already reads OS randomness for ids); memoryd keeps its own `SystemClock`.
 - **Optionally an embedder** (`with_embedder`; a generic parameter, not a trait object, because `Embedder`
   returns `impl Future`). The default `NoEmbedder` always answers `Unavailable`, so the index stays lexical-only
   (FTS5 keyword search) and the exact scan has nothing to scan. The embedder's card names the vector space; a
@@ -718,3 +720,7 @@ the Spaces in that file at every start, as memoryd does. The rule set is the app
 its own), and it keeps it: there is no `memory.toml`. Settings reach the service by `apply_settings`.
 Cross-target: the crate depends on SQLCipher with vendored OpenSSL, so only a macOS or Windows runner can
 check it (the same note as `eventlog`; `check-portable.sh` reports it).
+
+Closed asks (almanac-local follow-ups): a locked log or key store opening a Space is `Refusal::SpaceLocked`
+(it was `Invalid("event log: the event log is locked")`; the wire text changes only for that case, the
+`SpaceLocked` error name already exists in memoryd's codec), and the portable `WallClock`.

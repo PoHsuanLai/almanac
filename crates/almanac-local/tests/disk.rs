@@ -96,15 +96,12 @@ async fn a_wrong_master_key_is_refused_as_locked_not_garbled() {
     drop(service);
 
     let wrong = common::service(dir.path(), 8, nothing());
-    // The service maps `BackendError::Log(LogError::Locked)` to `Refusal::Invalid("event log: the
-    // event log is locked")`, not `SpaceLocked` (an interface ask); the typed error is asserted
-    // at the backend seam in `sealed.rs`.
     for refused in [
         shell(&wrong).search(query("budget")).await.map(drop),
         shell(&wrong).facts(all_facts()).await.map(drop),
     ] {
         assert!(
-            matches!(&refused, Err(ClientError::Refused(Refusal::Invalid(why))) if why.contains("locked")),
+            matches!(&refused, Err(ClientError::Refused(Refusal::SpaceLocked))),
             "{refused:?}"
         );
     }

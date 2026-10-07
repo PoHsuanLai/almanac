@@ -2,7 +2,7 @@
 //! needs (the digest subkey, the last verification, why bodies are gone, the last consolidation),
 //! and the helpers every request shares: appending, auditing, the fact snapshot, the index.
 
-use crate::backend::Backend;
+use crate::backend::{Backend, BackendError};
 use crate::clock::Clock;
 use crate::docs::{event_ref, fact_doc, indexed_docs, newest_episodes};
 use crate::forget::{FactGraph, FactNode};
@@ -12,7 +12,7 @@ use almanac_core::{
     Link, MemoryOp, Record, Refusal, RuleSet, RunId, RunState, Seq, SpaceId, SystemPart, TopicPath,
     UnixSeconds,
 };
-use almanac_seal::SubKey;
+use almanac_seal::{KeyError, SubKey};
 use eventlog::{BodyState, Entry, LogError, LogRead, LogWrite, NewHeader};
 use memfiles::{Block, MemfilesError, Vault, VaultPath};
 use recall::{Doc, DocId};
@@ -94,6 +94,17 @@ pub(crate) fn failed(e: impl std::fmt::Display) -> Refusal {
 pub(crate) fn log_refusal(e: LogError) -> Refusal {
     match e {
         LogError::Locked => Refusal::SpaceLocked,
+        other => failed(other),
+    }
+}
+
+/// A Space whose stores would not open: a key the store will not give, or one that does not
+/// open the log, is a locked Space (the person fixes the key); the rest is a failure.
+pub(crate) fn backend_refusal(e: BackendError) -> Refusal {
+    match e {
+        BackendError::Keys(KeyError::Locked) => Refusal::SpaceLocked,
+        BackendError::Keys(_) => Refusal::Busy,
+        BackendError::Log(e) => log_refusal(e),
         other => failed(other),
     }
 }
