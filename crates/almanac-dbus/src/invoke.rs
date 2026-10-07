@@ -25,6 +25,7 @@ pub async fn invoke(
             let p = RecordProxy::new(connection).await?;
             match member {
                 "Record" => Ok(vec![p.record(a.text()?, a.text()?).await?]),
+                "RecordDurable" => Ok(vec![p.record_durable(a.text()?, a.text()?).await?]),
                 "RecordBatch" => {
                     let (first, count) = p.record_batch(a.text()?, a.text()?).await?;
                     Ok(vec![first, count.to_string()])
@@ -45,6 +46,7 @@ pub async fn invoke(
                 "Facts" => Ok(vec![p.facts(a.text()?, a.text()?).await?]),
                 "Inject" => Ok(vec![p.inject(a.text()?, a.text()?).await?]),
                 "Recent" => Ok(vec![p.recent(a.text()?, a.text()?).await?]),
+                "Entries" => Ok(vec![p.entries(a.text()?, a.text()?).await?]),
                 "Related" => Ok(vec![p.related(a.text()?, a.text()?).await?]),
                 "Provenance" => Ok(vec![p.provenance(a.text()?, a.text()?).await?]),
                 "Primer" => Ok(vec![p.primer(a.text()?).await?]),

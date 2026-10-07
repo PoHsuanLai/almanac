@@ -7,7 +7,7 @@ mod common;
 use almanac_client::{ClientError, DbusTransport, Memory, Recorded, Transport, TransportError};
 use almanac_core::*;
 use almanac_dbus::{ControlProxy, MEMORY_BUS};
-use almanac_fake::{mail, mail_thread_archived, thing};
+use almanac_fake::{mail, mail_thread_archived, session_entry, session_thing, thing};
 use common::bus::PrivateBus;
 use common::{SharedKeys, World, connect, dirs_in, space};
 use std::pin::Pin;
@@ -452,4 +452,79 @@ async fn settling_a_pending_fact_and_losing_a_key_are_signalled_too() {
         serde_json::from_str(signal.args().expect("args").status).expect("a SpaceStatus");
     assert_eq!(open.state, SpaceState::Open);
     assert_eq!(open.facts, Count(1));
+}
+
+fn session_query(after: Option<Cursor>, limit: u32) -> EntriesQuery {
+    EntriesQuery {
+        kinds: vec![KindPattern::parse("companion.session.*").expect("pattern")],
+        about: session_thing("s-1"),
+        after,
+        limit: Count(limit),
+        bodies: BodyMode::Json,
+    }
+}
+
+#[tokio::test]
+async fn a_durable_append_and_its_pages_cross_the_bus() {
+    let rig = rig().await;
+    let router = rig.memory(Caller::Router).await;
+    let mut acks = Vec::new();
+    for slug in ["turn", "tool", "done"] {
+        let record = session_entry("s-1", slug, slug).expect("fixture");
+        acks.push(router.record_durable(record).await.expect("durable ack"));
+    }
+    assert!(
+        acks.windows(2).all(|w| w[0].event.seq < w[1].event.seq),
+        "the sequence only grows: {acks:?}"
+    );
+
+    let first = router
+        .entries(space("work"), session_query(None, 2))
+        .await
+        .expect("first page");
+    assert_eq!(first.entries.len(), 2);
+    let cursor = first.next.expect("more to read");
+    let second = router
+        .entries(space("work"), session_query(Some(cursor), 2))
+        .await
+        .expect("second page");
+    assert_eq!(second.entries.len(), 1, "resumes after the cursor");
+    let seqs: Vec<_> = first
+        .entries
+        .iter()
+        .chain(&second.entries)
+        .map(|e| e.summary.event.seq)
+        .collect();
+    assert_eq!(seqs, acks.iter().map(|a| a.event.seq).collect::<Vec<_>>());
+}
+
+#[tokio::test]
+async fn the_durable_members_refuse_as_the_error_of_their_name() {
+    let rig = rig().await;
+    let router = rig.memory(Caller::Router).await;
+    let shell = rig.memory(Caller::ShellUi).await;
+    let app = rig.memory(app()).await;
+    let record = || session_entry("s-1", "turn", "x").expect("fixture");
+
+    assert_eq!(
+        app.record_durable(record()).await,
+        Err(ClientError::Refused(Refusal::NotAllowed))
+    );
+    assert_eq!(
+        app.entries(space("work"), session_query(None, 5)).await,
+        Err(ClientError::Refused(Refusal::NotAllowed))
+    );
+    assert_eq!(
+        shell
+            .ask(MemoryRequest::Pause(
+                space("work"),
+                UnixSeconds(4_000_000_000)
+            ))
+            .await,
+        Ok(MemoryReply::Ok)
+    );
+    assert_eq!(
+        router.record_durable(record()).await,
+        Err(ClientError::Refused(Refusal::NotKept(DropReason::Paused)))
+    );
 }

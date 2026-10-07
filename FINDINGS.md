@@ -811,3 +811,11 @@ interleaved events, cursor resume, bodies, monotonic ack, refusal when paused, n
 related, consolidation, and present in Recent, Entries and export), `almanac-fake/tests/open_refusals.rs`
 (locked, full, failing log), `almanac-local/tests/disk.rs` (an acked append survives a reopen and pages back),
 `almanac-dbus` codec and introspection tests (new members, errors), `almanac-core/tests/wire.rs`.
+
+**Session log over the real bus.** The session-log lane added `Recall.Entries` and `Record.RecordDurable` to the
+codec, skeletons, `serve.rs` and the XML but not to the client's `invoke`, so over D-Bus both answered
+`Invalid("no member")` and only the in-process transport worked. Both arms are in `invoke.rs`. Guards:
+`memoryd/tests/bus.rs` (durable ack, paging by cursor, `NotAllowed` and `NotKept(Paused)` as the bus error of
+their name, all through the daemon on a private bus) and `memoryd/tests/bus_members.rs` (every sample request
+goes through `invoke` to a recording handler, and the members reached must equal the members in the XML, so a
+member added to the interface without an `invoke` arm fails).
