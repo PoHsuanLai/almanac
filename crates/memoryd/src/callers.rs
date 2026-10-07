@@ -76,6 +76,7 @@ pub fn caller_for(found: porter_dbus::Caller) -> Caller {
         | CallerRole::Settings
         | CallerRole::SheetHost
         | CallerRole::PorterDaemon
+        | CallerRole::AgentLauncher
         | CallerRole::Agent => Caller::App(found.app),
     }
 }
