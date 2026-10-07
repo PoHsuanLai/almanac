@@ -38,16 +38,16 @@ almanac-client  = { path = "crates/almanac-client", default-features = false }
 almanac-local   = { path = "crates/almanac-local" }
 almanac-fake    = { path = "crates/almanac-fake" }
 
-# porter's frozen interfaces (master 4623e18), by sibling path until the pinned git rev replaces
-# them in fill wave 1 (quire CONSUMING.md section 1). porter has no almanac dependency, so there
+# porter's frozen interfaces, by git at a pinned rev (quire CONSUMING.md section 1; a local checkout
+# overrides it through a [patch], FINDINGS.md "Cross-repo dependencies"). porter has no almanac dependency, so there
 # is no cycle. memoryd reaches inferd through porter-client (and its tests serve a fake inferd with
 # porter-dbus); almanac never names stoker itself
-# (porter-infer does, by its own sibling path).
-porter-core     = { path = "../porter/crates/porter-core" }
-prov            = { path = "../porter/crates/prov" }
-porter-infer    = { path = "../porter/crates/porter-infer" }
-porter-client   = { path = "../porter/crates/porter-client" }
-porter-dbus     = { path = "../porter/crates/porter-dbus" }
+# (porter-infer does, by its own git rev).
+porter-core     = { git = "https://github.com/PoHsuanLai/porter", rev = "1de26692a96554f181e4720f2f0edd79091ea6dd" }
+prov            = { git = "https://github.com/PoHsuanLai/porter", rev = "1de26692a96554f181e4720f2f0edd79091ea6dd" }
+porter-infer    = { git = "https://github.com/PoHsuanLai/porter", rev = "1de26692a96554f181e4720f2f0edd79091ea6dd" }
+porter-client   = { git = "https://github.com/PoHsuanLai/porter", rev = "1de26692a96554f181e4720f2f0edd79091ea6dd" }
+porter-dbus     = { git = "https://github.com/PoHsuanLai/porter", rev = "1de26692a96554f181e4720f2f0edd79091ea6dd" }
 
 # From quire's pinned block (`docs/workspace-deps.toml`), copied verbatim: only the lines almanac
 # names itself.

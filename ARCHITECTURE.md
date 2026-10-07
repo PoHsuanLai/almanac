@@ -66,7 +66,7 @@ Allowed direct edges (checked by `scripts/check-boundary.sh`; dev-dependencies a
 
 | Crate | May depend on |
 | --- | --- |
-| `almanac-core` | `porter-core`, `prov` (porter, by sibling path) |
+| `almanac-core` | `porter-core`, `prov` (porter, by git rev) |
 | `almanac-seal` | `almanac-core` |
 | `eventlog`, `memfiles` | `almanac-core`, `almanac-seal` |
 | `recall` | nothing of ours |
@@ -383,7 +383,7 @@ the fakes.
   `sqlite-vec` (QUESTIONS P5).
 - **Dependencies** come from quire's pinned block (`docs/workspace-deps.toml` there), copied
   verbatim, only the lines almanac names; a new one joins that file first. porter's crates are
-  sibling path dependencies until the pinned git revs of fill wave 1.
+  git dependencies at a pinned rev, so a plain clone builds with no sibling checkout.
 - **The wire is serde.** Every stored or wire type has a round-trip test; enums with data are
   adjacently tagged (`kind`/`v`).
 - **D-Bus signatures change with their XML.** `almanac-dbus/tests/introspection.rs` fails until
