@@ -212,6 +212,9 @@ pub enum DropReason {
     Paused,
     /// A `Never` rule.
     Never(RuleId),
+    /// A `HeaderOnly` rule: only a durable append reports it (a plain record keeps the header,
+    /// as the rule says, and answers `Recorded`).
+    HeaderOnlyRule(RuleId),
     /// The thing is marked "do not remember".
     ThingMarked,
     /// The Space is locked and its buffer is full.

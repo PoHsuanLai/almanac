@@ -1,13 +1,14 @@
 //! The memory wire: what memoryd answers.
 
 use crate::chain::ChainReport;
+use crate::entries::{Ack, EntriesPage};
 use crate::event::EventRef;
 use crate::export::ExportManifest;
 use crate::fact::{FactState, Link, MemoryItem};
 use crate::ids::FactId;
 use crate::inject::RecentEntry;
 use crate::op::ForgetCounts;
-use crate::rules::RuleSet;
+use crate::rules::{DropReason, RuleSet};
 use crate::space::{SpaceStatus, SpaceSummary};
 use crate::text::PlanDigest;
 use crate::text::UserText;
@@ -98,6 +99,14 @@ pub enum Refusal {
     NotPending,
     /// Busy; try again.
     Busy,
+    /// The Space's storage is full: the event was not stored.
+    SpaceFull,
+    /// The Space's storage cannot be written now (an I/O failure, a corrupt log): the event
+    /// was not stored.
+    Unavailable,
+    /// Admission kept nothing, for this reason: a durable append refuses where `Record` would
+    /// answer `Ok` (memory paused, a `Never` rule, the thing marked).
+    NotKept(DropReason),
     /// The request is malformed.
     Invalid(String),
 }
@@ -108,6 +117,8 @@ pub enum Refusal {
 pub enum MemoryReply {
     /// One event recorded.
     Recorded(EventRef),
+    /// A durable append was committed.
+    Durable(Ack),
     /// A batch recorded: the first event and how many.
     RecordedBatch(EventRef, Count),
     /// Done.
@@ -116,6 +127,8 @@ pub enum MemoryReply {
     Hits(Vec<RecallHit>),
     /// Recent activity, newest first.
     Recent(Vec<RecentEntry>),
+    /// A page of one stream, oldest first.
+    Entries(EntriesPage),
     /// Facts.
     Facts(Vec<FactView>),
     /// Related events.

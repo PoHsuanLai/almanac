@@ -177,6 +177,17 @@ pub fn requests() -> Vec<MemoryRequest> {
         MemoryRequest::Sweep(w.clone()),
         MemoryRequest::ApplyConsolidation(RunId::parse("run-1").expect("run")),
         MemoryRequest::DiscardConsolidation(RunId::parse("run-1").expect("run")),
+        MemoryRequest::RecordDurable(record(archived_body(), user())),
+        MemoryRequest::Entries(
+            w.clone(),
+            EntriesQuery {
+                kinds: vec![KindPattern::parse("companion.session.*").expect("pattern")],
+                about: Some(thing("org.quire.Companion", "companion.session", "s-1")),
+                after: Some(Cursor(Seq(7))),
+                limit: Count(50),
+                bodies: BodyMode::Json,
+            },
+        ),
         MemoryRequest::Recent(
             w,
             RecentQuery {
@@ -212,6 +223,13 @@ pub fn replies() -> Vec<MemoryReply> {
     vec![
         MemoryReply::Recorded(event_ref(1)),
         MemoryReply::RecordedBatch(event_ref(1), Count(2)),
+        MemoryReply::Durable(Ack {
+            event: event_ref(2),
+        }),
+        MemoryReply::Entries(EntriesPage {
+            entries: vec![],
+            next: Some(Cursor(Seq(9))),
+        }),
         MemoryReply::Ok,
         MemoryReply::Hits(vec![hit]),
         MemoryReply::Recent(vec![RecentEntry {
@@ -332,6 +350,9 @@ pub fn replies() -> Vec<MemoryReply> {
             },
         }),
         MemoryReply::Refused(Refusal::Invalid("nope".into())),
+        MemoryReply::Refused(Refusal::SpaceFull),
+        MemoryReply::Refused(Refusal::Unavailable),
+        MemoryReply::Refused(Refusal::NotKept(DropReason::Paused)),
         MemoryReply::Swept(SweepReport {
             bodies: Count(4),
             headers: Count(1),

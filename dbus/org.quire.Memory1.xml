@@ -7,6 +7,11 @@
      <arg name="record" type="s" direction="in"/>
      <arg type="s" direction="out"/>
    </method>
+   <method name="RecordDurable">
+     <arg name="space" type="s" direction="in"/>
+     <arg name="record" type="s" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
    <method name="RecordBatch">
      <arg name="space" type="s" direction="in"/>
      <arg name="records" type="s" direction="in"/>
@@ -37,6 +42,11 @@
      <arg type="s" direction="out"/>
    </method>
    <method name="Recent">
+     <arg name="space" type="s" direction="in"/>
+     <arg name="query" type="s" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="Entries">
      <arg name="space" type="s" direction="in"/>
      <arg name="query" type="s" direction="in"/>
      <arg type="s" direction="out"/>

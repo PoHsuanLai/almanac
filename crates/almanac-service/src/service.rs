@@ -408,10 +408,7 @@ impl<B: Backend> MemoryService<B> {
         caller: &Caller,
         mut record: Record,
     ) -> Result<Stored, Refusal> {
-        if let almanac_core::EventBody::Message(m) = &record.body {
-            // A message lands in the receiving Space, with the sender's label.
-            record.space = m.to.space.clone();
-        }
+        crate::record::land_in_receiver(&mut record);
         let id = record.space.clone();
         match self.checkout(caller, &id).await {
             Ok(mut lease) => {
@@ -432,7 +429,7 @@ impl<B: Backend> MemoryService<B> {
         let (_, effects) = step(SpaceState::Locked, SpaceEvent::Record { buffered });
         if effects.contains(&SpaceEffect::Buffer) {
             waiting.push(record);
-            Ok(Stored::Dropped)
+            Ok(Stored::Dropped(almanac_core::DropReason::SpaceLocked))
         } else {
             Err(Refusal::SpaceLocked)
         }

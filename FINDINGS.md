@@ -733,3 +733,64 @@ It now returns `AreaPayload.json` unchanged; `Message` and `Episode` keep their 
 No other read path carries bodies (search hits and recall carry text, not bodies). docket's master reads both
 forms, so the change is compatible. Tests: `recent_with_bodies_returns_an_area_payload_in_the_owners_form`
 in almanac-fake (`service.rs`) and almanac-local (`disk.rs`).
+
+## session-log: Entries, RecordDurable and not-for-recall (docket's asks A1, A3, A4)
+
+docket's durable sessions (`agent-spec/acp-sessions.md` section 5) append `SessionEntry` events under
+`companion.session.*` and rebuild from them. Taint is a write-ahead entry, so docket must know an entry is
+durable before it reveals text, and must fail closed when almanac cannot say so.
+
+**A1, paging one session.** New request `Entries(SpaceId, EntriesQuery)` and reply `Entries(EntriesPage)`; bus
+member `Recall.Entries`; client `Memory::entries`. `Recent` is untouched (its query is built by struct literal
+in docket, so a new field would not be additive, and it is newest-first by time, the wrong shape for a replay).
+The stream is chosen by kind patterns plus `about: Option<ThingRef>` and not by a session id inside the body,
+because the log already indexes a payload's `things` (`LogRead::touching`): the lookup is by an indexed key,
+needs no JSON parsing of an owner-defined body, and the same key lets one forget of the thing erase a session
+as a unit (the base of ask A2). docket records each entry with the session as a `Subject` `ThingView`
+(app `org.quire.Companion`, kind `companion.session`, key the session id). Order is append sequence; the cursor
+is the last event seen (`after`, exclusive), and `next` is set only when more matched, so a page boundary is
+exact. Without `about` the read scans from the cursor (every session's entries in order), and with it the read
+touches only that session's rows. Bodies follow `BodyMode` and always travel with their label. Audited as the
+same `Memory.Read` scope as `Recent` (`ReadScope::Recent`); same callers (`Router`, `ShellUi`). Erased bodies
+drop out of `about` reads (their `things` rows are erased with them) and come back as headers without a body in
+kind-only reads.
+
+**A3, the durable ack.** `Record` was fire and forget: `Recorded(EventRef)` or `Ok`, where `Ok` hid a buffered
+record (locked Space) and a dropped one (paused, a rule, a mark). New request `RecordDurable(Record)` with reply
+`Durable(Ack { event })`, bus member `Record.RecordDurable`, client `Memory::record_durable`; an absent daemon is
+the client's `Transport(Absent)`, not a swallowed no-op. The ack is sent after `LogWrite::append` returns, and
+`SqliteLog` now sets `synchronous=FULL` explicitly (SQLite's default in WAL mode is `FULL`, but the durability
+story is now written down and tested, not inherited). New typed refusals: `SpaceFull` (a failed append with `LogError::Full`), `Unavailable` (any other storage
+failure, or a Space that would not open for a reason other than a lock) and `NotKept(DropReason)`; a locked
+Space is the existing `SpaceLocked` and is never buffered on this path. The typing is in `append_refusal`, so a
+plain `Record` that hits a full or failing log now also answers `SpaceFull` or `Unavailable` where it answered
+`Invalid(text)`; opening a Space is unchanged. The sequence is the Space log's own (strictly increasing; audit
+events interleave), so a reader pages with `Entries` and does not count. **A durable append refuses whenever
+the body would not be stored whole**, including for audit-class records: `admit` keeps only a header for a
+session entry (an `Area` payload is audit class) in a paused Space or under a `Never` or `HeaderOnly` rule, and
+`Record` answers `Recorded` for it, which would have been a false ack of a lost taint entry. The pure
+`withheld(record, rules, state, marks) -> Option<DropReason>` (core, with a test that it agrees with `admit`)
+names the reason, `DropReason` gained `HeaderOnlyRule(RuleId)` for the rule mode that has no reason of its own,
+and `RecordDurable` answers `NotKept(reason)` for any of them. Finding for docket: a `Never` or `HeaderOnly`
+rule that covers `companion.session.*` (or a pause) stops session logging, and docket sees it as a refusal and
+fails closed. `RecordBatch` has no durable form yet.
+
+**A4, not for recall, per kind and not per event.** `Recallable::{Yes, No}` with `Recallable::of_kind` and
+`of_body`: `companion.session.*` is `No`. A rule over the kind, not a field on `Record`, because (1) `Record` is
+built by struct literal in docket, so a field is a breaking change; (2) a per-event flag is a promise each writer
+must remember to make and a bug in one code path puts model-derived text into recall, while a kind rule is
+enforced by almanac for every writer and every future `companion.session.<slug>`; (3) the index and consolidation
+are rebuilt from the log alone, and a function of the kind is the only classification the log already stores
+(the chained header holds the kind; a body flag would be erasable); (4) it costs no wire or storage change.
+The limit: a stream outside the prefix cannot opt in without a new prefix in `NOT_FOR_RECALL`. Enforced in
+`event_docs` (so record-time indexing, rebuild, sweep and forget all agree; search and `Inject` read the index),
+in the consolidation input (so no draft names a session event), and in `Related` (a session names its thing, and
+a related-events read is a recall read). The primer and facts follow from consolidation. There is no profile
+read in almanac. `Recent`, `Entries`, `Timeline` and export return the entries. Not enforced: `Propose` can still
+cite a session event as a fact's link (the caller is the router or shell and names the event deliberately).
+
+Tests: `almanac-core/tests/companion.rs` (the kind rule), `almanac-fake/tests/session_log.rs` (paging with
+interleaved events, cursor resume, bodies, monotonic ack, refusal when paused, not-for-recall in search, inject,
+related, consolidation, and present in Recent, Entries and export), `almanac-fake/tests/open_refusals.rs`
+(locked, full, failing log), `almanac-local/tests/disk.rs` (an acked append survives a reopen and pages back),
+`almanac-dbus` codec and introspection tests (new members, errors), `almanac-core/tests/wire.rs`.

@@ -39,8 +39,9 @@ impl<B: Backend> MemoryService<B> {
         match request {
             R::Record(record) => Ok(match self.record_one(caller, record).await? {
                 Stored::Event(event) => MemoryReply::Recorded(event),
-                Stored::Dropped => MemoryReply::Ok,
+                Stored::Dropped(_) => MemoryReply::Ok,
             }),
+            R::RecordDurable(record) => self.record_durable(caller, record).await,
             R::RecordBatch(records) => {
                 let mut first = None;
                 let mut stored = 0usize;
@@ -317,6 +318,7 @@ async fn run_in_space<B: Backend>(
         R::Search(q) => open.search(cx, q).await.map(MemoryReply::Hits),
         R::Inject(q) => open.inject(cx, q).await.map(MemoryReply::Hits),
         R::Recent(_, q) => open.recent(cx, q).map(MemoryReply::Recent),
+        R::Entries(_, q) => open.entries_page(cx, q).map(MemoryReply::Entries),
         R::Facts(q) => open.facts(cx, &q).map(MemoryReply::Facts),
         R::Related(_, thing) => open.related(cx, &thing).map(MemoryReply::Related),
         R::Provenance(_, path) => open.provenance(cx, &path).map(MemoryReply::Provenance),

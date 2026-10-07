@@ -91,6 +91,38 @@ pub fn admit_with(
     }
 }
 
+/// Why `record` would not be kept whole, if it would not: the reason `admit` would give a
+/// non-audit record (`Drop`), whether or not this one is audit class and so would keep a header.
+/// `None` means [`admit`] answers `Keep`. A durable append (`RecordDurable`) refuses on any
+/// `Some`, because an acknowledgement promises the body is stored, and an audit-class record
+/// under a pause or a `Never` rule keeps only its header. Pure.
+pub fn withheld(
+    record: &Record,
+    rules: &RuleSet,
+    state: &SpaceState,
+    marks: &Marks,
+) -> Option<DropReason> {
+    match state {
+        SpaceState::Locked => return Some(DropReason::SpaceLocked),
+        SpaceState::Deleting | SpaceState::Gone => return Some(DropReason::SpaceUnknown),
+        SpaceState::Paused { .. } => return Some(DropReason::Paused),
+        SpaceState::Open => {}
+    }
+    if record
+        .body
+        .things()
+        .iter()
+        .any(|(view, _)| marks.things.contains(&view.thing))
+    {
+        return Some(DropReason::ThingMarked);
+    }
+    winning_rule(record, rules).and_then(|rule| match rule.mode {
+        RememberMode::Full => None,
+        RememberMode::HeaderOnly => Some(DropReason::HeaderOnlyRule(rule.id.clone())),
+        RememberMode::Never => Some(DropReason::Never(rule.id.clone())),
+    })
+}
+
 /// How long the record's body is kept when no rule says: unexplained file changes 7 days,
 /// otherwise the narrowest matching default, otherwise 30 days.
 pub fn default_retention(record: &Record, rules: &RuleSet) -> Retention {

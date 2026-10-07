@@ -172,3 +172,39 @@ pub fn policy_ask() -> Option<Record> {
         Cause::None,
     ))
 }
+
+/// The thing a companion session's entries name as their `Subject`: the stream key.
+pub fn session_thing(session: &str) -> Option<ThingRef> {
+    Some(ThingRef {
+        app: app("org.quire.Companion"),
+        kind: ThingKind::parse("companion.session").ok()?,
+        key: ThingKey::parse(session).ok()?,
+    })
+}
+
+/// One entry of a companion session's durable log, as docket writes it: an `Area(Companion)`
+/// payload of kind `companion.session.<slug>` that names its session as the `Subject`.
+pub fn session_entry(session: &str, slug: &str, text: &str) -> Option<Record> {
+    let json = serde_json::json!({ "session": session, "text": text }).to_string();
+    Some(record(
+        Actor::System {
+            part: SystemPart::Router,
+        },
+        Effect::Read,
+        trusted_label(),
+        EventBody::Area(AreaPayload {
+            area: AreaTag::Companion,
+            kind: KindTag::parse(&format!("companion.session.{slug}")).ok()?,
+            json: JsonText::parse(&json).ok()?,
+            things: vec![(
+                ThingView {
+                    thing: session_thing(session)?,
+                    title: UserText::default(),
+                    subtitle: UserText::default(),
+                },
+                ThingRole::Subject,
+            )],
+        }),
+        Cause::None,
+    ))
+}

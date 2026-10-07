@@ -104,7 +104,7 @@ pub fn allowed(caller: &Caller, request: &MemoryRequest) -> Allowed {
     use MemoryRequest as R;
     let router_or_shell = matches!(caller, Caller::Router | Caller::ShellUi);
     match request {
-        R::Record(record) => yes_if(may_record(caller, record)),
+        R::Record(record) | R::RecordDurable(record) => yes_if(may_record(caller, record)),
         R::RecordBatch(records) if records.is_empty() => {
             Allowed::No(Refusal::Invalid("empty batch".to_owned()))
         }
@@ -126,6 +126,7 @@ pub fn allowed(caller: &Caller, request: &MemoryRequest) -> Allowed {
         | R::Primer(_)
         | R::Inject(_)
         | R::Recent(..)
+        | R::Entries(..)
         | R::Propose(..)
         | R::PlanForget(..)
         | R::Spaces => yes_if(router_or_shell),

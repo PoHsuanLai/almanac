@@ -99,6 +99,9 @@ impl SqliteLog {
             .map_err(rows::err)?;
         conn.pragma_update(None, "secure_delete", "ON")
             .map_err(rows::err)?;
+        // An acknowledged append is on disk: every commit syncs the write-ahead log.
+        conn.pragma_update(None, "synchronous", "FULL")
+            .map_err(rows::err)?;
         // No temporary files: a sandboxed daemon has no directory for them.
         conn.pragma_update(None, "temp_store", "MEMORY")
             .map_err(rows::err)?;

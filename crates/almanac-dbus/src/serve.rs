@@ -92,6 +92,16 @@ impl<S: Serve> RecordObject<S> {
         first(forward(&*self.0, &h, Iface::Record, "Record", args, None).await?)
     }
 
+    async fn record_durable(
+        &self,
+        #[zbus(header)] h: Header<'_>,
+        space: String,
+        record: String,
+    ) -> Result<String, MemoryError> {
+        let args = vec![text(space), text(record)];
+        first(forward(&*self.0, &h, Iface::Record, "RecordDurable", args, None).await?)
+    }
+
     #[zbus(out_args("first_ref", "count"))]
     async fn record_batch(
         &self,
@@ -173,6 +183,16 @@ impl<S: Serve> RecallObject<S> {
     ) -> Result<String, MemoryError> {
         let args = vec![text(space), text(query)];
         first(forward(&*self.0, &h, Iface::Recall, "Recent", args, None).await?)
+    }
+
+    async fn entries(
+        &self,
+        #[zbus(header)] h: Header<'_>,
+        space: String,
+        query: String,
+    ) -> Result<String, MemoryError> {
+        let args = vec![text(space), text(query)];
+        first(forward(&*self.0, &h, Iface::Recall, "Entries", args, None).await?)
     }
 
     async fn related(

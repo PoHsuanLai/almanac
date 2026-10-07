@@ -2,10 +2,10 @@
 
 use crate::transport::{Transport, TransportError};
 use almanac_core::{
-    EventRef, FactDraft, FactId, FactQuery, FactState, FactView, FileWhyClaim, ForgetPlanView,
-    ForgetReport, ForgetScope, InjectQuery, MarkRequest, MemoryReply, MemoryRequest, PlanToken,
-    RecallHit, RecallQuery, RecentEntry, RecentQuery, Record, Refusal, Settlement, SpaceId,
-    SpaceStatus, SpaceSummary, TimelinePage, TimelineQuery,
+    Ack, EntriesPage, EntriesQuery, EventRef, FactDraft, FactId, FactQuery, FactState, FactView,
+    FileWhyClaim, ForgetPlanView, ForgetReport, ForgetScope, InjectQuery, MarkRequest, MemoryReply,
+    MemoryRequest, PlanToken, RecallHit, RecallQuery, RecentEntry, RecentQuery, Record, Refusal,
+    Settlement, SpaceId, SpaceStatus, SpaceSummary, TimelinePage, TimelineQuery,
 };
 
 /// Why a call failed.
@@ -68,6 +68,31 @@ impl<T: Transport> Memory<T> {
     /// Records one event.
     pub async fn record(&self, record: Record) -> Result<Recorded, ClientError> {
         self.write(MemoryRequest::Record(record)).await
+    }
+
+    /// Records one event and returns only once it is durable, with its sequence number. Unlike
+    /// [`Memory::record`], nothing is swallowed: a locked, full, paused or unavailable Space is
+    /// `Refused(SpaceLocked | SpaceFull | NotKept(_) | Unavailable)`, and an absent daemon is
+    /// `Transport(Absent)`. A writer that must not act before the event is safe (a taint entry
+    /// ahead of a reveal) fails closed on any `Err`.
+    pub async fn record_durable(&self, record: Record) -> Result<Ack, ClientError> {
+        match self.ask(MemoryRequest::RecordDurable(record)).await? {
+            MemoryReply::Durable(ack) => Ok(ack),
+            _ => Err(ClientError::Unexpected),
+        }
+    }
+
+    /// The next events of one stream in append order, with bodies when asked and a cursor to
+    /// resume from (`page.next`, passed as the next query's `after`).
+    pub async fn entries(
+        &self,
+        space: SpaceId,
+        query: EntriesQuery,
+    ) -> Result<EntriesPage, ClientError> {
+        match self.ask(MemoryRequest::Entries(space, query)).await? {
+            MemoryReply::Entries(page) => Ok(page),
+            _ => Err(ClientError::Unexpected),
+        }
     }
 
     /// Records several events in order.

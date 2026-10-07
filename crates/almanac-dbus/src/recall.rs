@@ -19,6 +19,9 @@ pub trait Recall {
     fn inject(&self, space: &str, query: &str) -> zbus::Result<String>;
     /// Recent activity (`RecentQuery` JSON); answers `Vec<RecentEntry>` JSON, newest first.
     fn recent(&self, space: &str, query: &str) -> zbus::Result<String>;
+    /// The next events of one stream, oldest first (`EntriesQuery` JSON); answers `EntriesPage`
+    /// JSON.
+    fn entries(&self, space: &str, query: &str) -> zbus::Result<String>;
     /// Events related to a thing (`ThingRef` JSON); answers `Vec<EventSummary>` JSON.
     fn related(&self, space: &str, thing: &str) -> zbus::Result<String>;
     /// Where a file came from (`SpacePath` JSON); answers `FileProvenance` JSON.
@@ -51,6 +54,11 @@ impl RecallSkeleton {
     }
 
     fn recent(&self, space: String, query: String) -> fdo::Result<String> {
+        let _ = (space, query);
+        Err(crate::introspect::frozen())
+    }
+
+    fn entries(&self, space: String, query: String) -> fdo::Result<String> {
         let _ = (space, query);
         Err(crate::introspect::frozen())
     }

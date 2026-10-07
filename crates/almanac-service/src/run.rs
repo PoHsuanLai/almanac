@@ -69,7 +69,9 @@ impl<B: Backend> Open<B> {
                 .filter(|e| e.header.seq > cut)
                 .filter_map(|e| match &e.body {
                     BodyState::Present(b)
-                        if !matches!(b, almanac_core::EventBody::Memory { .. }) =>
+                        if !matches!(b, almanac_core::EventBody::Memory { .. })
+                            && almanac_core::Recallable::of_body(b)
+                                == almanac_core::Recallable::Yes =>
                     {
                         Some(InputEvent {
                             event: self.event_ref(e),

@@ -26,6 +26,7 @@ pub fn decode_reply(call: &Call, outputs: &[String]) -> Result<MemoryReply, Code
             "" => Ok(R::Ok),
             event => parse(event).map(R::Recorded),
         },
+        "RecordDurable" => one_json(outputs).map(R::Durable),
         "RecordBatch" => match outputs {
             [first, count] if first.is_empty() && count == "0" => Ok(R::Ok),
             [first, count] => Ok(R::RecordedBatch(
@@ -53,6 +54,7 @@ pub fn decode_reply(call: &Call, outputs: &[String]) -> Result<MemoryReply, Code
         "Search" | "Inject" => one_json(outputs).map(R::Hits),
         "Facts" => one_json(outputs).map(R::Facts),
         "Recent" => one_json(outputs).map(R::Recent),
+        "Entries" => one_json(outputs).map(R::Entries),
         "Related" => one_json(outputs).map(R::Related),
         "Provenance" => one_json(outputs).map(R::Provenance),
         "Primer" => one(outputs).map(|text| R::Primer(text.to_owned())),
@@ -109,6 +111,8 @@ pub fn encode_reply(call: &Call, reply: &MemoryReply) -> Result<Vec<String>, Mem
         ("Search" | "Inject", R::Hits(v)) => single(v),
         ("Facts", R::Facts(v)) => single(v),
         ("Recent", R::Recent(v)) => single(v),
+        ("Entries", R::Entries(page)) => single(page),
+        ("RecordDurable", R::Durable(ack)) => single(ack),
         ("Related", R::Related(v)) => single(v),
         ("Provenance", R::Provenance(v)) => single(v),
         ("Primer", R::Primer(text)) => Ok(vec![text.clone()]),

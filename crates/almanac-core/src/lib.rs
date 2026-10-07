@@ -10,6 +10,7 @@ mod area;
 mod caller;
 mod chain;
 mod dirs;
+mod entries;
 mod episode;
 mod event;
 mod export;
@@ -20,6 +21,7 @@ mod indexed;
 mod inject;
 mod op;
 mod query;
+mod recallable;
 mod reply;
 mod request;
 mod rules;
@@ -32,11 +34,13 @@ mod views;
 
 pub use admit::{
     admit, admit_with, default_retention, default_retention_with, glob_matches, is_audit_class,
+    withheld,
 };
 pub use area::{AreaPayload, AreaTag};
 pub use caller::Caller;
 pub use chain::{Break, ChainReport, Checkpoint, Head};
 pub use dirs::Dirs;
+pub use entries::{Ack, EntriesPage, EntriesQuery};
 pub use episode::{
     Episode, EpisodeId, EpisodeKind, EpisodeOutcome, Narrative, ResultLine, ResultName,
     ResultValue, Skeleton, StepLine, StepOutcome, Succession,
@@ -58,6 +62,7 @@ pub use query::{
     ExportOptions, FactFilter, FactQuery, FileWhyClaim, MarkKind, MarkRequest, RecallOver,
     RecallQuery, VerificationKey,
 };
+pub use recallable::Recallable;
 pub use reply::{ForgetReport, MemoryReply, RecallHit, RecallWhy, Refusal, SweepReport};
 pub use request::{ForgetScope, MemoryRequest};
 pub use rules::{

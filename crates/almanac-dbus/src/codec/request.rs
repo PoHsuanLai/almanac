@@ -29,6 +29,7 @@ pub fn encode_request(request: &MemoryRequest) -> Result<Call, CodecError> {
     use MemoryRequest as R;
     Ok(match request {
         R::Record(r) => call(Rec, "Record", space_and(&r.space, r)?),
+        R::RecordDurable(r) => call(Rec, "RecordDurable", space_and(&r.space, r)?),
         R::RecordBatch(rs) => {
             let first = rs.first().map_or_else(String::new, |r| r.space.to_string());
             call(Rec, "RecordBatch", vec![CallArg::Text(first), body(rs)?])
@@ -39,6 +40,7 @@ pub fn encode_request(request: &MemoryRequest) -> Result<Call, CodecError> {
         R::Facts(q) => call(Recall, "Facts", space_and(&q.space, q)?),
         R::Inject(q) => call(Recall, "Inject", space_and(&q.space, q)?),
         R::Recent(s, q) => call(Recall, "Recent", space_and(s, q)?),
+        R::Entries(s, q) => call(Recall, "Entries", space_and(s, q)?),
         R::Related(s, t) => call(Recall, "Related", space_and(s, t)?),
         R::Provenance(s, p) => call(Recall, "Provenance", space_and(s, p)?),
         R::Primer(s) => call(Recall, "Primer", vec![space(s)]),
@@ -128,6 +130,11 @@ pub fn decode_request(call: &Call) -> Result<MemoryRequest, CodecError> {
             args.end()?;
             Ok(R::Record(record))
         }
+        (Rec, "RecordDurable") => {
+            let (_, record) = space_then(&mut args, |r: &Record| Some(&r.space))?;
+            args.end()?;
+            Ok(R::RecordDurable(record))
+        }
         (Rec, "RecordBatch") => {
             let named = args.text()?;
             let records: Vec<Record> = args.json()?;
@@ -158,6 +165,7 @@ pub fn decode_request(call: &Call) -> Result<MemoryRequest, CodecError> {
             Ok(R::Inject(q))
         }
         (Recall, "Recent") => space_body(args).map(|(s, q)| R::Recent(s, q)),
+        (Recall, "Entries") => space_body(args).map(|(s, q)| R::Entries(s, q)),
         (Recall, "Related") => space_body(args).map(|(s, t)| R::Related(s, t)),
         (Recall, "Provenance") => space_body(args).map(|(s, p)| R::Provenance(s, p)),
         (Recall, "Primer") => only_space(args).map(R::Primer),

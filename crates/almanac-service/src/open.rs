@@ -91,6 +91,17 @@ pub(crate) fn failed(e: impl std::fmt::Display) -> Refusal {
     Refusal::Invalid(e.to_string())
 }
 
+/// What a failed append is, typed for a writer that must know: a locked, full or failing log.
+pub(crate) fn append_refusal(e: LogError) -> Refusal {
+    match e {
+        LogError::Full => Refusal::SpaceFull,
+        LogError::Sqlite(_) | LogError::Corrupt { .. } | LogError::Schema { .. } => {
+            Refusal::Unavailable
+        }
+        other => log_refusal(other),
+    }
+}
+
 pub(crate) fn log_refusal(e: LogError) -> Refusal {
     match e {
         LogError::Locked => Refusal::SpaceLocked,
@@ -156,7 +167,7 @@ impl<B: Backend> Open<B> {
         body: Option<EventBody>,
     ) -> Result<Entry, Refusal> {
         let header = NewHeader::of(record, now, &self.digest);
-        self.rt.log.append(header, body).map_err(log_refusal)
+        self.rt.log.append(header, body).map_err(append_refusal)
     }
 
     /// Logs memoryd's own `op`, whatever the admission rules say.
@@ -345,5 +356,26 @@ pub(crate) fn present(entry: &Entry) -> Option<&EventBody> {
     match &entry.body {
         BodyState::Present(body) => Some(body),
         BodyState::Erased => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_failed_append_is_typed_by_why_it_failed() {
+        assert_eq!(append_refusal(LogError::Locked), Refusal::SpaceLocked);
+        assert_eq!(append_refusal(LogError::Full), Refusal::SpaceFull);
+        assert_eq!(
+            append_refusal(LogError::Sqlite("io".to_owned())),
+            Refusal::Unavailable
+        );
+        assert_eq!(
+            append_refusal(LogError::Corrupt {
+                at: almanac_core::Seq(3)
+            }),
+            Refusal::Unavailable
+        );
     }
 }

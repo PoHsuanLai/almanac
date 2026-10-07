@@ -274,3 +274,80 @@ fn a_terminal_is_no_app_so_an_app_rule_matches_it_only_through_its_things() {
         Admission::HeaderOnly { .. }
     ));
 }
+
+#[test]
+fn withheld_names_why_a_record_would_not_be_kept_whole_audit_class_or_not() {
+    let mail = record(archived_body(), user());
+    let audit = record(
+        area_body(AreaTag::Companion, "companion.session.taint"),
+        companion(),
+    );
+    let paused = SpaceState::Paused {
+        until: UnixSeconds(NOW.0 + 600),
+    };
+    let none = Marks::default();
+    let plain = rules(vec![]);
+    let never = rules(vec![named(
+        "r-never",
+        rule(
+            RuleScope::Kind(KindPattern::parse("companion.session.*").expect("pattern")),
+            RememberMode::Never,
+        ),
+    )]);
+    let header_only = rules(vec![named(
+        "r-ho",
+        rule(
+            RuleScope::Kind(KindPattern::parse("companion.session.*").expect("pattern")),
+            RememberMode::HeaderOnly,
+        ),
+    )]);
+    let id = |s: &str| RuleId::parse(s).expect("id");
+    let cases = [
+        (&audit, &plain, SpaceState::Open, None),
+        (&audit, &plain, paused, Some(DropReason::Paused)),
+        (
+            &audit,
+            &never,
+            SpaceState::Open,
+            Some(DropReason::Never(id("r-never"))),
+        ),
+        (
+            &audit,
+            &header_only,
+            SpaceState::Open,
+            Some(DropReason::HeaderOnlyRule(id("r-ho"))),
+        ),
+        (
+            &mail,
+            &plain,
+            SpaceState::Locked,
+            Some(DropReason::SpaceLocked),
+        ),
+        (
+            &mail,
+            &plain,
+            SpaceState::Deleting,
+            Some(DropReason::SpaceUnknown),
+        ),
+    ];
+    for (record, rules, state, expected) in cases {
+        assert_eq!(
+            withheld(record, rules, &state, &none),
+            expected,
+            "{state:?}"
+        );
+        let kept_whole = matches!(admit(record, rules, &state, &none), Admission::Keep { .. });
+        assert_eq!(
+            kept_whole,
+            expected.is_none(),
+            "withheld agrees with admit: {state:?}"
+        );
+    }
+    let marked = Marks {
+        things: std::collections::BTreeSet::from([thing("org.quire.Mail", "mail.thread", "7f3a")]),
+    };
+    assert_eq!(
+        withheld(&mail, &plain, &SpaceState::Open, &marked),
+        Some(DropReason::ThingMarked)
+    );
+}

@@ -404,3 +404,34 @@ fn recent_bodies_are_a_named_mode_and_always_travel_with_their_label() {
     assert!(without.contains(r#""body":null"#), "{without}");
     round_trips(&[with, untrusted_entry(None)]);
 }
+
+#[test]
+fn session_kinds_are_not_for_recall_and_everything_else_is() {
+    let kind = |k: &str| KindTag::parse(k).expect("kind");
+    for session in [
+        "companion.session.opened",
+        "companion.session.taint",
+        "companion.session.turn",
+    ] {
+        assert_eq!(
+            Recallable::of_kind(&kind(session)),
+            Recallable::No,
+            "{session}"
+        );
+    }
+    for other in [
+        "companion.episode",
+        "companion.message",
+        "companion.sessions",
+        "thing.archived",
+        "policy.ruled",
+        "cua.step",
+    ] {
+        assert_eq!(
+            Recallable::of_kind(&kind(other)),
+            Recallable::Yes,
+            "{other}"
+        );
+    }
+    round_trips(&[Recallable::Yes, Recallable::No]);
+}

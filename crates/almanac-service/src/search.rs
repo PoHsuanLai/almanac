@@ -305,7 +305,7 @@ impl<B: Backend> Open<B> {
         Ok(out)
     }
 
-    fn recent_entry(&self, entry: &Entry, bodies: BodyMode) -> RecentEntry {
+    pub(crate) fn recent_entry(&self, entry: &Entry, bodies: BodyMode) -> RecentEntry {
         let h = &entry.header;
         let body = present(entry);
         let texts: Vec<String> = body
@@ -346,7 +346,12 @@ impl<B: Backend> Open<B> {
         thing: &ThingRef,
     ) -> Result<Vec<EventSummary>, Refusal> {
         let mut entries = self.entries()?;
-        entries.retain(|e| present(e).is_some_and(|b| b.names(thing)));
+        entries.retain(|e| {
+            present(e).is_some_and(|b| {
+                b.names(thing)
+                    && almanac_core::Recallable::of_body(b) == almanac_core::Recallable::Yes
+            })
+        });
         entries.reverse();
         let out: Vec<EventSummary> = entries.iter().map(|e| self.summary(e)).collect();
         self.audit_by(cx, ReadScope::Related, Vec::new(), out.len())?;

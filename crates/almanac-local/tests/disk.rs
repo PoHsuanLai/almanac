@@ -5,7 +5,9 @@ mod common;
 
 use almanac_client::{ClientError, Recorded};
 use almanac_core::*;
-use almanac_fake::{ScriptedConsolidator, mail_thread_archived, thing};
+use almanac_fake::{
+    ScriptedConsolidator, mail_thread_archived, session_entry, session_thing, thing,
+};
 use almanac_local::{LocalError, create_space};
 use common::*;
 
@@ -150,4 +152,48 @@ async fn recent_with_bodies_returns_an_area_payload_in_the_owners_form() {
     assert_eq!(entries.len(), 1);
     let body = entries[0].body.as_ref().expect("body");
     assert_eq!(body.as_str(), r#"{"ruling":"ask","rule":"untrusted-sink"}"#);
+}
+
+#[tokio::test]
+async fn an_acked_durable_append_survives_a_reopen_and_pages_back_in_order() {
+    let dir = tempfile::tempdir().expect("dir");
+    let service = fresh(dir.path(), 7, nothing());
+    let router = client(&service, Caller::Router);
+    let mut acked = Vec::new();
+    for slug in ["opened", "turn", "taint"] {
+        let record = session_entry("s-1", slug, "kept verbatim").expect("fixture");
+        acked.push(router.record_durable(record).await.expect("ack").event.seq);
+        router
+            .record(mail_thread_archived().expect("fixture"))
+            .await
+            .expect("record");
+    }
+    assert!(acked.windows(2).all(|w| w[0] < w[1]), "{acked:?}");
+    drop(router);
+    drop(service);
+
+    let service = service_again(dir.path());
+    let router = client(&service, Caller::Router);
+    let query = |after| EntriesQuery {
+        kinds: vec![KindPattern::parse("companion.session.*").expect("pattern")],
+        about: session_thing("s-1"),
+        after,
+        limit: Count(2),
+        bodies: BodyMode::Json,
+    };
+    let first = router.entries(work(), query(None)).await.expect("page");
+    let second = router
+        .entries(work(), query(first.next))
+        .await
+        .expect("page");
+    let seqs: Vec<Seq> = first
+        .entries
+        .iter()
+        .chain(&second.entries)
+        .map(|e| e.summary.event.seq)
+        .collect();
+    assert_eq!(seqs, acked, "every acked entry is there after the restart");
+    assert_eq!(second.next, None);
+    let body = second.entries[0].body.as_ref().expect("body");
+    assert!(body.as_str().contains("kept verbatim"));
 }

@@ -1,6 +1,7 @@
 //! The memory wire: what a caller asks. One serde form on every carrier (the D-Bus members
 //! carry the JSON of these types in `s` arguments).
 
+use crate::entries::EntriesQuery;
 use crate::event::{EventRef, Record};
 use crate::fact::{FactDraft, Settlement};
 use crate::ids::{FactId, KindPattern, PlanToken, RuleId, SpacePath};
@@ -45,6 +46,10 @@ pub enum MemoryRequest {
     Record(Record),
     /// Record several, in order.
     RecordBatch(Vec<Record>),
+    /// Record one event and answer only once it is durable: with its sequence number
+    /// (`MemoryReply::Durable`), or with a typed refusal when it was not kept. A locked Space
+    /// does not buffer it, a paused Space or a `Never` rule does not drop it silently.
+    RecordDurable(Record),
     /// Say why a file changed.
     ExplainFile(FileWhyClaim),
     /// Mark or unmark a thing.
@@ -63,6 +68,8 @@ pub enum MemoryRequest {
     /// Recent activity in a Space, newest first, with labels (the router's read; the shell's
     /// `Timeline` is the full, filtered UI view).
     Recent(SpaceId, RecentQuery),
+    /// The next events of one stream in append order, with bodies and a resumable cursor.
+    Entries(SpaceId, EntriesQuery),
     /// The primer: the index of what is known, for the start of a session.
     Primer(SpaceId),
     /// Propose a fact.
@@ -119,7 +126,7 @@ impl MemoryRequest {
     /// The Space the request is about, when it names exactly one up front.
     pub fn space(&self) -> Option<&SpaceId> {
         match self {
-            MemoryRequest::Record(r) => Some(&r.space),
+            MemoryRequest::Record(r) | MemoryRequest::RecordDurable(r) => Some(&r.space),
             MemoryRequest::ExplainFile(c) => Some(&c.space),
             MemoryRequest::Mark(m) => Some(&m.space),
             MemoryRequest::Search(q) => Some(&q.space),
@@ -129,6 +136,7 @@ impl MemoryRequest {
             | MemoryRequest::Provenance(s, _)
             | MemoryRequest::Primer(s)
             | MemoryRequest::Recent(s, _)
+            | MemoryRequest::Entries(s, _)
             | MemoryRequest::Propose(s, _)
             | MemoryRequest::Status(s)
             | MemoryRequest::Timeline(s, _)

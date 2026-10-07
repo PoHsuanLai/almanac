@@ -27,6 +27,12 @@ pub enum MemoryError {
     NotPending(String),
     /// Busy; try again.
     Busy(String),
+    /// The Space's storage is full: the event was not stored.
+    SpaceFull(String),
+    /// The Space's storage cannot be written now: the event was not stored.
+    Unavailable(String),
+    /// Admission kept nothing; the message is the `DropReason` JSON.
+    NotKept(String),
     /// The request is malformed.
     Invalid(String),
 }
@@ -44,6 +50,11 @@ impl From<&Refusal> for MemoryError {
             Refusal::NoSuchFact => MemoryError::NoSuchFact(text),
             Refusal::NotPending => MemoryError::NotPending(text),
             Refusal::Busy => MemoryError::Busy(text),
+            Refusal::SpaceFull => MemoryError::SpaceFull(text),
+            Refusal::Unavailable => MemoryError::Unavailable(text),
+            Refusal::NotKept(why) => {
+                MemoryError::NotKept(serde_json::to_string(why).unwrap_or_default())
+            }
             Refusal::Invalid(why) => MemoryError::Invalid(why.clone()),
         }
     }
@@ -63,6 +74,12 @@ impl MemoryError {
             MemoryError::NoSuchFact(_) => Some(Refusal::NoSuchFact),
             MemoryError::NotPending(_) => Some(Refusal::NotPending),
             MemoryError::Busy(_) => Some(Refusal::Busy),
+            MemoryError::SpaceFull(_) => Some(Refusal::SpaceFull),
+            MemoryError::Unavailable(_) => Some(Refusal::Unavailable),
+            MemoryError::NotKept(why) => Some(serde_json::from_str(why).map_or_else(
+                |_| Refusal::Invalid(format!("not kept: {why}")),
+                Refusal::NotKept,
+            )),
             MemoryError::Invalid(why) => Some(Refusal::Invalid(why.clone())),
         }
     }

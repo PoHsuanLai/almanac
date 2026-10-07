@@ -98,3 +98,32 @@ async fn a_locked_key_store_is_a_locked_space() {
         MemoryReply::Refused(Refusal::SpaceLocked)
     );
 }
+
+#[tokio::test]
+async fn a_durable_append_to_a_locked_space_is_refused_where_a_plain_record_is_buffered() {
+    let service = refusing(LogError::Locked);
+    let record = almanac_fake::session_entry("s-1", "taint", "x").expect("fixture");
+    let plain = service
+        .handle(&Caller::Router, MemoryRequest::Record(record.clone()))
+        .await;
+    assert_eq!(plain, MemoryReply::Ok, "buffered, nothing stored yet");
+    let durable = service
+        .handle(&Caller::Router, MemoryRequest::RecordDurable(record))
+        .await;
+    assert_eq!(durable, MemoryReply::Refused(Refusal::SpaceLocked));
+}
+
+#[tokio::test]
+async fn a_log_that_will_not_open_is_unavailable_to_a_durable_append() {
+    let record = almanac_fake::session_entry("s-1", "taint", "x").expect("fixture");
+    for error in [LogError::Full, LogError::Sqlite("io".to_owned())] {
+        let service = refusing(error);
+        let reply = service
+            .handle(
+                &Caller::Router,
+                MemoryRequest::RecordDurable(record.clone()),
+            )
+            .await;
+        assert_eq!(reply, MemoryReply::Refused(Refusal::Unavailable));
+    }
+}

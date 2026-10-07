@@ -309,6 +309,23 @@ serde JSON), which always travels in the entry beside its label, so a daemon can
 log on restart. Both are `Router` or `ShellUi`, both audited as `Memory.Read`
 (`ReadScope::Inject`, `Recent`); `Timeline` stays the shell's alone.
 
+**A durable, resumable stream (the session log).** A writer that rebuilds its state from the log
+(docket's `companion.session.*` entries) uses three additions to the wire. `Entries(SpaceId,
+EntriesQuery)` pages one stream oldest first: `kinds` (patterns, so a prefix is `companion.session.*`),
+`about: Option<ThingRef>` (events whose body names that thing as `Subject`: the writer names its
+stream, for example the session, as the Subject of every payload it records), `after: Option<Cursor>`
+(strictly after that event), `limit` and `bodies`; the reply is `EntriesPage { entries, next }` with
+`next` set only when more matched, so a reader resumes by passing `next` as `after`, or the last
+entry's `summary.event.seq` once it caught up. `RecordDurable(Record)` answers `Durable(Ack { event })`
+only after the log commit (`SqliteLog` runs `synchronous=FULL`), never buffers a locked Space and
+never drops silently: refusals are `SpaceLocked`, `SpaceFull`, `Unavailable` and `NotKept(DropReason)`
+(paused, a `Never` rule, a marked thing). `event.seq` is the Space log's sequence number, strictly
+increasing; memoryd's own audit events take numbers between a writer's. `Recallable::{Yes, No}`
+(`almanac-core::recallable`) is a rule over the kind: `companion.session.*` is `No`, which keeps
+the entry out of the index (search, `Inject`), consolidation input, `Related` and so out of the primer
+and every fact; `Recent`, `Entries`, `Timeline` and export return it. The member names on the bus are
+`Record.RecordDurable` and `Recall.Entries`; `Memory::record_durable` and `Memory::entries` are the client.
+
 **Add a rule scope**: its variant in `RuleScope` with a `specificity` (the order is
 `Thing > Path > Kind > App > Actor > Space`), its arm in `admit::applies`, a row in
 `admit_table` and the round-trip sample; `memory.toml` needs no change (it is serde).

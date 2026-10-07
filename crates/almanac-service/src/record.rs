@@ -5,9 +5,9 @@ use crate::docs::{event_doc_id, event_ref, indexed_docs, record_fault};
 use crate::open::{Cx, Open, failed};
 use crate::space::{SpaceEffect, SpaceEvent, step};
 use almanac_core::{
-    Admission, Confidentiality, Count, DataClass, EventBody, EventRef, FileChange, FileView,
-    FileWhy, FileWhyClaim, IndexPart, Integrity, KindPattern, Label, MarkKind, MarkRequest, Record,
-    Refusal, Source, Verb, admit_with,
+    Admission, Confidentiality, Count, DataClass, DropReason, EventBody, EventRef, FileChange,
+    FileView, FileWhy, FileWhyClaim, IndexPart, Integrity, KindPattern, Label, MarkKind,
+    MarkRequest, Record, Refusal, Source, Verb, admit_with, withheld,
 };
 use eventlog::{BodyState, LogRead};
 use std::collections::BTreeSet;
@@ -18,7 +18,14 @@ pub(crate) enum Stored {
     /// In the log.
     Event(EventRef),
     /// Admission dropped it (paused, a rule, a mark): nothing was kept.
-    Dropped,
+    Dropped(DropReason),
+}
+
+/// A message lands in the receiving Space, with the sender's label.
+pub(crate) fn land_in_receiver(record: &mut Record) {
+    if let EventBody::Message(m) = &record.body {
+        record.space = m.to.space.clone();
+    }
 }
 
 impl<B: Backend> Open<B> {
@@ -53,7 +60,7 @@ impl<B: Backend> Open<B> {
             &self.rt.marks,
             cx.settings.retention.file_unexplained,
         ) {
-            Admission::Drop(_) => return Ok(Stored::Dropped),
+            Admission::Drop(why) => return Ok(Stored::Dropped(why)),
             Admission::Keep { .. } => (Some(record.body.clone()), false),
             Admission::HeaderOnly { .. } => (None, true),
         };
@@ -64,6 +71,27 @@ impl<B: Backend> Open<B> {
             self.index_entry(cx, &entry).await;
         }
         Ok(Stored::Event(event_ref(self.space(), &entry)))
+    }
+
+    /// Records one event for a durable append: refuses, with the reason, whenever the body would
+    /// not be stored whole (a pause, a mark, a `Never` or `HeaderOnly` rule keep at most a header,
+    /// even for audit-class records such as a session's), and otherwise answers where it is.
+    pub(crate) async fn record_whole(
+        &mut self,
+        cx: &Cx<'_, B>,
+        record: Record,
+    ) -> Result<EventRef, Refusal> {
+        if let Some(why) = record_fault(&record) {
+            return Err(failed(why));
+        }
+        self.tick(cx)?;
+        if let Some(why) = withheld(&record, &cx.rules, &self.rt.state, &self.rt.marks) {
+            return Err(Refusal::NotKept(why));
+        }
+        match self.record(cx, record).await? {
+            Stored::Event(event) => Ok(event),
+            Stored::Dropped(why) => Err(Refusal::NotKept(why)),
+        }
     }
 
     /// Indexes the documents of a new entry; a narrated episode replaces its earlier events'.

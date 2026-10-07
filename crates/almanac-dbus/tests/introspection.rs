@@ -29,6 +29,7 @@ fn every_member_is_declared() {
         "<interface name=\"org.quire.Memory1.Recall\">",
         "<interface name=\"org.quire.Memory1.Control\">",
         "<method name=\"Record\">",
+        "<method name=\"RecordDurable\">",
         "<method name=\"RecordBatch\">",
         "<method name=\"ExplainFile\">",
         "<method name=\"Mark\">",
@@ -36,6 +37,7 @@ fn every_member_is_declared() {
         "<method name=\"Facts\">",
         "<method name=\"Inject\">",
         "<method name=\"Recent\">",
+        "<method name=\"Entries\">",
         "<method name=\"Related\">",
         "<method name=\"Provenance\">",
         "<method name=\"Primer\">",
@@ -74,8 +76,8 @@ fn every_member_is_declared() {
     let methods = xml.matches("<method ").count();
     assert_eq!(
         methods,
-        4 + 8 + 21,
-        "memory.md section 3.10 declares 28 methods; the companion amendment adds Inject and Recent, the retention sweep adds Sweep, review-mode consolidation adds ApplyConsolidation and DiscardConsolidation"
+        5 + 9 + 21,
+        "memory.md section 3.10 declares 28 methods; the companion amendment adds Inject and Recent, the retention sweep adds Sweep, review-mode consolidation adds ApplyConsolidation and DiscardConsolidation, the durable session log adds RecordDurable and Entries"
     );
     assert_eq!(xml.matches("<signal ").count(), 5);
 }
@@ -113,6 +115,12 @@ fn refusals_map_one_to_one_to_error_names() {
         (Refusal::NoSuchFact, "NoSuchFact"),
         (Refusal::NotPending, "NotPending"),
         (Refusal::Busy, "Busy"),
+        (Refusal::SpaceFull, "SpaceFull"),
+        (Refusal::Unavailable, "Unavailable"),
+        (
+            Refusal::NotKept(almanac_core::DropReason::Paused),
+            "NotKept",
+        ),
         (Refusal::Invalid("x".into()), "Invalid"),
     ];
     let mut names = std::collections::BTreeSet::new();
@@ -123,7 +131,7 @@ fn refusals_map_one_to_one_to_error_names() {
         assert_eq!(error.refusal(), Some(refusal));
         names.insert(name);
     }
-    assert_eq!(names.len(), 10);
+    assert_eq!(names.len(), 13);
 }
 
 #[test]

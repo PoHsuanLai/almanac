@@ -12,6 +12,9 @@ use zbus::fdo;
 pub trait Record {
     /// Records one event (`Record` JSON); answers the `EventRef` JSON.
     fn record(&self, space: &str, record: &str) -> zbus::Result<String>;
+    /// Records one event (`Record` JSON) and answers the `Ack` JSON only once it is durable; a
+    /// locked, full, paused or unavailable Space is the bus error of that name.
+    fn record_durable(&self, space: &str, record: &str) -> zbus::Result<String>;
     /// Records several in order (`Vec<Record>` JSON); answers the first `EventRef` and the count.
     fn record_batch(&self, space: &str, records: &str) -> zbus::Result<(String, u32)>;
     /// Says why a file changed (`FileWhyClaim` JSON).
@@ -27,6 +30,11 @@ pub struct RecordSkeleton;
 #[zbus::interface(name = "org.quire.Memory1.Record")]
 impl RecordSkeleton {
     fn record(&self, space: String, record: String) -> fdo::Result<String> {
+        let _ = (space, record);
+        Err(crate::introspect::frozen())
+    }
+
+    fn record_durable(&self, space: String, record: String) -> fdo::Result<String> {
         let _ = (space, record);
         Err(crate::introspect::frozen())
     }
