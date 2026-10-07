@@ -10,6 +10,10 @@ debug = "line-tables-only"
 split-debuginfo = "unpacked"
 incremental = true
 
+# Dependencies keep no debug info (workspace members keep line tables): it is most of a test link.
+[profile.dev.package."*"]
+debug = false
+
 # The system git client honours the machine's network setup; libgit2 is much slower on the
 # large blitz history.
 [net]

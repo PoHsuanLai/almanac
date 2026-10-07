@@ -1,7 +1,7 @@
 //! The argument codec: a `MemoryRequest` as the bus member and arguments that carry it, and a
 //! reply body back as a `MemoryReply`; and the same two in the other direction for the daemon
 //! (`decode_request`, `encode_reply`). One table per direction, over the member list of
-//! memory.md section 3.10; `tests/codec.rs` round-trips every request and reply of the wire
+//! memory.md section 3.10; `tests/it/codec.rs` round-trips every request and reply of the wire
 //! samples through both.
 //!
 //! Conventions: a Space is its plain id; every other typed argument is the serde JSON of its

@@ -3,7 +3,7 @@
 //! and hands it, with the sender's unique name, to the handler; the handler answers with the
 //! member's outputs (`decode_request` and `encode_reply` are the two ends of that table). Their
 //! introspection is the checked-in `dbus/org.quire.Memory1.xml`, the same as the frozen
-//! skeletons' (`tests/served.rs`).
+//! skeletons' (`tests/it/served.rs`).
 
 use crate::codec::{Call, CallArg, Iface};
 use crate::{CONTROL_INTERFACE, MEMORY_BUS, MEMORY_PATH, MemoryError};

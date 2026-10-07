@@ -1,0 +1,11 @@
+mod apply;
+mod edits;
+mod fixtures;
+mod forget_revert;
+mod hunks;
+mod open_refusals;
+mod proposals;
+mod scenario;
+mod service;
+mod session_log;
+mod settings;

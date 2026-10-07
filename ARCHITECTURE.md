@@ -216,17 +216,17 @@ interface other work builds on; a change is a format bump (section 6) or a SPEC 
 | topic file format, trailer grammar, `parse_topic`/`render_topic`, `VaultPath`, `MemoryVault`, `PlainDir`, `SealedDir`, `Store`, `Primer` | built; golden file |
 | `fuse_rrf`, `chunk`, `nearest_exact`, the vector BLOB, `Fts5`, `ExactScan`, `Index` (rebuild, upsert, `sync` that adopts a file, per-class refusal), `FakeEmbedder`, `FastembedEmbedder` | built, tested |
 | the Space, fact, plan and consolidation machines, `Plan::digest`, retention, timeline rows | built, table-tested |
-| every hunk (Promote, Supersede, Tidy, Stamp, ExternalEdit, Flag), revert, the retention sweep, marks, use counts | built; `almanac-fake/tests/hunks.rs` |
+| every hunk (Promote, Supersede, Tidy, Stamp, ExternalEdit, Flag), revert, the retention sweep, marks, use counts | built; `almanac-fake/tests/it/hunks.rs` |
 | the export writer, `EventLine`, config files (`memory.toml`, `spaces.toml`) | built; golden tar layout and event lines |
 | `plan_forget`, `check_draft`, `MemoryService` | built |
 | the file-why `join`, `InotifyWatch` | built |
 | D-Bus skeletons, proxies, `dbus/org.quire.Memory1.xml`, `MemoryError` | frozen, introspection tested (the skeletons and the served objects both) |
-| D-Bus codec, `invoke`, the served objects, `DbusTransport` | built; `almanac-dbus/tests/codec.rs` (every wire sample, both directions) |
+| D-Bus codec, `invoke`, the served objects, `DbusTransport` | built; `almanac-dbus/tests/it/codec.rs` (every wire sample, both directions) |
 | `Memory`, `Absent`, `InProcess` | built, tested |
 | `fake_service`, fixtures, scratch dirs | built |
 | `SystemBackend`, `SystemClock`, XDG roots, `InferdEmbedder`, `InferdConsolidator`, `inferd_link` | built; the models are tested over a scripted inferd session and over a fake inferd on a private bus |
-| `Serialised`, `Peers`, `Daemon`, the `memoryd` binary | built; `memoryd/tests/bus.rs` is the end-to-end test on a private bus |
-| the baseline and `ExternalEdit` hunks, topic text in `ConsolidationInput`, flags in `FactView`, `ServiceEvent`, `check_keys`, the Landlock sandbox, adopting an index at start | built; `almanac-fake/tests/edits.rs`, `recall/tests/adopt.rs`, `memoryd/tests/{restart,sandbox,bus}.rs` |
+| `Serialised`, `Peers`, `Daemon`, the `memoryd` binary | built; `memoryd/tests/it/bus.rs` is the end-to-end test on a private bus |
+| the baseline and `ExternalEdit` hunks, topic text in `ConsolidationInput`, flags in `FactView`, `ServiceEvent`, `check_keys`, the Landlock sandbox, adopting an index at start | built; `almanac-fake/tests/it/edits.rs`, `recall/tests/it/adopt.rs`, `memoryd/tests/it/{restart,sandbox,bus}.rs` |
 
 ## 6. File formats (frozen)
 
@@ -281,7 +281,7 @@ introspection test; the failure prints the new text.
 ## 7. Recipes
 
 **Add an event body variant** (a format change when it alters kind tags): its variant in
-`EventBody` and its arm in `kind()` and `things()`; a sample in `tests/wire.rs` (the exhaustive
+`EventBody` and its arm in `kind()` and `things()`; a sample in `tests/it/wire.rs` (the exhaustive
 index function breaks until it has one); its row in `allowed` (who may record it); its default
 retention in `RuleSet::standard`; a fixture in `almanac-fake` if specs name it. Another area's
 payload is never a variant: it is an `AreaPayload` with its owner's `KindTag`. The two
@@ -334,12 +334,12 @@ and every fact; `Recent`, `Entries`, `Timeline` and export return it. The member
 `MemoryRequest::space`, in `allowed` (the match is exhaustive) and in `MemoryService::handle`;
 the D-Bus member in `almanac-dbus` (proxy, skeleton and served object), then regenerate and review
 `dbus/org.quire.Memory1.xml`; a method on `Memory`; the arms of `encode_request`, `decode_request`,
-`decode_reply`, `encode_reply` and `invoke`; the sample in `almanac-core/tests/common/samples.rs`
+`decode_reply`, `encode_reply` and `invoke`; the sample in `almanac-core/tests/it/support/samples.rs`
 (the wire and codec tests read it); its queue claim in `memoryd::claim_of`.
 
 **Add a vector backend**: a `VectorIndex` implementation in its own crate (never in `recall`
 if it needs `unsafe` or an extension: the rule is no `unsafe` anywhere); the contract tests of
-`recall/tests/recall.rs`; a `Backend::Vectors` choice in memoryd.
+`recall/tests/it/recall.rs`; a `Backend::Vectors` choice in memoryd.
 
 **Add a vault**: a `Vault` implementation, the `vault_contract` test over it, a variant in
 memoryd's `SpaceVault` and in `VaultKind`.
@@ -358,10 +358,10 @@ in-memory SQLite, `FakeEmbedder` and `FixedClock(NOW)`; `Scratch` gives scratch 
 `mail_thread_archived`, `file_saved_from_attachment`, `companion_forwarded`, `cua_run_step` and
 `policy_ask` are the fixtures; `FakeBackend::vault_of` and `advance_clock` let a test edit files
 behind the service's back and move time. Tests never touch the real session bus, a keyring, the
-network or the real XDG directories: `memoryd/tests/common` starts a private `dbus-daemon` on a
+network or the real XDG directories: `memoryd/tests/it/support` starts a private `dbus-daemon` on a
 socket in a scratch directory, scratch XDG roots and an in-memory key store, and
-`memoryd/tests/bus.rs` calls the daemon through `almanac-client`'s `DbusTransport`.
-`almanac-fake/tests/service.rs` and `almanac-client/tests/memory.rs` are the model for tests over
+`memoryd/tests/it/bus.rs` calls the daemon through `almanac-client`'s `DbusTransport`.
+`almanac-fake/tests/it/service.rs` and `almanac-client/tests/it/memory.rs` are the model for tests over
 the fakes.
 
 ## 9. Repo rules
@@ -386,8 +386,8 @@ the fakes.
   git dependencies at a pinned rev, so a plain clone builds with no sibling checkout.
 - **The wire is serde.** Every stored or wire type has a round-trip test; enums with data are
   adjacently tagged (`kind`/`v`).
-- **D-Bus signatures change with their XML.** `almanac-dbus/tests/introspection.rs` fails until
-  `dbus/org.quire.Memory1.xml` equals the skeletons' introspection, and `tests/served.rs` until
+- **D-Bus signatures change with their XML.** `almanac-dbus/tests/it/introspection.rs` fails until
+  `dbus/org.quire.Memory1.xml` equals the skeletons' introspection, and `tests/it/served.rs` until
   the served objects (what memoryd runs) introspect the same.
 - **Keys and bodies never cross a transport in the clear.** No wire type holds a `SpaceKey`;
   the digest subkey leaves only in an export the person asked to include it in.

@@ -266,7 +266,7 @@ Decisions the fill made where the frozen text left room:
 **The bus.** `almanac-dbus` has one member table, both ways: `encode_request`/`decode_request` and
 `decode_reply`/`encode_reply` (`codec/`), `invoke` (the caller's half, over the proxies) and the
 served objects (`serve.rs`, the daemon's half, over a `Serve` handler). The frozen unit-struct
-skeletons stay as the introspection source; `tests/served.rs` pins that the objects memoryd
+skeletons stay as the introspection source; `tests/it/served.rs` pins that the objects memoryd
 serves introspect the same, and both equal `dbus/org.quire.Memory1.xml`. The XML gained `Control.Sweep`
 (30 methods became 31). Conventions the codec fixes: a Space argument is its plain id and every other
 typed argument is JSON; a Space argument that differs from the Space inside the body is `Invalid`;
@@ -352,7 +352,7 @@ Nothing is called at start: inferd is found, and started by activation, at the f
 daemon that starts before inferd or without it still starts. While inferd is unreachable `open`
 answers `Unreachable`: the embedder answers `Unavailable` (recall is lexical-only and the index
 retries), and a consolidation run is refused as `Busy` and retried the next night. Both halves are
-tested on a private bus (`memoryd/tests/inferd_bus.rs`): a fake `org.quire.Inference1` up, none, and
+tested on a private bus (`memoryd/tests/it/inferd_bus.rs`): a fake `org.quire.Inference1` up, none, and
 one that appears after the first failure. `NoInference` and `NoSession` are gone. `default_card()` is
 the card of the default embedding model (768 numbers, nomic prefixes) and must match what inferd
 serves.
@@ -403,9 +403,9 @@ cuad, reads the person's events during the takeover (`Recent`, a `Router` call) 
   fails at open no longer stops the Space opening (the index state says why; the next start
   retries). Additions: `VectorIndex::ids()` (a trait method; `ExactScan` is its only
   implementation), `Fts5::{recorded_space, record_space, stored}`, `StoredDoc`,
-  `FakeEmbedder::with_document_prefix`. Tests: `recall/tests/adopt.rs` (restart embeds nothing,
+  `FakeEmbedder::with_document_prefix`. Tests: `recall/tests/it/adopt.rs` (restart embeds nothing,
   only the changed, a changed facet, another model or prefix, an old file, vectorless documents,
-  a text-less document) and `memoryd/tests/restart.rs` (a counting embedder over the real SQLCipher
+  a text-less document) and `memoryd/tests/it/restart.rs` (a counting embedder over the real SQLCipher
   index across a restart, a deleted cache, a changed model).
 - **A refused class fails only its own documents** (93). `recall::Index` retries a batch the
   embedder refused (`EmbedError::Refused`) class by class (`Doc.class`); a class that refuses again
@@ -469,7 +469,7 @@ cuad, reads the person's events during the takeover (`Recent`, a `Router` call) 
   `Daemon::follow_keyring` calls `check_keys` per lock change; `main` subscribes before it serves
   and the minute timer is gone. The match is by path, not sender, so another bus client can cause
   one needless (idempotent) check. Tested over a private bus with a fake Secret Service
-  (`memoryd/tests/keyring.rs`: lock then unlock close and reopen the Space and each says
+  (`memoryd/tests/it/keyring.rs`: lock then unlock close and reopen the Space and each says
   `StatusChanged`; an unrelated property change is not a lock change).
 - **A changed index state is announced** (115): an open Space remembers the index state the bus last
   heard (what it opened with); when a request leaves it different (the embedder went away or came
@@ -486,7 +486,7 @@ cuad, reads the person's events during the takeover (`Recent`, a `Router` call) 
   the service never refused an unregistered Space (a Space is provisioned on first use), so a
   record for `desktop` already worked; what was missing was the guarantee. `PlanForget(desktop,
   Space)` is now refused (`Invalid`, "the desktop Space cannot be deleted"): it holds memory outside
-  every Space and the final head of each deleted Space. Tests: `memoryd/tests/desktop.rs`.
+  every Space and the final head of each deleted Space. Tests: `memoryd/tests/it/desktop.rs`.
 - **File keys for the packaged binary, TEST ONLY** (docket ask 3): feature `test-keys` (memoryd,
   and almanac-seal's `FileKeys`), off by default and never in a release or dist build.
   `MEMORYD_KEYS=file:<path>` selects a sealed file of Space keys; the daemon says so on standard
@@ -494,7 +494,7 @@ cuad, reads the person's events during the takeover (`Recent`, a `Router` call) 
   the source: the file keeps keys from sitting as plain text and protects nothing else, so it is
   never a production downgrade. Without the feature the variable is ignored and, if set, a startup
   line says `ignoring it and using the Secret Service` (`memoryd/src/keysel.rs`, pure `select`;
-  tests for both builds, `memoryd/tests/binary.rs` runs the feature-built binary on a private
+  tests for both builds, `memoryd/tests/it/binary.rs` runs the feature-built binary on a private
   bus with `env_clear` and scratch HOME/XDG, claims `org.quire.Memory1` and takes a `Record` into
   `desktop`; the feature-off twin runs in a default-feature build).
 - **Landlock broke caller identity** (CLOSED by the f4-almanac-callers lane): under its own
@@ -504,7 +504,7 @@ cuad, reads the person's events during the takeover (`Recent`, a `Router` call) 
   else, such as a terminal's child, is `NotAllowed`). The ruleset reads `/proc` files only
   (`Policy::read_files`: `ReadFile`, no listing, no execute) and `/proc` is no longer a readable
   tree. almanac now depends on `porter-dbus` (check-boundary row). `MEMORYD_SANDBOX=off` stays
-  test-only, but `memoryd/tests/binary.rs` runs with the sandbox ON.
+  test-only, but `memoryd/tests/it/binary.rs` runs with the sandbox ON.
 - **`MEMORYD_PROC_ROOT=<dir>` for docket-accept (TEST ONLY, feature `test-proc-root`, separate from `test-keys`; the acceptance build enables both)**: memoryd reads
   `<dir>/<pid>/cgroup` instead of `/proc/<pid>/cgroup`, and `<dir>` joins the sandbox's
   read-files rule. A startup line says `TEST BUILD: reading callers from the proc root <dir>, not /proc`. Without the
@@ -580,9 +580,9 @@ reads them.
 7. **Tests.** The schema is held structurally to the key table (ranges, words, on-page rows, no `agent` mark) and
    parses with the Settings app's loader (`ds_settings::Schema::from_toml`, run by hand from a scratch
    project: a dev-dependency on ds-settings would unify zbus's executor features); every schema key is read
-   (table test), every key has a bad-value fallback case; `almanac-fake/tests/settings.rs` changes the
+   (table test), every key has a bad-value fallback case; `almanac-fake/tests/it/settings.rs` changes the
    settings under a serving service (pending ttl, new Space vault, sweep retention, `when`);
-   `almanac-core/tests/retention_days.rs`; `memoryd/tests/settings.rs` changes the file under a running
+   `almanac-core/tests/it/retention_days.rs`; `memoryd/tests/it/settings.rs` changes the file under a running
    service and waits on the watch's own event.
 
 
@@ -686,7 +686,7 @@ text is matched, so a forgotten event whose text lives only in a pre-image is co
 Wire: none. The refusal is the existing `Invalid(String)`; a shell may match that reason text to
 say so. The same forget already scrubbed the served `DraftView` and the run files (`must_go`); the
 `LastRun` held nothing else with text (`added` and `superseded` are ids). Tests:
-`almanac-fake/tests/forget_revert.rs` (six).
+`almanac-fake/tests/it/forget_revert.rs` (six).
 
 The earlier gap (a forgotten event whose text lives only in a pre-image) is closed by the rule above.
 
@@ -806,16 +806,16 @@ a related-events read is a recall read). The primer and facts follow from consol
 read in almanac. `Recent`, `Entries`, `Timeline` and export return the entries. Not enforced: `Propose` can still
 cite a session event as a fact's link (the caller is the router or shell and names the event deliberately).
 
-Tests: `almanac-core/tests/companion.rs` (the kind rule), `almanac-fake/tests/session_log.rs` (paging with
+Tests: `almanac-core/tests/it/companion.rs` (the kind rule), `almanac-fake/tests/it/session_log.rs` (paging with
 interleaved events, cursor resume, bodies, monotonic ack, refusal when paused, not-for-recall in search, inject,
-related, consolidation, and present in Recent, Entries and export), `almanac-fake/tests/open_refusals.rs`
-(locked, full, failing log), `almanac-local/tests/disk.rs` (an acked append survives a reopen and pages back),
-`almanac-dbus` codec and introspection tests (new members, errors), `almanac-core/tests/wire.rs`.
+related, consolidation, and present in Recent, Entries and export), `almanac-fake/tests/it/open_refusals.rs`
+(locked, full, failing log), `almanac-local/tests/it/disk.rs` (an acked append survives a reopen and pages back),
+`almanac-dbus` codec and introspection tests (new members, errors), `almanac-core/tests/it/wire.rs`.
 
 **Session log over the real bus.** The session-log lane added `Recall.Entries` and `Record.RecordDurable` to the
 codec, skeletons, `serve.rs` and the XML but not to the client's `invoke`, so over D-Bus both answered
 `Invalid("no member")` and only the in-process transport worked. Both arms are in `invoke.rs`. Guards:
-`memoryd/tests/bus.rs` (durable ack, paging by cursor, `NotAllowed` and `NotKept(Paused)` as the bus error of
-their name, all through the daemon on a private bus) and `memoryd/tests/bus_members.rs` (every sample request
+`memoryd/tests/it/bus.rs` (durable ack, paging by cursor, `NotAllowed` and `NotKept(Paused)` as the bus error of
+their name, all through the daemon on a private bus) and `memoryd/tests/it/bus_members.rs` (every sample request
 goes through `invoke` to a recording handler, and the members reached must equal the members in the XML, so a
 member added to the interface without an `invoke` arm fails).

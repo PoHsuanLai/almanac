@@ -1,7 +1,7 @@
 //! almanac's D-Bus API (memory.md section 3.10): `org.quire.Memory1` at `/org/quire/Memory1`
 //! as three interfaces (`Record`, `Recall`, `Control`), each declared twice from one table: a
 //! proxy trait for callers and a skeleton for memoryd, whose introspection is the checked-in
-//! `dbus/org.quire.Memory1.xml` (see `tests/introspection.rs`). Bodies are the serde JSON of
+//! `dbus/org.quire.Memory1.xml` (see `tests/it/introspection.rs`). Bodies are the serde JSON of
 //! `almanac-core` types in `s` arguments. Signatures only: every skeleton method answers
 //! `NotSupported`; the served objects (`serve`) are the live ones, over a `Serve` handler.
 
