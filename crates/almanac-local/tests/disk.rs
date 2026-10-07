@@ -124,3 +124,30 @@ async fn a_space_is_created_once_and_listed_after_a_restart() {
     let service = service_again(dir.path());
     assert_eq!(service.metas().len(), 2);
 }
+
+#[tokio::test]
+async fn recent_with_bodies_returns_an_area_payload_in_the_owners_form() {
+    let dir = tempfile::tempdir().expect("dir");
+    let service = fresh(dir.path(), 7, nothing());
+    let router = client(&service, Caller::Router);
+    router
+        .record(almanac_fake::policy_ask().expect("fixture"))
+        .await
+        .expect("record");
+    let entries = router
+        .recent(
+            work(),
+            RecentQuery {
+                since: UnixSeconds(0),
+                kinds: vec![],
+                trust: TrustFilter::Any,
+                limit: Count(10),
+                bodies: BodyMode::Json,
+            },
+        )
+        .await
+        .expect("recent");
+    assert_eq!(entries.len(), 1);
+    let body = entries[0].body.as_ref().expect("body");
+    assert_eq!(body.as_str(), r#"{"ruling":"ask","rule":"untrusted-sink"}"#);
+}

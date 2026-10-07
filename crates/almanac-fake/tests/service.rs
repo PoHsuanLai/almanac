@@ -236,3 +236,32 @@ fn the_fakes_build_without_a_service_body() {
     assert_eq!(metas.len(), 3);
     let _ = service.backend().memory_keys();
 }
+
+#[tokio::test]
+async fn recent_with_bodies_returns_an_area_payload_in_the_owners_form() {
+    let service = service();
+    let record = policy_ask().expect("fixture");
+    let reply = ask(&service, &Caller::Router, MemoryRequest::Record(record)).await;
+    assert!(matches!(reply, MemoryReply::Recorded(_)));
+    let reply = ask(
+        &service,
+        &Caller::Router,
+        MemoryRequest::Recent(
+            space("work"),
+            RecentQuery {
+                since: UnixSeconds(0),
+                kinds: vec![],
+                trust: TrustFilter::Any,
+                limit: Count(10),
+                bodies: BodyMode::Json,
+            },
+        ),
+    )
+    .await;
+    let MemoryReply::Recent(entries) = reply else {
+        panic!("{reply:?}")
+    };
+    assert_eq!(entries.len(), 1);
+    let body = entries[0].body.as_ref().expect("body");
+    assert_eq!(body.as_str(), r#"{"ruling":"ask","rule":"untrusted-sink"}"#);
+}

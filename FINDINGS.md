@@ -724,3 +724,12 @@ check it (the same note as `eventlog`; `check-portable.sh` reports it).
 Closed asks (almanac-local follow-ups): a locked log or key store opening a Space is `Refusal::SpaceLocked`
 (it was `Invalid("event log: the event log is locked")`; the wire text changes only for that case, the
 `SpaceLocked` error name already exists in memoryd's codec), and the portable `WallClock`.
+
+## Recent bodies: an Area payload is the owner's form (fixed)
+
+`Recent` with `BodyMode::Json` returned an `Area` payload as the whole envelope
+(`{"kind":"area","v":{..,"json":"<owner form>"}}`), though `RecentEntry.body` documents the owner's form.
+It now returns `AreaPayload.json` unchanged; `Message` and `Episode` keep their serde form, as documented.
+No other read path carries bodies (search hits and recall carry text, not bodies). docket's master reads both
+forms, so the change is compatible. Tests: `recent_with_bodies_returns_an_area_payload_in_the_owners_form`
+in almanac-fake (`service.rs`) and almanac-local (`disk.rs`).

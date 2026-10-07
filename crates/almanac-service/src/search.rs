@@ -317,6 +317,7 @@ impl<B: Backend> Open<B> {
             label: h.label.clone(),
             text: (!texts.is_empty()).then(|| UserText::new(texts.join("\n"))),
             body: match (bodies, body) {
+                (BodyMode::Json, Some(EventBody::Area(p))) => Some(p.json.clone()),
                 (BodyMode::Json, Some(b)) => serde_json::to_string(b)
                     .ok()
                     .and_then(|json| JsonText::parse(&json).ok()),
