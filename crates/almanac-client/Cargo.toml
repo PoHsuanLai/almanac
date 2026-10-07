@@ -20,6 +20,11 @@ almanac-seal = { workspace = true }
 tokio = { workspace = true }
 
 [features]
+# The app-level desktop switch (design/36): on by default, an app on macOS or Windows builds with
+# `default-features = false` and `in_process`. It says "this app is on the Quire desktop"; the
+# platform feature it implies (`dbus`, what the OS provides) keeps its name.
+default = ["quire-desktop"]
+quire-desktop = ["dbus"]
 # Hosting the service in the app (`InProcess`, tests, single-process embedders). Off by default,
 # so a D-Bus client does not link SQLCipher or OpenSSL.
 in_process = ["dep:almanac-service"]

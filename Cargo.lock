@@ -132,6 +132,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "almanac-local"
+version = "0.1.0"
+dependencies = [
+ "almanac-client",
+ "almanac-core",
+ "almanac-fake",
+ "almanac-seal",
+ "almanac-service",
+ "eventlog",
+ "getrandom 0.3.4",
+ "jiff",
+ "memfiles",
+ "recall",
+ "rusqlite",
+ "tempfile",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "almanac-seal"
 version = "0.1.0"
 dependencies = [

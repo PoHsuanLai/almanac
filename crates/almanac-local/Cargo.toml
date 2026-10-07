@@ -1,0 +1,30 @@
+[package]
+name = "almanac-local"
+description = "A portable on-disk Backend for an app that hosts its own memory (mailo on macOS and Windows): SQLCipher log and index, sealed files, provided keys, no daemon."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+almanac-core = { workspace = true }
+almanac-seal = { workspace = true }
+almanac-service = { workspace = true }
+eventlog = { workspace = true }
+memfiles = { workspace = true }
+recall = { workspace = true }
+rusqlite = { workspace = true }
+getrandom = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+almanac-client = { workspace = true, default-features = false, features = ["in_process"] }
+almanac-fake = { workspace = true }
+tempfile = { workspace = true }
+tokio = { workspace = true }
+jiff = { workspace = true }
+
+[lints]
+workspace = true

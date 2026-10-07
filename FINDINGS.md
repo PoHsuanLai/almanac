@@ -679,10 +679,42 @@ The earlier gap (a forgotten event whose text lives only in a pre-image) is clos
   portable key store (a master key the app provides); `scripts/check-portable.sh` gates the core crates
   with `--no-default-features` and cross-target checks. `almanac-seal`/`almanac-watch` `pure-hash` (off by
   default) builds blake3 without C for a cross check.
-- Open: no portable disk `Backend` exists yet (memoryd's `SystemBackend` is the desktop's, over inferd). An
-  app on macOS or Windows needs one over `SqliteLog`, `SealedDir`, `ExactScan`, `ProvidedKeys` and its own
-  embedder; a small `almanac-local` crate is the natural home. The in-process test uses `almanac-fake`.
+- Built: `almanac-local` (below), the portable disk `Backend`; `almanac-client` `quire-desktop = ["dbus"]`
+  (default on) is the app-level desktop switch (ARCHITECTURE 1a names the two kinds of feature).
 - Open: `InotifyWatch` pairs renames by inotify cookie; a notify-backed watcher for macOS/Windows needs its
   own translation (FSEvents and ReadDirectoryChanges report renames differently).
 - Open: cross-checking `eventlog`, `recall`, `almanac-service` and `almanac-client` needs the target's C
   toolchain for SQLCipher and OpenSSL; only a macOS/Windows CI runner can check them.
+
+## almanac-local (design/36)
+
+`almanac-local` is what an app that hosts its own memory (mailo on macOS or Windows) opens instead of
+memoryd's `SystemBackend`: `LocalBackend` over `SqliteLog` (SQLCipher `events.db`), `SealedDir` or `PlainDir`
+by the Space's `VaultKind`, `ExactScan` over FTS5 (`index.db`) and `ProvidedKeys`. It reads no environment,
+no XDG directory, no `/proc`, no wall clock; it uses no D-Bus, inotify or Landlock. The app then serves
+`Memory::over(InProcess::new(Arc::new(almanac_local::open(backend, rules)?), caller))`.
+
+What an app must provide:
+- **A root directory** (`Root::new(path)`, e.g. its application-support directory). Below it: `data/quire/memory`
+  (`spaces.toml`, each Space's `events.db` and sealed files), `cache/quire/memory/<space>/index.db` (rebuildable).
+- **A master key**: `ProvidedKeys::new(SpaceKey)`, 32 bytes from its own sign-in or keychain, the same on every
+  run. A different one is not an error at open: the first request on a Space answers `Refusal::SpaceLocked`
+  (`LogError::Locked` underneath; a sealed file read is `VaultError::Sealed`). `ProvidedKeys` persists nothing, so
+  erasing a Space for good is the app discarding the key it provided (`destroy` bars it only for this process).
+- **A clock** (`almanac_service::Clock`): the crate ships none, by the rule that only a daemon reads the
+  system clock; the app implements it with one `SystemTime::now` (interface ask).
+- **Optionally an embedder** (`with_embedder`; a generic parameter, not a trait object, because `Embedder`
+  returns `impl Future`). The default `NoEmbedder` always answers `Unavailable`, so the index stays lexical-only
+  (FTS5 keyword search) and the exact scan has nothing to scan. The embedder's card names the vector space; a
+  different card means a rebuild.
+- **Optionally a consolidator** (`with_consolidator`); the default answers `Unavailable`, so a consolidation
+  run fails and changes nothing.
+- **Optionally a watcher.** The backend takes no `FileWatch`: file-change capture is the app's own loop
+  (`almanac_watch::FileWatch` and `join`, then `Record`/`ExplainFile` through the client). There is no portable
+  watcher yet (see Open, above).
+
+The app calls `create_space(&service, id, VaultKind)` once per Space (it writes `spaces.toml`); `open` registers
+the Spaces in that file at every start, as memoryd does. The rule set is the app's (`RuleSet::standard()` or
+its own), and it keeps it: there is no `memory.toml`. Settings reach the service by `apply_settings`.
+Cross-target: the crate depends on SQLCipher with vendored OpenSSL, so only a macOS or Windows runner can
+check it (the same note as `eventlog`; `check-portable.sh` reports it).

@@ -20,6 +20,7 @@ CORE=(
   "almanac-service"
   "almanac-watch"
   "almanac-client:in_process"
+  "almanac-local"
 )
 # What the core must never reach, by crate name (platform services and the desktop's bus).
 FORBIDDEN='zbus|zvariant|inotify|notify|landlock|oo7|secret-service'

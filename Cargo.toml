@@ -11,6 +11,7 @@ members = [
   "crates/almanac-watch",
   "crates/almanac-dbus",
   "crates/almanac-client",
+  "crates/almanac-local",
   "crates/almanac-fake",
   "crates/memoryd",
 ]
@@ -33,7 +34,8 @@ recall          = { path = "crates/recall" }
 almanac-service = { path = "crates/almanac-service" }
 almanac-watch   = { path = "crates/almanac-watch" }
 almanac-dbus    = { path = "crates/almanac-dbus" }
-almanac-client  = { path = "crates/almanac-client" }
+almanac-client  = { path = "crates/almanac-client", default-features = false }
+almanac-local   = { path = "crates/almanac-local" }
 almanac-fake    = { path = "crates/almanac-fake" }
 
 # porter's frozen interfaces (master 4623e18), by sibling path until the pinned git rev replaces

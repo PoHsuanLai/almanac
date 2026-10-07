@@ -33,6 +33,7 @@ RULES=(
   "almanac-dbus: reqwest hyper oo7 ort fastembed rusqlite notify"
   "almanac-client: $EFFECTS rusqlite openssl-sys notify"
   "almanac-fake: $EFFECTS notify"
+  "almanac-local: $EFFECTS notify"
 )
 fail=0
 
@@ -45,11 +46,15 @@ for rule in "${RULES[@]}"; do
     fail=1
     continue
   fi
+  # almanac-client's default feature (`quire-desktop`, the app-level desktop switch) turns `dbus` on;
+  # the rule is about what an app without it links, so that crate is checked without defaults.
+  defaults=()
+  [ "$crate" = almanac-client ] && defaults=(--no-default-features)
   leaked=0
   for dep in "${forbidden[@]}"; do
-    if cargo tree -p "$crate" -i "$dep" -e normal,build 2>/dev/null | grep -q .; then
+    if cargo tree -p "$crate" "${defaults[@]}" -i "$dep" -e normal,build 2>/dev/null | grep -q .; then
       echo "LEAK: $crate depends on $dep"
-      cargo tree -p "$crate" -i "$dep" -e normal,build 2>/dev/null | head -20
+      cargo tree -p "$crate" "${defaults[@]}" -i "$dep" -e normal,build 2>/dev/null | head -20
       leaked=1
       fail=1
     fi
@@ -78,6 +83,7 @@ EDGES=(
   "almanac-dbus: almanac-core"
   "almanac-client: almanac-core almanac-dbus almanac-service"
   "almanac-fake: almanac-core almanac-seal eventlog memfiles recall almanac-service"
+  "almanac-local: almanac-core almanac-seal eventlog memfiles recall almanac-service"
   "memoryd: almanac-core almanac-seal eventlog memfiles recall almanac-service almanac-watch almanac-dbus porter-core porter-dbus porter-infer porter-client"
 )
 for edge in "${EDGES[@]}"; do
