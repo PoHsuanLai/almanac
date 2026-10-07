@@ -17,17 +17,42 @@ trait), section 5 (what is built), section 6 (copy the recipe).
 | Crate | Purpose | I/O |
 | --- | --- | --- |
 | `almanac-core` | the vocabulary: ids and their grammars (`FactId`, `TopicPath`, `KindTag`, `KindPattern`, `SpacePath`), things (`ThingRef` = `prov::EntityId`), `Record`, `EventBody` (with `Message` and `Episode`), `AreaPayload`, `Episode` and its skeleton, `InjectQuery`/`RecentQuery`, facts, remember rules and the pure `admit`, the wire (`MemoryRequest`, `MemoryReply`, `Refusal`, `Caller`), the timeline, forget-plan, draft and status views, the export manifest, `Dirs`; re-exports the porter and `prov` names the other crates use | none |
-| `almanac-seal` | `SpaceKey`, purpose subkeys (`derive`), `DbKey`, `seal`/`unseal` for files, the `KeyStore` seam, `MemoryKeys` (feature `testing`), `Oo7Keys` (feature `oo7`) | none (oo7 behind its feature) |
+| `almanac-seal` | `SpaceKey`, purpose subkeys (`derive`), `DbKey`, `seal`/`unseal` for files, the `KeyStore` seam, `ProvidedKeys` (Space keys derived from a master key the app provides: the portable key source), `MemoryKeys` (feature `testing`), `Oo7Keys` (feature `oo7`) | none (oo7 behind its feature) |
 | `eventlog` | the header's canonical bytes, `link`, `verify_chain`, `LogRead`/`LogWrite`, `SqliteLog` (SQLCipher), `MemoryLog` (feature `testing`), the schema | rusqlite |
 | `memfiles` | the topic file format (`parse_topic`, `render_topic`, the trailer), `VaultPath`, the `Vault` seam, `PlainDir`/`SealedDir`, `MemoryVault` (feature `testing`), `Store`, `Primer` | the filesystem through `Vault` |
 | `recall` | generic: `Embedder`, `VectorIndex`, `Fts5`, `ExactScan`, `Index`, `fuse_rrf`, `chunk`, the index state machine, `FakeEmbedder` (feature `testing`). Knows nothing of almanac | rusqlite |
 | `recall-fastembed` | `FastembedEmbedder` (in-process ONNX). Excluded from clippy and test: ort downloads binaries | ort through fastembed |
 | `almanac-service` | memoryd's core over seams: `allowed`, the Space, fact, forget-plan and consolidation machines, retention, timeline rows, the export writer, the config files, `MemorySettings` and the lenient settings reader (`settings`: the key table held to `dist/settings/almanac.settings.toml`, `Locator`), `Backend` and `MemoryService` | none (seams are passed in) |
-| `almanac-watch` | `FileWatch`, `InotifyWatch` (notify 8.2), the pure `join` of observed changes and app-supplied reasons | inotify |
+| `almanac-watch` | `FileWatch`, `WatchError`, the pure `join` of observed changes and app-supplied reasons; `InotifyWatch` (notify 8.2) behind the `linux` feature | inotify (feature `linux`) |
 | `almanac-dbus` | `org.quire.Memory1` (`Record`, `Recall`, `Control`) as zbus proxies and skeletons (the introspection source), `MemoryError`, the argument codec (`encode_request`/`decode_request`, `encode_reply`/`decode_reply`), `invoke` (the caller's half) and the served objects over a `Serve` handler (the daemon's half) | zbus |
 | `almanac-client` | the app-facing `Memory` over a `Transport`: `Absent` (no-op on other desktops), `DbusTransport` (feature `dbus`), `InProcess` (feature `in_process`, off by default: only it links `almanac-service`, SQLCipher and OpenSSL) | through its transport |
 | `almanac-fake` | test-only: `fake_service`, `FakeBackend`, `FixedClock`, `SteppedClock`, `SharedVault`, `ScriptedConsolidator`, `Scratch`, the five fixtures | none |
 | `memoryd` | the daemon and its library: `SystemBackend` (over any key store, embedder and consolidator), `SystemClock`, `InferdEmbedder`, `InferdConsolidator`, the XDG roots, `Serialised` (a queue per Space), `Peers` (who is calling), `Daemon` (the bus handler), the Landlock `sandbox` policy, `keysel` (which key store: the Secret Service, or with the test-only `test-keys` feature a sealed file named by `MEMORYD_KEYS=file:<path>`; the same feature lets `MEMORYD_SANDBOX=off` skip Landlock, see FINDINGS; `procroot`: the test-only `test-proc-root` feature's `MEMORYD_PROC_ROOT=<dir>`, a fixture `/proc` for callers); `callers` (the callers file and porter's caller mapped onto almanac's); the binary applies the sandbox, then serves the session bus; `SettingsWatch` (the directory watch on `almanac/settings.toml`; `apply_next` puts each change in force on the service), the nightly consolidation timer, `Policy.read_dirs`, `--write-schema` | everything |
+
+## 1a. Portable core and desktop extras
+
+Quire's rule (design/36-PORTABLE-CORE.md): everything except the desktop itself is
+cross-platform, and the desktop's features are additive. For almanac:
+
+| Portable core (builds with `--no-default-features`) | Desktop extra |
+| --- | --- |
+| `almanac-core`, `almanac-seal` (`ProvidedKeys`), `eventlog`, `memfiles`, `recall`, `almanac-service`, `almanac-client` with `in_process`, `almanac-watch`'s seam and `join` | `almanac-dbus`, `memoryd` (the one shared memory daemon: Secret Service keys, Landlock, the bus, file watching, the nightly timer), `almanac-client`'s `dbus` feature, `almanac-seal`'s `oo7` feature, `almanac-watch`'s `linux` feature (`InotifyWatch`) |
+| test helpers: `almanac-fake`; `recall-fastembed` (ONNX, optional) | |
+
+An app on another desktop hosts the service itself: `Memory::over(InProcess::new(service,
+caller))` over a `Backend` whose keys are `ProvidedKeys` (the app gives one 32-byte master key,
+from its own sign-in or keychain; each Space's key derives from it) and whose other seams are
+the portable ones above. `ProvidedKeys` persists nothing, so `destroy` bars the Space only for
+the life of the store: erasing a Space for good is the app discarding the key it provided.
+
+Feature layout (every desktop feature is default on where memoryd or the desktop needs it, so a
+default build is unchanged; `almanac-client` and `almanac-seal` keep their existing opt-in
+features): `almanac-watch` `linux` (default) = `InotifyWatch` and the `notify` dependency;
+`almanac-client` `in_process` (off by default: it links SQLCipher and OpenSSL) and `dbus`;
+`almanac-seal` `oo7`. `scripts/check-portable.sh` checks the left column: `cargo check
+--no-default-features` on each, no `zbus`, `inotify`, `notify`, `landlock`, `oo7` or
+`secret-service` in its `cargo tree`, and a `cargo check --target` for each installed
+macOS/Windows rustup target.
 
 Allowed direct edges (checked by `scripts/check-boundary.sh`; dev-dependencies are outside it):
 
@@ -154,7 +179,7 @@ pub trait Clock: Send + Sync { fn now(&self) -> UnixSeconds; }
 // The service's seams, bundled as associated types: FakeBackend, memoryd's SystemBackend.
 pub trait Backend: Send + Sync { type Keys; type Log; type Files; type Vectors; type Embedder; type Consolidator; type Clock; /* + random, remove_space, open_log, open_files, open_index */ }
 
-// almanac-watch: InotifyWatch (fanotify later).
+// almanac-watch: InotifyWatch (feature `linux`; fanotify later).
 pub trait FileWatch: Send { fn watch(..); fn unwatch(..); fn next(&mut self) -> impl Future<Output = Option<Observed>> + Send; }
 
 // almanac-client: InProcess (feature in_process), Absent, DbusTransport.

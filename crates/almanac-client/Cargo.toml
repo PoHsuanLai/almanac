@@ -16,6 +16,7 @@ thiserror = { workspace = true }
 
 [dev-dependencies]
 almanac-fake = { workspace = true }
+almanac-seal = { workspace = true }
 tokio = { workspace = true }
 
 [features]

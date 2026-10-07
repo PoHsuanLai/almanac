@@ -2,38 +2,15 @@
 //! watcher is later, behind the same trait, if a privileged helper is ever accepted.
 
 use crate::observed::Observed;
+use crate::seam::{FileWatch, WatchError};
 use crate::translate::{Inbox, now};
 use almanac_core::SpacePath;
 use notify::{RecursiveMode, Watcher};
-use std::future::{Future, poll_fn};
+use std::future::poll_fn;
 use std::path::Path;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::task::Poll;
 use std::time::Duration;
-
-/// Why watching failed.
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
-pub enum WatchError {
-    /// The root does not exist or cannot be watched.
-    #[error("cannot watch {0}")]
-    Unwatchable(String),
-    /// The kernel's watch or instance limit is reached.
-    #[error("watch limit reached")]
-    LimitReached,
-    /// The backend failed.
-    #[error("watcher: {0}")]
-    Backend(String),
-}
-
-/// A source of file observations.
-pub trait FileWatch: Send {
-    /// Starts watching a root, recursively.
-    fn watch(&mut self, root: &SpacePath) -> Result<(), WatchError>;
-    /// Stops watching a root.
-    fn unwatch(&mut self, root: &SpacePath) -> Result<(), WatchError>;
-    /// The next change, with rename halves already paired; `None` when the watcher is closed.
-    fn next(&mut self) -> impl Future<Output = Option<Observed>> + Send;
-}
 
 /// inotify through notify 8.2.
 ///

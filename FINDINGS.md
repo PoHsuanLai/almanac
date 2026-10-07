@@ -672,3 +672,17 @@ say so. The same forget already scrubbed the served `DraftView` and the run file
 `almanac-fake/tests/forget_revert.rs` (six).
 
 The earlier gap (a forgotten event whose text lives only in a pre-image) is closed by the rule above.
+
+## Portable core (design/36)
+
+- Built: `almanac-watch` feature `linux` (default) holds `InotifyWatch`; `almanac-seal` `ProvidedKeys` is the
+  portable key store (a master key the app provides); `scripts/check-portable.sh` gates the core crates
+  with `--no-default-features` and cross-target checks. `almanac-seal`/`almanac-watch` `pure-hash` (off by
+  default) builds blake3 without C for a cross check.
+- Open: no portable disk `Backend` exists yet (memoryd's `SystemBackend` is the desktop's, over inferd). An
+  app on macOS or Windows needs one over `SqliteLog`, `SealedDir`, `ExactScan`, `ProvidedKeys` and its own
+  embedder; a small `almanac-local` crate is the natural home. The in-process test uses `almanac-fake`.
+- Open: `InotifyWatch` pairs renames by inotify cookie; a notify-backed watcher for macOS/Windows needs its
+  own translation (FSEvents and ReadDirectoryChanges report renames differently).
+- Open: cross-checking `eventlog`, `recall`, `almanac-service` and `almanac-client` needs the target's C
+  toolchain for SQLCipher and OpenSSL; only a macOS/Windows CI runner can check them.

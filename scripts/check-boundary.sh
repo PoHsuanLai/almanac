@@ -102,6 +102,10 @@ for banned in docket-core docket-router intentd cua-run cua-bus cuad companion-w
   fi
 done
 
+# The portable core (ARCHITECTURE.md section 1a) is checked by its own script: no-default-features
+# builds, no platform dependency in the tree, cross-target checks. It needs no network.
+./scripts/check-portable.sh || fail=1
+
 # The test-only features are never on in a default build (a dist build uses default features):
 # memoryd's `test-keys` and `test-proc-root`, and almanac-seal's `test-keys` that one turns on.
 enabled=$(cargo tree -p memoryd -e normal,build -f '{p} [{f}]' --prefix none 2>/dev/null \

@@ -21,7 +21,7 @@ pub enum KeyError {
     Store(String),
 }
 
-/// Where Space keys are kept. Implementations: `MemoryKeys` (feature `testing`), `Oo7Keys`
+/// Where Space keys are kept. Implementations: `ProvidedKeys` (the app's own master key; portable), `MemoryKeys` (feature `testing`), `Oo7Keys`
 /// (feature `oo7`; Secret Service items with attributes `xdg:schema` =
 /// `org.quire.Memory.SpaceKey` and `space` = the id).
 pub trait KeyStore: Send + Sync {

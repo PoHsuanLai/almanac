@@ -11,8 +11,15 @@ publish.workspace = true
 [dependencies]
 almanac-core = { workspace = true }
 blake3 = { workspace = true }
-notify = { workspace = true }
+notify = { workspace = true, optional = true }
 thiserror = { workspace = true }
+
+[features]
+default = ["linux"]
+# `InotifyWatch`: notify's inotify backend. Off elsewhere; `join` and the seam stay portable.
+linux = ["dep:notify"]
+# blake3's portable Rust implementation, for a cross build with no C compiler for the target.
+pure-hash = ["blake3/pure"]
 
 [dev-dependencies]
 tempfile = { workspace = true }

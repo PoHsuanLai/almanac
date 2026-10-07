@@ -84,6 +84,7 @@ dependencies = [
  "almanac-core",
  "almanac-dbus",
  "almanac-fake",
+ "almanac-seal",
  "almanac-service",
  "thiserror",
  "tokio",
