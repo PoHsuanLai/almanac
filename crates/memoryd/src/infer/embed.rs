@@ -137,10 +137,12 @@ pub(crate) fn model_failure(why: ModelError) -> EmbedError {
         ModelError::RateLimited(_) => EmbedError::Busy,
         ModelError::ContextOverflow => EmbedError::TooLong,
         ModelError::Unauthorized | ModelError::Refused => EmbedError::Refused(why.to_string()),
-        ModelError::Unreadable | ModelError::Unparseable => EmbedError::Failed {
-            class: RetryClass::Retry,
-            why: why.to_string(),
-        },
+        ModelError::Unreadable | ModelError::Unparseable | ModelError::OnlyThought { .. } => {
+            EmbedError::Failed {
+                class: RetryClass::Retry,
+                why: why.to_string(),
+            }
+        }
     }
 }
 

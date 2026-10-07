@@ -54,9 +54,11 @@ fn refusal(why: InferRefusal) -> ConsolidateError {
 fn failure(why: ModelError) -> ConsolidateError {
     match why {
         ModelError::RateLimited(_) => ConsolidateError::Busy,
-        ModelError::Unreadable | ModelError::Unparseable | ModelError::ContextOverflow => {
-            ConsolidateError::Unparseable
-        }
+        // A reply that was all thinking left no draft to read.
+        ModelError::Unreadable
+        | ModelError::Unparseable
+        | ModelError::ContextOverflow
+        | ModelError::OnlyThought { .. } => ConsolidateError::Unparseable,
         ModelError::Unreachable
         | ModelError::Unauthorized
         | ModelError::Refused
