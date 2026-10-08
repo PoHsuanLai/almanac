@@ -175,6 +175,8 @@ pub fn requests() -> Vec<MemoryRequest> {
             trust: TrustFilter::TrustedOnly,
         }),
         MemoryRequest::Sweep(w.clone()),
+        MemoryRequest::RemoveSpace(w.clone(), MemoryFate::MoveToApps),
+        MemoryRequest::RemoveSpace(w.clone(), MemoryFate::Delete),
         MemoryRequest::ApplyConsolidation(RunId::parse("run-1").expect("run")),
         MemoryRequest::DiscardConsolidation(RunId::parse("run-1").expect("run")),
         MemoryRequest::RecordDurable(record(archived_body(), user())),
@@ -356,6 +358,11 @@ pub fn replies() -> Vec<MemoryReply> {
         MemoryReply::Swept(SweepReport {
             bodies: Count(4),
             headers: Count(1),
+        }),
+        MemoryReply::Relocated(Relocation {
+            moved: Count(3),
+            kept_pending: Count(1),
+            deleted: Count(0),
         }),
     ]
 }

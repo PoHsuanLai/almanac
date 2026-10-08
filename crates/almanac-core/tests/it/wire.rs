@@ -41,6 +41,7 @@ fn request_index(r: &MemoryRequest) -> usize {
         MemoryRequest::DiscardConsolidation(_) => 32,
         MemoryRequest::RecordDurable(_) => 33,
         MemoryRequest::Entries(..) => 34,
+        MemoryRequest::RemoveSpace(..) => 35,
     }
 }
 
@@ -51,7 +52,7 @@ fn wire_round_trip_every_request() {
     let covered: std::collections::BTreeSet<usize> = all.iter().map(request_index).collect();
     assert_eq!(
         covered,
-        (0..=34).collect(),
+        (0..=35).collect(),
         "a request variant has no sample"
     );
 }
@@ -82,6 +83,7 @@ fn reply_index(r: &MemoryReply) -> usize {
         MemoryReply::Swept(_) => 21,
         MemoryReply::Durable(_) => 22,
         MemoryReply::Entries(_) => 23,
+        MemoryReply::Relocated(_) => 24,
     }
 }
 
@@ -90,7 +92,7 @@ fn wire_round_trip_every_reply() {
     let all = replies();
     round_trips(&all);
     let covered: std::collections::BTreeSet<usize> = all.iter().map(reply_index).collect();
-    assert_eq!(covered, (0..=23).collect(), "a reply variant has no sample");
+    assert_eq!(covered, (0..=24).collect(), "a reply variant has no sample");
 }
 
 #[test]

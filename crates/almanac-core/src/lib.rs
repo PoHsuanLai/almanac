@@ -23,6 +23,7 @@ mod involve;
 mod op;
 mod query;
 mod recallable;
+mod relocate;
 mod reply;
 mod request;
 mod rules;
@@ -64,6 +65,7 @@ pub use query::{
     RecallQuery, VerificationKey,
 };
 pub use recallable::Recallable;
+pub use relocate::{MemoryFate, Relocation};
 pub use reply::{ForgetReport, MemoryReply, RecallHit, RecallWhy, Refusal, SweepReport};
 pub use request::{ForgetScope, MemoryRequest};
 pub use rules::{
@@ -92,7 +94,8 @@ pub const MEMORY_WIRE_VERSION: u32 = 1;
 /// The other crates of this repo reach porter and `prov` through almanac-core, so the allowed
 /// edges stay exactly the crate map's.
 pub use porter_core::{
-    AppId, AppName, Bytes, Count, DataClass, Isolation, SpaceId, SpaceScope, Tokens, UnixSeconds,
+    AppId, AppName, Bytes, Count, DataClass, DesktopSpace, Isolation, LocalSpace, SpaceId,
+    SpaceKind, SpaceScope, Tokens, UnixSeconds,
 };
 /// Why a message is malformed (`prov::Fault`): the service refuses a `Record` whose message
 /// fails `Message::check`.

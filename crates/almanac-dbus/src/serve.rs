@@ -529,6 +529,25 @@ impl<S: Serve> ControlObject<S> {
         )
     }
 
+    async fn remove_space(
+        &self,
+        #[zbus(header)] h: Header<'_>,
+        space: String,
+        fate: String,
+    ) -> Result<String, MemoryError> {
+        first(
+            forward(
+                &*self.0,
+                &h,
+                Iface::Control,
+                "RemoveSpace",
+                vec![text(space), text(fate)],
+                None,
+            )
+            .await?,
+        )
+    }
+
     async fn export(
         &self,
         #[zbus(header)] h: Header<'_>,

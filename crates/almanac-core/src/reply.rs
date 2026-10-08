@@ -8,6 +8,7 @@ use crate::fact::{FactState, Link, MemoryItem};
 use crate::ids::FactId;
 use crate::inject::RecentEntry;
 use crate::op::ForgetCounts;
+use crate::relocate::Relocation;
 use crate::rules::{DropReason, RuleSet};
 use crate::space::{SpaceStatus, SpaceSummary};
 use crate::text::PlanDigest;
@@ -163,4 +164,6 @@ pub enum MemoryReply {
     Refused(Refusal),
     /// A retention sweep ran.
     Swept(SweepReport),
+    /// A removed Space's memories were settled.
+    Relocated(Relocation),
 }

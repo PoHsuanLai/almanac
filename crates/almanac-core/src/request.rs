@@ -7,6 +7,7 @@ use crate::fact::{FactDraft, Settlement};
 use crate::ids::{FactId, KindPattern, PlanToken, RuleId, SpacePath};
 use crate::inject::{InjectQuery, RecentQuery};
 use crate::query::{ExportOptions, FactQuery, FileWhyClaim, MarkRequest, RecallQuery};
+use crate::relocate::MemoryFate;
 use crate::rules::RememberRule;
 use crate::thing::ThingRef;
 use crate::timeline::TimelineQuery;
@@ -120,6 +121,10 @@ pub enum MemoryRequest {
     /// Run the retention sweep now: erase the bodies and prune the headers that have outlived
     /// their keep (memoryd also sweeps on a timer).
     Sweep(SpaceId),
+    /// A desktop-wide Space was removed: settle its memories as the person chose. `MoveToApps`
+    /// is what memoryd does by itself when the registry says the Space is gone; `Delete` is the
+    /// person's explicit choice and is never the default. Safe to repeat.
+    RemoveSpace(SpaceId, MemoryFate),
 }
 
 impl MemoryRequest {
@@ -148,7 +153,8 @@ impl MemoryRequest {
             | MemoryRequest::Resume(s)
             | MemoryRequest::Verify(s)
             | MemoryRequest::Rebuild(s)
-            | MemoryRequest::Sweep(s) => Some(s),
+            | MemoryRequest::Sweep(s)
+            | MemoryRequest::RemoveSpace(s, _) => Some(s),
             MemoryRequest::RecordBatch(_)
             | MemoryRequest::Spaces
             | MemoryRequest::Forget(_)

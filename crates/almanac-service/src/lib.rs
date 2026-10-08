@@ -31,6 +31,8 @@ mod marks;
 mod open;
 mod proposals;
 mod record;
+mod rehome;
+mod relocate;
 mod retention;
 mod revert_guard;
 mod run;

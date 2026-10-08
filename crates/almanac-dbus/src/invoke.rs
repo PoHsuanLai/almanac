@@ -81,6 +81,7 @@ pub async fn invoke(
                 "Verify" => Ok(vec![p.verify(a.text()?).await?]),
                 "Rebuild" => done(p.rebuild(a.text()?).await),
                 "Sweep" => Ok(vec![p.sweep(a.text()?).await?]),
+                "RemoveSpace" => Ok(vec![p.remove_space(a.text()?, a.text()?).await?]),
                 "Export" => {
                     let out = fd.ok_or_else(fd_missing)?;
                     Ok(vec![

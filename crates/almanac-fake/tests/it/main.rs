@@ -5,6 +5,7 @@ mod forget_revert;
 mod hunks;
 mod open_refusals;
 mod proposals;
+mod removal;
 mod scenario;
 mod service;
 mod session_log;

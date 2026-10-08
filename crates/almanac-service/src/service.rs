@@ -13,8 +13,8 @@ use crate::open::{Cx, ErasedNotes, Open};
 use crate::record::Stored;
 use crate::settings::MemorySettings;
 use almanac_core::{
-    Caller, ChainHealth, Count, ExportOptions, Marks, MemoryReply, MemoryRequest, PlanToken,
-    Record, Refusal, RuleSet, RunState, SpaceId, SpaceMeta, SpaceState, SpaceSummary,
+    AppName, Caller, ChainHealth, Count, ExportOptions, Marks, MemoryReply, MemoryRequest,
+    PlanToken, Record, Refusal, RuleSet, RunState, SpaceId, SpaceMeta, SpaceState, SpaceSummary,
 };
 use almanac_seal::{KeyError, KeyStore, Purpose, derive};
 use memfiles::Store;
@@ -71,6 +71,8 @@ pub struct MemoryService<B: Backend> {
     /// Spaces whose lost key was announced, until they open again.
     locked: Mutex<BTreeSet<SpaceId>>,
     events: Mutex<Vec<ServiceEvent>>,
+    /// The app whose App Space takes a memory no app wrote (`relocate`).
+    fallback_owner: Mutex<Option<AppName>>,
 }
 
 impl<B: Backend> std::fmt::Debug for MemoryService<B> {
@@ -123,6 +125,7 @@ impl<B: Backend> MemoryService<B> {
             buffers: Mutex::new(BTreeMap::new()),
             locked: Mutex::new(BTreeSet::new()),
             events: Mutex::new(Vec::new()),
+            fallback_owner: Mutex::new(None),
         }
     }
 
@@ -173,6 +176,21 @@ impl<B: Backend> MemoryService<B> {
                 drop(self.checkout(&Caller::ShellUi, &id).await);
             }
         }
+    }
+
+    /// Names the app whose App Space takes a removed Space's memories that no app wrote (the
+    /// companion's, an agent's). Without it such a removal is refused before it changes anything.
+    pub fn set_fallback_owner(&self, app: AppName) {
+        *locked(&self.fallback_owner) = Some(app);
+    }
+
+    pub(crate) fn fallback_owner(&self) -> Option<AppName> {
+        locked(&self.fallback_owner).clone()
+    }
+
+    /// Whether `id` is a Space the service has met (registered or provisioned).
+    pub(crate) fn has_meta(&self, id: &SpaceId) -> bool {
+        locked(&self.metas).contains_key(id)
     }
 
     /// The backend.

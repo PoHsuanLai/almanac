@@ -401,3 +401,65 @@ fn messages_and_episodes_are_recorded_by_the_router_and_a_run_reports_for_itself
         }
     }
 }
+
+fn record_in(space_id: &str) -> Record {
+    Record {
+        space: space(space_id),
+        ..record(thing_body(MAIL, "k"), user(MAIL))
+    }
+}
+
+#[test]
+fn an_app_reaches_only_the_spaces_open_to_it() {
+    let app_caller = caller_app(MAIL);
+    let own = "app:org.quire.Mail:0";
+    let other = "app:org.quire.Files:0";
+    let cases = [
+        ("its own App Space", own, Allowed::Yes),
+        ("a desktop-wide Space", "work", Allowed::Yes),
+        ("outside any Space", "desktop", Allowed::Yes),
+        (
+            "another app's Space",
+            other,
+            Allowed::No(Refusal::OutsideSpace),
+        ),
+    ];
+    for (name, id, want) in cases {
+        let request = MemoryRequest::Record(record_in(id));
+        assert_eq!(allowed(&app_caller, &request), want, "{name}");
+        let batch = MemoryRequest::RecordBatch(vec![record_in("work"), record_in(id)]);
+        assert_eq!(allowed(&app_caller, &batch), want, "{name}, in a batch");
+    }
+}
+
+#[test]
+fn another_apps_space_is_refused_for_every_request_that_names_one() {
+    let app_caller = caller_app(MAIL);
+    let other = space("app:org.quire.Files:0");
+    let mark = MarkRequest {
+        space: other.clone(),
+        thing: thing(MAIL, "k"),
+        mark: MarkKind::DoNotRemember,
+    };
+    assert_eq!(
+        allowed(&app_caller, &MemoryRequest::Mark(mark)),
+        Allowed::No(Refusal::OutsideSpace)
+    );
+    // The router, cuad and the shell are not apps: the Space rule is the app's alone.
+    let request = MemoryRequest::Record(record_in("app:org.quire.Files:0"));
+    assert_eq!(allowed(&Caller::Router, &request), Allowed::Yes);
+    assert_eq!(
+        allowed(&Caller::ShellUi, &MemoryRequest::Status(other)),
+        Allowed::Yes
+    );
+}
+
+#[test]
+fn only_the_shell_settles_a_removed_spaces_memories() {
+    for fate in [MemoryFate::MoveToApps, MemoryFate::Delete] {
+        let request = MemoryRequest::RemoveSpace(space("work"), fate);
+        for (who, caller) in callers() {
+            assert_eq!(yes(allowed(&caller, &request)), who == "shell", "{who}");
+        }
+    }
+}

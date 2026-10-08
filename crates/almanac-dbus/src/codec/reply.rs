@@ -73,6 +73,7 @@ pub fn decode_reply(call: &Call, outputs: &[String]) -> Result<MemoryReply, Code
         "Verify" => one_json(outputs).map(R::Verified),
         "Export" => one_json(outputs).map(R::Exported),
         "Sweep" => one_json(outputs).map(R::Swept),
+        "RemoveSpace" => one_json(outputs).map(R::Relocated),
         other => Err(CodecError::Json(format!("no member {other}"))),
     }
 }
@@ -131,6 +132,7 @@ pub fn encode_reply(call: &Call, reply: &MemoryReply) -> Result<Vec<String>, Mem
         ("Verify", R::Verified(v)) => single(v),
         ("Export", R::Exported(v)) => single(v),
         ("Sweep", R::Swept(v)) => single(v),
+        ("RemoveSpace", R::Relocated(v)) => single(v),
         (member, _) => Err(MemoryError::Invalid(format!(
             "{member} cannot answer with that reply"
         ))),

@@ -145,6 +145,11 @@
      <arg name="space" type="s" direction="in"/>
      <arg type="s" direction="out"/>
    </method>
+   <method name="RemoveSpace">
+     <arg name="space" type="s" direction="in"/>
+     <arg name="fate" type="s" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
    <method name="Export">
      <arg name="options" type="s" direction="in"/>
      <arg name="out" type="h" direction="in"/>

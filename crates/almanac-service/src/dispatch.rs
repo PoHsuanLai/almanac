@@ -65,6 +65,10 @@ impl<B: Backend> MemoryService<B> {
                 }))
             }
             R::Spaces => Ok(MemoryReply::Spaces(self.summaries())),
+            R::RemoveSpace(space, fate) => self
+                .remove_space(caller, &space, fate)
+                .await
+                .map(MemoryReply::Relocated),
             R::Rules => Ok(MemoryReply::Rules(self.rules())),
             R::SetRule(rule) => {
                 let id = rule.id.clone();
@@ -196,7 +200,7 @@ impl<B: Backend> MemoryService<B> {
 
     /// The Space's deletion finishes: its head is anchored, its key destroyed, its stores and
     /// directories removed.
-    async fn delete_space(
+    pub(crate) async fn delete_space(
         &self,
         caller: &Caller,
         id: &SpaceId,

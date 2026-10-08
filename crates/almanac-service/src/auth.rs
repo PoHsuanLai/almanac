@@ -6,7 +6,10 @@
 //! | ExplainFile, Mark | own | yes | no | yes |
 //! | Search, Facts, Related, Provenance, Primer, Inject, Recent, Entries, Spaces | no | yes (audited as `Memory.Read`) | no | yes |
 //! | Propose, PlanForget | no | yes | no | yes |
-//! | everything else | no | no | no | yes |
+//! | everything else (with `RemoveSpace`) | no | no | no | yes |
+//!
+//! An app also reaches only Spaces open to it (`SpaceId::owner`): another app's own Space is
+//! `OutsideSpace` whatever the request.
 //!
 //! `Message` and `Episode` bodies are the router's to record (it stamps the sender); an app never
 //! records either, and `Timeline` stays the shell's alone: the router reads recent activity
@@ -21,7 +24,7 @@
 
 use almanac_core::{
     Actor, AgentRef, AgentRole, AppName, AreaTag, Caller, EventBody, FileWhyClaim, MemoryRequest,
-    Record, Refusal,
+    Record, Refusal, SpaceId, SpaceScope,
 };
 
 /// The answer of [`allowed`].
@@ -99,8 +102,16 @@ fn app_may_explain(app: &AppName, claim: &FileWhyClaim) -> bool {
     &claim.cause.app == app && is_own_actor(&claim.by, app)
 }
 
-/// May `caller` send `request`? Pure; the transport derived `caller`.
+/// May `caller` send `request`? Pure; the transport derived `caller`. A request that reaches
+/// into another app's own Space is `OutsideSpace` before anything else is asked.
 pub fn allowed(caller: &Caller, request: &MemoryRequest) -> Allowed {
+    match space_is_open(caller, request) {
+        Allowed::Yes => by_class(caller, request),
+        refused => refused,
+    }
+}
+
+fn by_class(caller: &Caller, request: &MemoryRequest) -> Allowed {
     use MemoryRequest as R;
     let router_or_shell = matches!(caller, Caller::Router | Caller::ShellUi);
     match request {
@@ -148,6 +159,33 @@ pub fn allowed(caller: &Caller, request: &MemoryRequest) -> Allowed {
         | R::Verify(_)
         | R::Rebuild(_)
         | R::Sweep(_)
-        | R::Export(_) => yes_if(matches!(caller, Caller::ShellUi)),
+        | R::Export(_)
+        | R::RemoveSpace(..) => yes_if(matches!(caller, Caller::ShellUi)),
+    }
+}
+
+/// The Spaces `request` names, in order: `RecordBatch` names one per record.
+fn spaces_of(request: &MemoryRequest) -> Vec<&SpaceId> {
+    match request {
+        MemoryRequest::RecordBatch(records) => records.iter().map(|r| &r.space).collect(),
+        other => other.space().into_iter().collect(),
+    }
+}
+
+/// An app reaches only Spaces open to it: its own App Spaces, the desktop and the desktop-wide
+/// Spaces (porter's `SpaceScope::open_to`). The name is the caller's, never read from the id.
+/// Router, cuad and the shell are not apps and act across Spaces.
+fn space_is_open(caller: &Caller, request: &MemoryRequest) -> Allowed {
+    match caller {
+        Caller::App(id) => {
+            let open = spaces_of(request)
+                .into_iter()
+                .all(|space| SpaceScope::Only(space.clone()).open_to(&id.name));
+            match open {
+                true => Allowed::Yes,
+                false => Allowed::No(Refusal::OutsideSpace),
+            }
+        }
+        Caller::Router | Caller::Cuad | Caller::ShellUi => Allowed::Yes,
     }
 }
