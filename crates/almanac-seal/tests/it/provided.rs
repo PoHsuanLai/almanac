@@ -45,11 +45,11 @@ async fn destroy_bars_the_space_in_this_store() {
     assert_eq!(keys.destroy(&space("work")).await, Ok(()));
     assert!(matches!(
         keys.get(&space("work")).await,
-        Err(KeyError::Store(_))
+        Err(KeyError::Destroyed)
     ));
     assert!(matches!(
         keys.create(&space("work")).await,
-        Err(KeyError::Store(_))
+        Err(KeyError::Destroyed)
     ));
     assert!(keys.get(&space("home")).await.is_ok());
 }

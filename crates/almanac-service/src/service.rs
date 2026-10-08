@@ -8,6 +8,7 @@ use crate::backend::Backend;
 use crate::clock::Clock;
 use crate::events::ServiceEvent;
 use crate::forget::{Plan, PlanState};
+use crate::key_refusal::key_refusal;
 use crate::open::{Cx, ErasedNotes, Open};
 use crate::record::Stored;
 use crate::settings::MemorySettings;
@@ -80,13 +81,6 @@ impl<B: Backend> std::fmt::Debug for MemoryService<B> {
 
 fn locked<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
     m.lock().unwrap_or_else(PoisonError::into_inner)
-}
-
-fn key_refusal(e: KeyError) -> Refusal {
-    match e {
-        KeyError::Locked => Refusal::SpaceLocked,
-        KeyError::Missing | KeyError::Exists | KeyError::Store(_) => Refusal::Busy,
-    }
 }
 
 /// A Space out on a request; it goes back into the service when the lease drops.

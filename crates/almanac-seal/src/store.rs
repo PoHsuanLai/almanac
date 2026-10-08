@@ -13,6 +13,9 @@ pub enum KeyError {
     /// There is no key for the Space.
     #[error("no key for the Space")]
     Missing,
+    /// The Space's key was destroyed: the Space is gone for good, so retrying cannot help.
+    #[error("the Space's key was destroyed")]
+    Destroyed,
     /// There already is a key for the Space.
     #[error("a key for the Space already exists")]
     Exists,

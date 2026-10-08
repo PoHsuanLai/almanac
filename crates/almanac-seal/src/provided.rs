@@ -42,10 +42,10 @@ impl ProvidedKeys {
             .destroyed
             .lock()
             .unwrap_or_else(PoisonError::into_inner);
-        match destroyed.contains(space) {
-            true => Err(KeyError::Store("the Space's key was destroyed".into())),
-            false => Ok(self.derived(space)),
+        if destroyed.contains(space) {
+            return Err(KeyError::Destroyed);
         }
+        Ok(self.derived(space))
     }
 }
 
