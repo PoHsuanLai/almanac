@@ -177,8 +177,10 @@ fn involves_app(actor: &Actor, body: &EventBody, app: &AppName) -> bool {
         }
         // A terminal (`Cli`) is no app: forgetting an app leaves what a terminal did unless the
         // event is about that app's things; `Forget` by Space or Kind reaches it.
+        // An external coding agent (`Acp`) is no app either, like an MCP client.
         Actor::Companion { .. }
         | Actor::Mcp { .. }
+        | Actor::Acp { .. }
         | Actor::Cli
         | Actor::System { .. }
         | Actor::Unknown => false,

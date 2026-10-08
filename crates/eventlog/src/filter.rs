@@ -12,7 +12,8 @@ pub fn passes(filter: &TimelineFilter, entry: &Entry) -> bool {
         ActorFilter::You => h.actor.kind() == ActorKind::User,
         ActorFilter::Companion => matches!(h.actor.kind(), ActorKind::Companion | ActorKind::Cua),
         ActorFilter::Terminal => h.actor.kind() == ActorKind::Cli,
-        ActorFilter::Mcp => h.actor.kind() == ActorKind::Mcp,
+        // External tools: an MCP client or an external coding agent (`Acp`).
+        ActorFilter::Mcp => matches!(h.actor.kind(), ActorKind::Mcp | ActorKind::Acp),
         ActorFilter::Apps => matches!(h.actor.kind(), ActorKind::App | ActorKind::ThirdParty),
         ActorFilter::Unknown => h.actor.kind() == ActorKind::Unknown,
     };

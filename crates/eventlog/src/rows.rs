@@ -54,6 +54,7 @@ const fn effect_int(effect: Effect) -> i64 {
         Effect::UndoableWrite => 1,
         Effect::Outbound => 2,
         Effect::Destructive => 3,
+        Effect::Execute => 4,
     }
 }
 
@@ -63,6 +64,7 @@ const fn effect_of(n: i64) -> Option<Effect> {
         1 => Some(Effect::UndoableWrite),
         2 => Some(Effect::Outbound),
         3 => Some(Effect::Destructive),
+        4 => Some(Effect::Execute),
         _ => None,
     }
 }
@@ -189,4 +191,23 @@ pub(crate) fn insert(tx: &Transaction<'_>, entry: &Entry) -> Result<(), LogError
 /// Compact JSON of a typed value, as the header bytes use (plain derives: cannot fail).
 fn json<T: serde::Serialize + ?Sized>(value: &T) -> String {
     serde_json::to_string(value).unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_effect_round_trips_through_its_stored_integer() {
+        for effect in [
+            Effect::Read,
+            Effect::UndoableWrite,
+            Effect::Outbound,
+            Effect::Destructive,
+            Effect::Execute,
+        ] {
+            assert_eq!(effect_of(effect_int(effect)), Some(effect), "{effect:?}");
+        }
+        assert_eq!(effect_of(5), None, "an integer no effect has is corrupt");
+    }
 }

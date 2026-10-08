@@ -119,6 +119,7 @@ const fn effect_byte(effect: Effect) -> u8 {
         Effect::UndoableWrite => 1,
         Effect::Outbound => 2,
         Effect::Destructive => 3,
+        Effect::Execute => 4,
     }
 }
 

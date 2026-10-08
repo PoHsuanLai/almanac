@@ -20,8 +20,8 @@ slug_enum!(
         /// A terminal (`quire-do`): the person or an agent typing in it, which cannot be told
         /// apart.
         Terminal => "terminal",
-        /// An outside agent over MCP (Claude Desktop and the like), by whatever client name it
-        /// gave.
+        /// An outside agent: an MCP client (Claude Desktop and the like), by whatever client name
+        /// it gave, or an external coding agent over ACP (`Actor::Acp`).
         Mcp => "mcp",
         /// Apps acting on their own.
         Apps => "apps",

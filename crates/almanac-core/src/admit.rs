@@ -212,6 +212,7 @@ fn app_of(record: &Record) -> Vec<porter_core::AppName> {
         // by actor (it still matches the things and the search the event is about).
         Actor::Companion { .. }
         | Actor::Mcp { .. }
+        | Actor::Acp { .. }
         | Actor::Cli
         | Actor::System { .. }
         | Actor::Unknown => {}
