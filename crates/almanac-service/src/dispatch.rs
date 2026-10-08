@@ -164,9 +164,13 @@ impl<B: Backend> MemoryService<B> {
         let mut busy = false;
         for id in self.all_spaces() {
             match self.checkout(caller, &id).await {
-                Ok(_) if self.space_of_run(run).as_ref() == Some(&id) => return Ok(id),
+                // The lease goes back before the Space is asked about the run.
+                Ok(lease) => drop(lease),
                 Err(Refusal::Busy) => busy = true,
-                _ => {}
+                Err(_) => continue,
+            }
+            if self.space_of_run(run).as_ref() == Some(&id) {
+                return Ok(id);
             }
         }
         Err(not_found_or_busy(busy, failed("no such run")))
