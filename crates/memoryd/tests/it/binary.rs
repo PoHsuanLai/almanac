@@ -26,7 +26,7 @@ impl Drop for Daemon {
 }
 
 /// Scratch HOME and XDG roots, a callers file with the router's unit row, and a fake `/proc` in
-/// which this test process runs in `intentd.service`.
+/// which this test process runs in `intentd.service` as its main process.
 fn scratch_home(root: &Path) {
     let config = root.join("config").join("quire");
     std::fs::create_dir_all(&config).expect("config dir");
@@ -43,6 +43,14 @@ fn scratch_home(root: &Path) {
         "0::/user.slice/user-1000.slice/user@1000.service/app.slice/intentd.service\n",
     )
     .expect("cgroup");
+    // ...as that unit's main process, which is all a service row names.
+    let units = root.join("proc").join("units");
+    std::fs::create_dir_all(&units).expect("units dir");
+    std::fs::write(
+        units.join("intentd.service"),
+        std::process::id().to_string(),
+    )
+    .expect("main pid");
 }
 
 fn spawn(root: &Path, bus: &PrivateBus, keys: &str) -> (Daemon, ChildStderr) {

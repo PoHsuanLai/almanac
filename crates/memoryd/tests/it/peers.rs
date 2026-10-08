@@ -46,12 +46,32 @@ fn app(name: &str, isolation: Isolation) -> Option<Caller> {
     }))
 }
 
-/// Writes `<root>/<pid>/cgroup` with the unit `leaf` under a user slice.
+/// Writes `<root>/<pid>/cgroup` with the unit `leaf` under a user slice. A service's process is
+/// also its main process (`<root>/units/<leaf>`, the fixture's stand-in for the manager's
+/// `MainPID`).
 fn put_cgroup(root: &Path, pid: u32, leaf: &str) {
+    put_member(root, pid, leaf);
+    if leaf.ends_with(".service") {
+        let units = root.join("units");
+        std::fs::create_dir_all(&units).expect("units dir");
+        std::fs::write(units.join(leaf), pid.to_string()).expect("main pid");
+    }
+}
+
+/// Writes `<root>/<pid>/cgroup` alone: a process in `leaf` that is not its main process.
+fn put_member(root: &Path, pid: u32, leaf: &str) {
     let dir = root.join(pid.to_string());
     std::fs::create_dir_all(&dir).expect("pid dir");
     let path = format!("0::/user.slice/user-1000.slice/user@1000.service/app.slice/{leaf}\n");
     std::fs::write(dir.join("cgroup"), path).expect("cgroup");
+}
+
+/// Writes the Flatpak sandbox metadata of process `pid` (`<pid>/root/.flatpak-info`).
+fn put_flatpak_info(root: &Path, pid: u32, app: &str) {
+    let dir = root.join(pid.to_string()).join("root");
+    std::fs::create_dir_all(&dir).expect("root dir");
+    let info = format!("[Application]\nname={app}\n\n[Instance]\ninstance-id=4242\n");
+    std::fs::write(dir.join(".flatpak-info"), info).expect("flatpak info");
 }
 
 fn identify(root: &Path, pid: u32, table: &CallerTable) -> Option<Caller> {
@@ -84,6 +104,12 @@ fn a_process_is_identified_by_its_cgroup() {
     ] {
         put_cgroup(root, pid, leaf);
     }
+    // A Flatpak app is named by its sandbox's metadata, never by its scope's name: pid 15 has
+    // the metadata, pid 24 only the scope.
+    put_flatpak_info(root, 15, "org.example.Mail");
+    put_member(root, 24, "app-flatpak-org.example.Mail-4243.scope");
+    // Another process in the router's unit is not the router: only the main process is.
+    put_member(root, 25, "intentd.service");
     let flatpak = app("org.example.Mail", Isolation::Flatpak);
     for (pid, expected) in [
         (10, Some(Caller::Router)),
@@ -100,6 +126,8 @@ fn a_process_is_identified_by_its_cgroup() {
         (21, Some(Caller::ShellUi)),
         (22, None),
         (23, None),
+        (24, None),
+        (25, None),
     ] {
         assert_eq!(identify(root, pid, &table), expected, "pid {pid}");
     }
