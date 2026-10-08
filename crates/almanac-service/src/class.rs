@@ -11,12 +11,13 @@ use recall::ClassTag;
 /// The data class a request carries when its input mixes several: the most sensitive present, in
 /// this order (the grant and the on-device floor are per class, so the request takes the
 /// strictest of them). Nothing classed at all is the app's own data.
-const BY_SENSITIVITY: [DataClass; 12] = [
+const BY_SENSITIVITY: [DataClass; 13] = [
     DataClass::Voice,
     DataClass::Prompt,
     DataClass::Mail,
     DataClass::Contacts,
     DataClass::Calendar,
+    DataClass::Tasks,
     DataClass::Notes,
     DataClass::Files,
     DataClass::Photos,
@@ -53,4 +54,37 @@ pub fn class_from_tag(tag: &ClassTag) -> Option<DataClass> {
 /// The tag of the strictest class among `label`'s: what a document with this label carries.
 pub(crate) fn tag_of(label: &Label) -> ClassTag {
     class_tag(class_of([label]))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Each class's place in [`BY_SENSITIVITY`]. The match is exhaustive, so a class porter adds
+    /// is a compile error here until it is given a place, and the test below fails until the
+    /// list holds it there: a new class is never silently classed as the app's own.
+    fn rank(class: DataClass) -> usize {
+        match class {
+            DataClass::Voice => 0,
+            DataClass::Prompt => 1,
+            DataClass::Mail => 2,
+            DataClass::Contacts => 3,
+            DataClass::Calendar => 4,
+            DataClass::Tasks => 5,
+            DataClass::Notes => 6,
+            DataClass::Files => 7,
+            DataClass::Photos => 8,
+            DataClass::Clipboard => 9,
+            DataClass::Screen => 10,
+            DataClass::AppOwn => 11,
+            DataClass::Public => 12,
+        }
+    }
+
+    #[test]
+    fn every_class_has_its_place_in_the_sensitivity_order() {
+        for (place, class) in BY_SENSITIVITY.into_iter().enumerate() {
+            assert_eq!(rank(class), place, "{class:?}");
+        }
+    }
 }
