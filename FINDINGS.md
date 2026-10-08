@@ -819,3 +819,29 @@ codec, skeletons, `serve.rs` and the XML but not to the client's `invoke`, so ov
 their name, all through the daemon on a private bus) and `memoryd/tests/it/bus_members.rs` (every sample request
 goes through `invoke` to a recording handler, and the members reached must equal the members in the XML, so a
 member added to the interface without an `invoke` arm fails).
+
+## Memory keyed by porter's SpaceId (batch 8)
+
+Memory was already keyed by `porter_core::SpaceId` (a bare slug reads as a desktop-wide Space, `app:<app>:<n>` is one
+app's own). What this adds, on porter 993c56b (`Spaces1`, `SpaceId::{kind, for_app, owner}`, `SpaceScope::open_to`):
+
+- **Ownership.** `allowed` refuses an app's request that names another app's own Space (`Refusal::OutsideSpace`, the
+  existing refusal: "reaches into another Space"); a desktop-wide Space and `desktop` are open. An app's batch is
+  checked record by record. The router, cuad and the shell are not apps and are not held to it.
+- **Removal.** `MemoryRequest::RemoveSpace(space, MemoryFate)` (shell only; D-Bus `Control.RemoveSpace(space, fate)`
+  answering `Relocation` JSON). `MoveToApps` (what memoryd does itself when `Spaces1.Changed(id, "removed")` arrives):
+  each fact goes to the first App Space (`app:<app>:0`) of the app that wrote it (`Actor::{User via, App, ThirdParty}`),
+  a procedure to the app named in its path, anything no app wrote to the fallback owner (memoryd names the shell;
+  with none named the removal is refused before it moves anything). Pending facts stay pending, with a label that
+  was private to the removed Space now private to the new one; links to events of the removed log are dropped (the log
+  goes with the Space). `Delete` is the explicit choice, never a default.
+- **Crash safety.** Facts are copied by id, then the Space is deleted, so a repeat finishes a half move without
+  duplicates; a key already destroyed with no Space entry left means only the directories remain, and they are
+  removed. memoryd writes `removals.toml` before moving and strikes the Space out after, and finishes the open notes
+  at start (`Daemon::resume_removals`).
+- **Spaces the registry does not know.** At start, after subscribing, `Daemon::reconcile` settles every desktop-wide
+  Space that memory holds and `Spaces1.List` does not (an id from before Spaces were per app that no grant made
+  accountd adopt) as a removed one. It runs only once `List` answered.
+- **Gaps.** `LocalSpace(0)` is assumed to be an app's first Space (quire's kit numbers from 0); the event history of a
+  removed Space is erased with it (only facts and procedures move). A Space an app records into that the registry
+  never had is moved at the next start.

@@ -50,6 +50,7 @@ pub fn claim_of(request: &MemoryRequest) -> Claim {
         | R::DiscardConsolidation(_)
         | R::SetRule(_)
         | R::RemoveRule(_)
+        | R::RemoveSpace(..)
         | R::Export(_) => Claim::Everything,
         other => other.space().map_or(Claim::Everything, |s| {
             Claim::Spaces(BTreeSet::from([s.clone()]))

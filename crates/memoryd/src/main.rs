@@ -17,6 +17,7 @@ use memoryd::{
     apply_next, default_card, dirs_from_env, enforce, inferd_link, load_callers, policy_for,
     prepare, proc_root_choice, sandbox_choice, select,
 };
+use porter_client::DbusTransport;
 use porter_dbus::CallerTable;
 use std::path::Path;
 use std::process::ExitCode;
@@ -94,6 +95,10 @@ async fn run(dirs: Dirs, keys: AnyKeys, proc_root: ProcRoot) -> Result<(), Strin
     }
     let peers =
         ProcPeers::with_proc_root(connection.clone(), read_callers(&dirs)?, proc_root.path());
+    if let Ok(shell) = almanac_core::AppName::parse(memoryd::SHELL_APP) {
+        service.set_fallback_owner(shell);
+    }
+    let spaces = DbusTransport::over(connection.clone()).spaces().await;
     let daemon = Arc::new(Daemon::new(service, peers, dirs));
     serve_on(&connection, daemon.clone())
         .await
@@ -112,6 +117,10 @@ async fn run(dirs: Dirs, keys: AnyKeys, proc_root: ProcRoot) -> Result<(), Strin
             .is_some()
         {}
     });
+    if let Ok(spaces) = spaces {
+        let removed = daemon.clone();
+        tokio::spawn(async move { removed.follow_spaces(spaces).await });
+    }
     let consolidator = daemon.clone();
     tokio::spawn(async move {
         tokio::time::sleep(FIRST_CONSOLIDATION).await;

@@ -8,6 +8,7 @@ mod keyring;
 mod peers;
 mod persistence;
 mod queue;
+mod removals;
 mod restart;
 mod sandbox;
 mod settings;

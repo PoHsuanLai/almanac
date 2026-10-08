@@ -6,13 +6,18 @@
 
 use crate::peers::Peers;
 use crate::queue::Serialised;
+use crate::removals::Removals;
 use crate::signals::{FollowUp, follow_ups};
-use almanac_core::{Caller, Dirs, MemoryReply, MemoryRequest, PlanToken, SpaceId};
+use almanac_core::{
+    Caller, DesktopSpace, Dirs, MemoryFate, MemoryReply, MemoryRequest, PlanToken, SpaceId,
+    SpaceKind,
+};
 use almanac_dbus::{Call, MemoryError, Serve, Signal, decode_request, emit, encode_reply};
 use almanac_service::{
     Backend, MemoryService, ServiceEvent, SpacesFile, locked_status, rules_to_toml, spaces_to_toml,
 };
-use std::collections::BTreeMap;
+use porter_core::SpaceChange;
+use std::collections::{BTreeMap, BTreeSet};
 use std::os::fd::OwnedFd;
 use std::sync::{Mutex, OnceLock, PoisonError};
 
@@ -26,6 +31,7 @@ pub struct Daemon<B: Backend, P: Peers> {
     plans: Mutex<BTreeMap<PlanToken, SpaceId>>,
     saved_spaces: Mutex<String>,
     saved_rules: Mutex<String>,
+    removals: Removals,
 }
 
 impl<B: Backend, P: Peers> std::fmt::Debug for Daemon<B, P> {
@@ -58,6 +64,7 @@ impl<B: Backend, P: Peers> Daemon<B, P> {
     /// A daemon over `service` in `dirs`. Nothing is on the bus until [`Daemon::attach`].
     pub fn new(service: MemoryService<B>, peers: P, dirs: Dirs) -> Self {
         Self {
+            removals: Removals::load(dirs.memory().join("removals.toml")),
             queue: Serialised::new(service),
             peers,
             dirs,
@@ -261,5 +268,79 @@ impl<B: Backend + 'static, P: Peers> Serve for Daemon<B, P> {
             .await
             .map_err(|refusal| MemoryError::from(&refusal))?;
         self.serve_as(&caller, call, fd).await
+    }
+}
+
+impl<B: Backend, P: Peers> Daemon<B, P> {
+    /// Settles the memories of `space`, a desktop-wide Space the registry no longer has: they
+    /// move to the App Space of the app that wrote them. Noted first and struck out when done,
+    /// so [`Daemon::resume_removals`] finishes what a crash or a busy Space interrupted.
+    pub async fn settle_removed(&self, space: &SpaceId) -> MemoryReply {
+        self.removals.begin(space);
+        let request = MemoryRequest::RemoveSpace(space.clone(), MemoryFate::MoveToApps);
+        let reply = self.queue.handle(&Caller::ShellUi, request.clone()).await;
+        self.persist();
+        if matches!(reply, MemoryReply::Relocated(_)) {
+            self.removals.finish(space);
+        }
+        self.follow(&request, &reply).await;
+        reply
+    }
+
+    /// Finishes every removal that was begun and not struck out.
+    pub async fn resume_removals(&self) -> Vec<(SpaceId, MemoryReply)> {
+        let mut out = Vec::new();
+        for space in self.removals.open() {
+            out.push((space.clone(), self.settle_removed(&space).await));
+        }
+        out
+    }
+
+    /// Brings memory in line with the registry's list: a removal left unfinished is finished,
+    /// and a desktop-wide Space memory holds that the registry does not (an id from before
+    /// Spaces were per app that nothing adopted) is settled as a removed one, so no memory
+    /// stays under a key nobody can resolve.
+    pub async fn reconcile(&self, registry: &[DesktopSpace]) -> Vec<(SpaceId, MemoryReply)> {
+        let known: BTreeSet<SpaceId> = registry.iter().map(SpaceId::linked).collect();
+        for meta in self.queue.service().metas() {
+            let orphan =
+                matches!(meta.id.kind(), SpaceKind::Linked(_)) && !known.contains(&meta.id);
+            if orphan {
+                self.removals.begin(&meta.id);
+            }
+        }
+        self.resume_removals().await
+    }
+
+    /// One change the registry announced.
+    pub async fn on_change(&self, space: &DesktopSpace, change: SpaceChange) {
+        if change == SpaceChange::Removed {
+            drop(self.settle_removed(&SpaceId::linked(space)).await);
+        }
+    }
+
+    /// The registry's changes, until the stream ends: each removal is settled. The list is
+    /// read after subscribing, so a removal in between is caught by [`Daemon::reconcile`].
+    pub async fn follow_spaces(&self, spaces: porter_client::Spaces) {
+        let Ok(mut changes) = spaces.watch().await else {
+            return;
+        };
+        if let Ok(listed) = spaces.list().await {
+            let ids: Vec<DesktopSpace> = listed.into_iter().map(|record| record.id).collect();
+            for (space, reply) in self.reconcile(&ids).await {
+                if let MemoryReply::Refused(why) = reply {
+                    eprintln!("memoryd: settling {space}: {why:?}");
+                }
+            }
+        }
+        while let Some(item) = std::future::poll_fn(|cx| {
+            porter_dbus::BusStream::poll_next(std::pin::Pin::new(&mut changes), cx)
+        })
+        .await
+        {
+            if let Ok((space, change)) = item {
+                self.on_change(&space, change).await;
+            }
+        }
     }
 }
