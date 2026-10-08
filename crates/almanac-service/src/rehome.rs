@@ -78,10 +78,10 @@ pub(crate) fn sort_into_parcels(
 /// new one, and a link to an event of the removed log (which goes with it) is dropped. Its
 /// integrity is untouched, so a pending fact stays pending.
 pub(crate) fn rehomed(mut fact: Fact, from: &SpaceId, to: &SpaceId) -> Fact {
-    if let Confidentiality::Private(spaces) = &mut fact.label.confidentiality {
-        if spaces.remove(from) {
-            spaces.insert(to.clone());
-        }
+    if let Confidentiality::Private(spaces) = &mut fact.label.confidentiality
+        && spaces.remove(from)
+    {
+        spaces.insert(to.clone());
     }
     fact.links
         .retain(|link| !matches!(link, Link::Event(event) if &event.space == from));
