@@ -2,10 +2,10 @@
 
 use crate::backend::Backend;
 use crate::clock::Clock;
-use crate::export::{EventLine, ExportWriter, rules_path};
-use crate::open::{Cx, Open, failed, files_refusal, log_refusal};
+use crate::export::{EventLine, ExportWriter};
+use crate::open::{Cx, Open, failed, log_refusal};
 use crate::record::Stored;
-use crate::service::MemoryService;
+use crate::service::{Lease, MemoryService};
 use almanac_core::{
     Caller, Count, EXPORT_FORMAT, ExportCounts, ExportManifest, ExportOptions, ExportedSpace,
     FactState, ForgetScope, Head, MemoryOp, MemoryReply, MemoryRequest, Refusal, RunId, SpaceId,
@@ -17,6 +17,15 @@ use std::io::Write;
 
 fn count(n: usize) -> Count {
     Count(u32::try_from(n).unwrap_or(u32::MAX))
+}
+
+/// A search over the Spaces that found nothing: `Busy` when a Space was out on another request
+/// (it may hold the answer, so the caller should retry), else the not-found refusal.
+fn not_found_or_busy(busy: bool, not_found: Refusal) -> Refusal {
+    match busy {
+        true => Refusal::Busy,
+        false => not_found,
+    }
 }
 
 /// One Space's share of an export, collected while the Space is out.
@@ -87,9 +96,15 @@ impl<B: Backend> MemoryService<B> {
                 self.forget_in(caller, &id, &token).await
             }
             R::Settle(fact, settlement) => {
+                let mut busy = false;
                 for id in self.all_spaces() {
-                    let Ok(mut lease) = self.checkout(caller, &id).await else {
-                        continue;
+                    let mut lease = match self.checkout(caller, &id).await {
+                        Ok(lease) => lease,
+                        Err(Refusal::Busy) => {
+                            busy = true;
+                            continue;
+                        }
+                        Err(_) => continue,
                     };
                     let cx = self.cx(caller);
                     let Some(open) = lease.open() else { continue };
@@ -102,7 +117,7 @@ impl<B: Backend> MemoryService<B> {
                         return Ok(MemoryReply::Ok);
                     }
                 }
-                Err(Refusal::NoSuchFact)
+                Err(not_found_or_busy(busy, Refusal::NoSuchFact))
             }
             R::Revert(run) => {
                 let id = self
@@ -146,13 +161,15 @@ impl<B: Backend> MemoryService<B> {
         if let Some(id) = self.space_of_run(run) {
             return Ok(id);
         }
+        let mut busy = false;
         for id in self.all_spaces() {
-            let opened = self.checkout(caller, &id).await.is_ok();
-            if opened && self.space_of_run(run).as_ref() == Some(&id) {
-                return Ok(id);
+            match self.checkout(caller, &id).await {
+                Ok(_) if self.space_of_run(run).as_ref() == Some(&id) => return Ok(id),
+                Err(Refusal::Busy) => busy = true,
+                _ => {}
             }
         }
-        Err(failed("no such run"))
+        Err(not_found_or_busy(busy, failed("no such run")))
     }
 
     async fn forget_in(
@@ -166,10 +183,23 @@ impl<B: Backend> MemoryService<B> {
         let open = lease.open().ok_or(Refusal::Busy)?;
         open.guard_topics()?;
         let (report, scope) = open.forget(&cx, token)?;
-        if scope != ForgetScope::Space {
-            open.accept_topics()?;
+        match scope {
+            ForgetScope::Space => self.delete_space(caller, id, lease).await?,
+            _ => open.accept_topics()?,
         }
-        if scope == ForgetScope::Space {
+        Ok(MemoryReply::Forgot(report))
+    }
+
+    /// The Space's deletion finishes: its head is anchored, its key destroyed, its stores and
+    /// directories removed.
+    async fn delete_space(
+        &self,
+        caller: &Caller,
+        id: &SpaceId,
+        mut lease: Lease<'_, B>,
+    ) -> Result<(), Refusal> {
+        let open = lease.open().ok_or(Refusal::Busy)?;
+        {
             use crate::space::{SpaceEffect, SpaceEvent, step};
             let final_head = open.rt.log.head().map_err(log_refusal)?;
             let (deleting, _) = step(open.rt.state, SpaceEvent::ForgetConfirmed);
@@ -189,9 +219,8 @@ impl<B: Backend> MemoryService<B> {
             self.forget_meta(id);
             // The stores close before their directories go.
             lease.discard();
-            self.backend().remove_space(id).map_err(failed)?;
+            self.backend().remove_space(id).map_err(failed)
         }
-        Ok(MemoryReply::Forgot(report))
     }
 
     /// Records a deleted Space's final head in the `desktop` Space's log (`SpaceEffect::
@@ -297,7 +326,6 @@ impl<B: Backend> MemoryService<B> {
             }
         }
         let toml = crate::config::rules_to_toml(&self.rules()).map_err(failed)?;
-        let _ = rules_path();
         writer.rules(&toml).map_err(io)?;
         writer.finish().map_err(io)?;
         Ok(manifest)
@@ -359,20 +387,22 @@ fn gather<B: Backend>(open: &Open<B>, key: VerificationKey) -> Result<Gathered, 
     let vault = open.rt.store.vault();
     let mut files = Vec::new();
     let mut procedures = 0usize;
-    for dir in ["facts", "pending", "procedures"] {
-        let Some(dir) = VaultPath::parse(dir) else {
-            continue;
-        };
-        for path in vault.list(&dir).map_err(failed)? {
+    for dir in [
+        VaultPath::facts_dir(),
+        VaultPath::pending_dir(),
+        VaultPath::procedures_dir(),
+    ] {
+        let listed = vault.list(&dir).map_err(failed)?;
+        if dir == VaultPath::procedures_dir() {
+            procedures += listed.len();
+        }
+        for path in listed {
             let bytes = vault.read(&path).map_err(failed)?;
-            procedures +=
-                usize::from(path.is_under(&VaultPath::parse("procedures").unwrap_or(dir.clone())));
             files.push((path, bytes));
         }
     }
     let stored = open.stored()?;
     let n = |state: FactState| count(stored.iter().filter(|s| s.state == state).count());
-    let _ = files_refusal;
     Ok(Gathered {
         space: open.space().clone(),
         head,
@@ -389,4 +419,18 @@ fn gather<B: Backend>(open: &Open<B>, key: VerificationKey) -> Result<Gathered, 
             VerificationKey::Omit => None,
         },
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_busy_space_turns_not_found_into_busy() {
+        assert_eq!(not_found_or_busy(true, Refusal::NoSuchFact), Refusal::Busy);
+        assert_eq!(
+            not_found_or_busy(false, Refusal::NoSuchFact),
+            Refusal::NoSuchFact
+        );
+    }
 }

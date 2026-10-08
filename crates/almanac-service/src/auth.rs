@@ -4,7 +4,7 @@
 //! |---|---|---|---|---|
 //! | Record, RecordBatch | own things; actor `User{via: self}` or `App{self}` | any actor, never `Memory` bodies | `Area(Cua)` bodies with a `Cua` run actor; `Message` bodies sent by that same run | no |
 //! | ExplainFile, Mark | own | yes | no | yes |
-//! | Search, Facts, Related, Provenance, Primer, Inject, Recent | no | yes (audited as `Memory.Read`) | no | yes |
+//! | Search, Facts, Related, Provenance, Primer, Inject, Recent, Entries, Spaces | no | yes (audited as `Memory.Read`) | no | yes |
 //! | Propose, PlanForget | no | yes | no | yes |
 //! | everything else | no | no | no | yes |
 //!

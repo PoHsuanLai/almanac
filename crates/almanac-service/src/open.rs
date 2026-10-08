@@ -260,8 +260,11 @@ impl<B: Backend> Open<B> {
                 state: s.state,
             })
             .collect();
-        let procedures = VaultPath::parse("procedures")
-            .map(|dir| self.rt.store.vault().list(&dir).unwrap_or_default())
+        let procedures = self
+            .rt
+            .store
+            .vault()
+            .list(&VaultPath::procedures_dir())
             .unwrap_or_default();
         Ok(FactGraph { nodes, procedures })
     }
