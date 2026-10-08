@@ -43,11 +43,11 @@ almanac-fake    = { path = "crates/almanac-fake" }
 # is no cycle. memoryd reaches inferd through porter-client (and its tests serve a fake inferd with
 # porter-dbus); almanac never names stoker itself
 # (porter-infer does, by its own git rev).
-porter-core     = { git = "https://github.com/PoHsuanLai/porter", rev = "260a14df80d98dcfde32dc2da909b58482e236f5" }
-prov            = { git = "https://github.com/PoHsuanLai/porter", rev = "260a14df80d98dcfde32dc2da909b58482e236f5" }
-porter-infer    = { git = "https://github.com/PoHsuanLai/porter", rev = "260a14df80d98dcfde32dc2da909b58482e236f5" }
-porter-client   = { git = "https://github.com/PoHsuanLai/porter", rev = "260a14df80d98dcfde32dc2da909b58482e236f5" }
-porter-dbus     = { git = "https://github.com/PoHsuanLai/porter", rev = "260a14df80d98dcfde32dc2da909b58482e236f5" }
+porter-core     = { git = "https://github.com/PoHsuanLai/porter", rev = "993c56b79c1f15d07bb8843d44c06eb054f4cb6c" }
+prov            = { git = "https://github.com/PoHsuanLai/porter", rev = "993c56b79c1f15d07bb8843d44c06eb054f4cb6c" }
+porter-infer    = { git = "https://github.com/PoHsuanLai/porter", rev = "993c56b79c1f15d07bb8843d44c06eb054f4cb6c" }
+porter-client   = { git = "https://github.com/PoHsuanLai/porter", rev = "993c56b79c1f15d07bb8843d44c06eb054f4cb6c" }
+porter-dbus     = { git = "https://github.com/PoHsuanLai/porter", rev = "993c56b79c1f15d07bb8843d44c06eb054f4cb6c" }
 
 # From quire's pinned block (`docs/workspace-deps.toml`), copied verbatim: only the lines almanac
 # names itself.
