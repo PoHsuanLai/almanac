@@ -19,6 +19,7 @@ mod file;
 mod ids;
 mod indexed;
 mod inject;
+mod involve;
 mod op;
 mod query;
 mod recallable;

@@ -173,15 +173,8 @@ fn applies(scope: &RuleScope, record: &Record) -> bool {
     match scope {
         RuleScope::Space(space) => &record.space == space,
         RuleScope::Actor(class) => record.actor.kind() == *class,
-        RuleScope::App(app) => app_of(record).iter().any(|a| a == app),
-        RuleScope::Kind(pattern) => {
-            pattern.covers(record.body.kind().as_str())
-                || record
-                    .body
-                    .things()
-                    .iter()
-                    .any(|(view, _)| pattern.covers(view.thing.kind.as_str()))
-        }
+        RuleScope::App(app) => record.body.involves_app(&record.actor, app),
+        RuleScope::Kind(pattern) => pattern.covers_event(&record.body),
         RuleScope::Path(glob) => match &record.body {
             EventBody::File {
                 file: FileView { path, .. },
@@ -191,33 +184,6 @@ fn applies(scope: &RuleScope, record: &Record) -> bool {
         },
         RuleScope::Thing(thing) => record.body.names(thing),
     }
-}
-
-/// The apps an event involves: its things' owners, the app searched in, the acting app.
-fn app_of(record: &Record) -> Vec<porter_core::AppName> {
-    let mut apps: Vec<porter_core::AppName> = record
-        .body
-        .things()
-        .iter()
-        .map(|(v, _)| v.thing.app.clone())
-        .collect();
-    if let EventBody::Search { app, .. } = &record.body {
-        apps.push(app.clone());
-    }
-    match &record.actor {
-        Actor::User { via: app } | Actor::App { app } | Actor::ThirdParty { app, .. } => {
-            apps.push(app.clone());
-        }
-        // No app acts: a terminal (`Cli`) is not an app, so an App-scoped rule never matches it
-        // by actor (it still matches the things and the search the event is about).
-        Actor::Companion { .. }
-        | Actor::Mcp { .. }
-        | Actor::Acp { .. }
-        | Actor::Cli
-        | Actor::System { .. }
-        | Actor::Unknown => {}
-    }
-    apps
 }
 
 /// `*` matches within one path element, `**` across elements; everything else is literal.

@@ -5,8 +5,8 @@
 
 use crate::docs::{event_ref, fact_doc_id, indexed_docs, newest_episodes};
 use almanac_core::{
-    Actor, AppName, Count, EventBody, FactId, FactState, ForgetCounts, ForgetScope, Link,
-    PlanDigest, PlanToken, Refusal, Seq, SpaceId, UnixSeconds,
+    Count, FactId, FactState, ForgetCounts, ForgetScope, Link, PlanDigest, PlanToken, Refusal, Seq,
+    SpaceId, UnixSeconds,
 };
 use eventlog::{BodyState, Entry, LogRead};
 use memfiles::VaultPath;
@@ -129,7 +129,7 @@ fn derived_closure(
     seeds: BTreeSet<FactId>,
 ) -> BTreeSet<FactId> {
     let mut seen = seeds;
-    let mut frontier: Vec<Link> = roots
+    let mut frontier: BTreeSet<Link> = roots
         .into_iter()
         .chain(seen.iter().cloned().map(Link::Fact))
         .collect();
@@ -157,36 +157,10 @@ fn scope_matches(space: &SpaceId, scope: &ForgetScope, entry: &Entry) -> bool {
         ForgetScope::Thing(thing) => body.names(thing),
         ForgetScope::Fact(_) => false,
         ForgetScope::Range(from, to) => *from <= h.occurred && h.occurred <= *to,
-        ForgetScope::App(app) => involves_app(&h.actor, body, app),
-        ForgetScope::Kind(pattern) => {
-            pattern.covers(h.kind.as_str())
-                || body
-                    .things()
-                    .iter()
-                    .any(|(view, _)| pattern.covers(view.thing.kind.as_str()))
-        }
+        ForgetScope::App(app) => body.involves_app(&h.actor, app),
+        ForgetScope::Kind(pattern) => pattern.covers_event(body),
         ForgetScope::Space => true,
     }
-}
-
-/// The apps an event involves: its things' owners, the app searched in, the acting app.
-fn involves_app(actor: &Actor, body: &EventBody, app: &AppName) -> bool {
-    let acting = match actor {
-        Actor::User { via: a } | Actor::App { app: a } | Actor::ThirdParty { app: a, .. } => {
-            a == app
-        }
-        // A terminal (`Cli`) is no app: forgetting an app leaves what a terminal did unless the
-        // event is about that app's things; `Forget` by Space or Kind reaches it.
-        // An external coding agent (`Acp`) is no app either, like an MCP client.
-        Actor::Companion { .. }
-        | Actor::Mcp { .. }
-        | Actor::Acp { .. }
-        | Actor::Cli
-        | Actor::System { .. }
-        | Actor::Unknown => false,
-    };
-    let searched = matches!(body, EventBody::Search { app: a, .. } if a == app);
-    acting || searched || body.thing_refs().iter().any(|(thing, _)| &thing.app == app)
 }
 
 impl Plan {
