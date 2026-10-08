@@ -56,10 +56,6 @@ fn receipt() -> ConfirmReceipt {
     }
 }
 
-fn plan() -> PlanDigest {
-    PlanDigest([7; 32])
-}
-
 fn store_over<V: Vault>(vault: V) -> Store<V> {
     Store::new(vault, SpaceId::parse("work").expect("space"), TimeZone::UTC)
 }
@@ -192,50 +188,6 @@ fn confirm_requires_witness() {
 }
 
 #[test]
-fn derived_from_is_transitive() {
-    on_every_vault(|store| {
-        let t = topic("people/sam-lee");
-        // 1 and 2 come from thread a; 3 from fact 1; 4 from fact 3 (pending); 5 has two
-        // sources, one of them thread a (strict: still derived); 6 is unrelated.
-        store.append(&t, fact(1, vec![thread("a")])).expect("1");
-        store.append(&t, fact(2, vec![thread("a")])).expect("2");
-        store
-            .append(&topic("prefs"), fact(3, vec![Link::Fact(id(1))]))
-            .expect("3");
-        store
-            .stage(fact(4, vec![Link::Fact(id(3))]), topic("prefs"))
-            .expect("4");
-        store
-            .append(&t, fact(5, vec![thread("b"), thread("a")]))
-            .expect("5");
-        store.append(&t, fact(6, vec![thread("c")])).expect("6");
-        let derived = |links: &[Link]| store.derived_from(links).expect("derived");
-        assert_eq!(derived(&[thread("a")]), [id(1), id(2), id(3), id(4), id(5)]);
-        assert_eq!(derived(&[Link::Fact(id(1))]), [id(3), id(4)]);
-        assert_eq!(derived(&[thread("c")]), [id(6)]);
-        assert_eq!(derived(&[thread("nothing")]), []);
-        assert_eq!(derived(&[]), []);
-    });
-}
-
-#[test]
-fn derivation_cycles_terminate() {
-    on_every_vault(|store| {
-        let t = topic("loop");
-        store
-            .append(&t, fact(1, vec![Link::Fact(id(2))]))
-            .expect("1");
-        store
-            .append(&t, fact(2, vec![Link::Fact(id(1))]))
-            .expect("2");
-        assert_eq!(
-            store.derived_from(&[Link::Fact(id(1))]).expect("derived"),
-            [id(1), id(2)]
-        );
-    });
-}
-
-#[test]
 fn remove_cascades_through_topics_and_pending() {
     on_every_vault(|store| {
         let t = topic("people/sam-lee");
@@ -244,16 +196,15 @@ fn remove_cascades_through_topics_and_pending() {
         store
             .stage(fact(3, vec![Link::Fact(id(1))]), topic("prefs"))
             .expect("3");
-        let doomed = store.derived_from(&[thread("a")]).expect("derived");
-        assert_eq!(doomed, [id(1), id(3)]);
-        assert_eq!(store.remove(&doomed, &plan()), Ok(Count(2)));
+        let doomed = [id(1), id(3)];
+        assert_eq!(store.remove(&doomed), Ok(Count(2)));
         let left = store.read(&t).expect("topic");
         assert_eq!(left.blocks.len(), 1);
         assert!(matches!(&left.blocks[0], Block::Fact(f) if f.id == id(2)));
         assert_eq!(store.pending().expect("pending"), []);
         assert!(store.vault().read(&VaultPath::pending(&id(3))).is_err());
         // Removing what is not there removes nothing.
-        assert_eq!(store.remove(&doomed, &plan()), Ok(Count(0)));
+        assert_eq!(store.remove(&doomed), Ok(Count(0)));
     });
 }
 
@@ -270,11 +221,8 @@ fn journal_rollups_are_plain_topics() {
         topics.sort();
         assert_eq!(topics, [day.clone(), week]);
         assert!(store.vault().read(&VaultPath::topic(&day)).is_ok());
-        // A forget of the thread reaches the rollups like any other fact.
-        assert_eq!(
-            store.derived_from(&[thread("a")]).expect("derived"),
-            [id(1), id(2)]
-        );
+        // A rollup is removed like any other fact.
+        assert_eq!(store.remove(&[id(1), id(2)]), Ok(Count(2)));
     });
 }
 
@@ -291,14 +239,17 @@ fn the_primer_is_not_a_topic() {
                 summary: "what I like".into(),
             }],
         };
-        store.write_primer(&primer).expect("primer");
+        store
+            .vault()
+            .write_atomic(&VaultPath::primer(), primer.render().as_bytes())
+            .expect("primer");
         assert_eq!(
             store.vault().read(&VaultPath::primer()).expect("bytes"),
             primer.render().into_bytes()
         );
         assert_eq!(store.topics().expect("topics"), [topic("prefs")]);
         // Scans skip it rather than failing to parse it.
-        assert_eq!(store.derived_from(&[thread("a")]).expect("derived"), []);
+        assert_eq!(store.remove(&[id(1)]), Ok(Count(1)));
     });
 }
 
@@ -344,9 +295,8 @@ mod props {
                 }
             }
             ids.sort();
-            prop_assert_eq!(ids, (0..count).map(id).collect::<Vec<_>>());
-            let derived = store.derived_from(&[thread("k")]).expect("derived");
-            prop_assert_eq!(derived.len(), count as usize);
+            prop_assert_eq!(&ids, &(0..count).map(id).collect::<Vec<_>>());
+            prop_assert_eq!(store.remove(&ids), Ok(Count(count)));
         }
     }
 }

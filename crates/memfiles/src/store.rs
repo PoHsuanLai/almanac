@@ -4,8 +4,7 @@
 use crate::topic::{Block, ParseError, TopicFile, parse_topic, render_topic};
 use crate::vault::{FACTS_DIR, Vault, VaultError, VaultPath};
 use almanac_core::{
-    Count, Fact, FactId, Integrity, Link, PlanDigest, Settlement, Source, SpaceId, TopicPath,
-    UserText,
+    Count, Fact, FactId, Integrity, Settlement, Source, SpaceId, TopicPath, UserText,
 };
 use jiff::tz::TimeZone;
 use std::collections::BTreeSet;
@@ -184,36 +183,8 @@ impl<V: Vault> Store<V> {
         Ok(self.vault.remove(&path)?)
     }
 
-    /// Every fact derived from `links`, transitively through `Link::Fact`. Strict: a fact with
-    /// any one of the links is derived, however many other sources it has (QUESTIONS Me2).
-    pub fn derived_from(&self, links: &[Link]) -> Result<Vec<FactId>, MemfilesError> {
-        let facts: Vec<Fact> = self
-            .load_every()?
-            .into_iter()
-            .flat_map(|(_, file)| file.blocks)
-            .filter_map(|block| match block {
-                Block::Fact(fact) => Some(fact),
-                _ => None,
-            })
-            .collect();
-        let mut seen: BTreeSet<FactId> = BTreeSet::new();
-        let mut frontier: Vec<Link> = links.to_vec();
-        while !frontier.is_empty() {
-            let next: Vec<FactId> = facts
-                .iter()
-                .filter(|f| !seen.contains(&f.id) && f.links.iter().any(|l| frontier.contains(l)))
-                .map(|f| f.id.clone())
-                .collect();
-            seen.extend(next.iter().cloned());
-            frontier = next.into_iter().map(Link::Fact).collect();
-        }
-        Ok(seen.into_iter().collect())
-    }
-
-    /// Removes facts; only with the digest of a plan that contains them.
-    pub fn remove(&self, ids: &[FactId], plan: &PlanDigest) -> Result<Count, MemfilesError> {
-        // The plan is the caller's proof; the planner that made the digest lives above.
-        let _ = plan;
+    /// Removes facts. The caller (the forget machine) has already checked the plan's digest.
+    pub fn remove(&self, ids: &[FactId]) -> Result<Count, MemfilesError> {
         let doomed: BTreeSet<&FactId> = ids.iter().collect();
         let mut removed = 0u32;
         for (path, mut file) in self.load_every()? {
@@ -232,13 +203,6 @@ impl<V: Vault> Store<V> {
             }
         }
         Ok(Count(removed))
-    }
-
-    /// Writes `facts/INDEX.md`.
-    pub fn write_primer(&self, primer: &Primer) -> Result<(), MemfilesError> {
-        Ok(self
-            .vault
-            .write_atomic(&VaultPath::primer(), primer.render().as_bytes())?)
     }
 
     /// A parsed file, or `None` when it is absent.

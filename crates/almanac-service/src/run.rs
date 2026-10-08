@@ -345,22 +345,7 @@ impl<B: Backend> Open<B> {
             return Err(failed(revert_guard::REFUSED));
         }
         self.restore(&last.pre_images)?;
-        self.rt
-            .store
-            .remove(
-                &last.added,
-                &crate::forget::Plan {
-                    space: self.space().clone(),
-                    scope: almanac_core::ForgetScope::Space,
-                    events: vec![],
-                    facts: last.added.clone(),
-                    pending: vec![],
-                    procedures: vec![],
-                    index_docs: vec![],
-                }
-                .digest(),
-            )
-            .map_err(files_refusal)?;
+        self.rt.store.remove(&last.added).map_err(files_refusal)?;
         self.index_drop(&last.added.iter().map(fact_doc_id).collect::<Vec<_>>());
         let stored = self.stored()?;
         let again: Vec<_> = stored

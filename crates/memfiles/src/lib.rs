@@ -16,4 +16,4 @@ pub use memory::MemoryVault;
 pub use store::{MemfilesError, PRIMER_MAX_LINES, Primer, PrimerEntry, Store};
 pub use topic::{Block, FORMAT_LINE, ParseError, TopicFile, parse_topic, render_topic};
 pub use trailer::{TrailerFault, parse_trailer, render_trailer};
-pub use vault::{FACTS_DIR, PENDING_DIR, Vault, VaultError, VaultPath};
+pub use vault::{FACTS_DIR, PENDING_DIR, PROCEDURES_DIR, Vault, VaultError, VaultPath};

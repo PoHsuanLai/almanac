@@ -111,7 +111,7 @@ impl<B: Backend> Open<B> {
             ApplyStep::Index => self.index_drop(&plan.index_docs),
             ApplyStep::Memfiles => {
                 let ids: Vec<FactId> = plan.facts.iter().chain(&plan.pending).cloned().collect();
-                self.rt.store.remove(&ids, digest).map_err(files_refusal)?;
+                self.rt.store.remove(&ids).map_err(files_refusal)?;
                 self.prune_flags(&ids)?;
                 self.scrub_runs(&crate::runfile::Gone {
                     facts: ids.clone(),

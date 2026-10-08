@@ -422,7 +422,7 @@ impl<B: Backend> Open<B> {
         Ok(views)
     }
 
-    /// The primer: `facts/INDEX.md` when consolidation wrote one, else one line per topic.
+    /// The primer: `facts/INDEX.md` when the vault holds one (consolidation does not write it), else one line per topic.
     pub(crate) fn primer(&mut self, cx: &Cx<'_, B>) -> Result<String, Refusal> {
         use memfiles::Vault;
         let written = self

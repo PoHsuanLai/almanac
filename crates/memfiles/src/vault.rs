@@ -62,12 +62,19 @@ impl VaultPath {
     pub fn pending_dir() -> VaultPath {
         VaultPath(PENDING_DIR.to_owned())
     }
+
+    /// The `procedures` directory.
+    pub fn procedures_dir() -> VaultPath {
+        VaultPath(PROCEDURES_DIR.to_owned())
+    }
 }
 
 /// The topic files' directory under the Space.
 pub const FACTS_DIR: &str = "facts";
 /// Facts awaiting confirmation.
 pub const PENDING_DIR: &str = "pending";
+/// Procedures the Space holds.
+pub const PROCEDURES_DIR: &str = "procedures";
 
 impl fmt::Display for VaultPath {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
