@@ -1,7 +1,8 @@
 //! memoryd's library half: the real seams (`SystemBackend`, `SystemClock`, the inferd-backed
 //! `InferdEmbedder` and `InferdConsolidator`), the XDG roots, the per-Space queues, the caller
-//! identities and the bus handler (`Daemon`), so every module is testable on a private bus. The
-//! binary is `main.rs`: it builds these over the real system and serves the session bus.
+//! identities and the bus handler (`Daemon`), so every module is testable on a private bus. `start` builds
+//! these over the real system and serves the session bus; the binary (`main.rs`) is arguments and
+//! a call to it.
 
 mod backend;
 mod callers;
@@ -14,6 +15,7 @@ mod peers;
 mod procroot;
 mod queue;
 mod removals;
+mod run;
 mod sandbox;
 mod settings_watch;
 mod signals;
@@ -37,6 +39,7 @@ pub use peers::{Peers, ProcPeers, TablePeers};
 pub use procroot::{PROC_ROOT_VAR, ProcRoot, TestProcRoot, proc_root_choice};
 pub use queue::{Claim, Serialised, claim_of};
 pub use removals::Removals;
+pub use run::{Env, start};
 pub use sandbox::{Enforcement, Policy, SandboxError, bus_socket, enforce, policy_for, prepare};
 pub use settings_watch::{DEBOUNCE, SettingsWatch, WatchState, apply, apply_next};
 pub use signals::{FollowUp, follow_ups};
