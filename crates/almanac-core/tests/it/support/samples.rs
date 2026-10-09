@@ -175,8 +175,21 @@ pub fn requests() -> Vec<MemoryRequest> {
             trust: TrustFilter::TrustedOnly,
         }),
         MemoryRequest::Sweep(w.clone()),
-        MemoryRequest::RemoveSpace(w.clone(), MemoryFate::MoveToApps),
-        MemoryRequest::RemoveSpace(w.clone(), MemoryFate::Delete),
+        MemoryRequest::RemoveSpace(w.clone(), Removal::KEEP_ALL),
+        MemoryRequest::RemoveSpace(
+            w.clone(),
+            Removal {
+                memories: MemoryFate::Delete,
+                history: HistoryFate::Delete,
+            },
+        ),
+        MemoryRequest::RemoveSpace(
+            w.clone(),
+            Removal {
+                memories: MemoryFate::Delete,
+                history: HistoryFate::Keep,
+            },
+        ),
         MemoryRequest::ApplyConsolidation(RunId::parse("run-1").expect("run")),
         MemoryRequest::DiscardConsolidation(RunId::parse("run-1").expect("run")),
         MemoryRequest::RecordDurable(record(archived_body(), user())),
@@ -363,6 +376,8 @@ pub fn replies() -> Vec<MemoryReply> {
             moved: Count(3),
             kept_pending: Count(1),
             deleted: Count(0),
+            events_moved: Count(5),
+            events_deleted: Count(2),
         }),
     ]
 }

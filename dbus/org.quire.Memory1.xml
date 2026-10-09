@@ -147,7 +147,7 @@
    </method>
    <method name="RemoveSpace">
      <arg name="space" type="s" direction="in"/>
-     <arg name="fate" type="s" direction="in"/>
+     <arg name="removal" type="s" direction="in"/>
      <arg type="s" direction="out"/>
    </method>
    <method name="Export">

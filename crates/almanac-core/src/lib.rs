@@ -65,7 +65,7 @@ pub use query::{
     RecallQuery, VerificationKey,
 };
 pub use recallable::Recallable;
-pub use relocate::{MemoryFate, Relocation};
+pub use relocate::{HistoryFate, MemoryFate, Relocation, Removal};
 pub use reply::{ForgetReport, MemoryReply, RecallHit, RecallWhy, Refusal, SweepReport};
 pub use request::{ForgetScope, MemoryRequest};
 pub use rules::{

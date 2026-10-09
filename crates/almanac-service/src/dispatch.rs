@@ -65,8 +65,8 @@ impl<B: Backend> MemoryService<B> {
                 }))
             }
             R::Spaces => Ok(MemoryReply::Spaces(self.summaries())),
-            R::RemoveSpace(space, fate) => self
-                .remove_space(caller, &space, fate)
+            R::RemoveSpace(space, removal) => self
+                .remove_space(caller, &space, removal)
                 .await
                 .map(MemoryReply::Relocated),
             R::Rules => Ok(MemoryReply::Rules(self.rules())),

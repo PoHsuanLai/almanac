@@ -33,6 +33,7 @@ mod proposals;
 mod record;
 mod rehome;
 mod relocate;
+mod relocate_events;
 mod retention;
 mod revert_guard;
 mod run;

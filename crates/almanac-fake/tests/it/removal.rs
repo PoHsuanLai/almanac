@@ -1,6 +1,7 @@
 //! A removed desktop-wide Space: its memories move to the App Space of the app that wrote them
-//! (pending ones stay pending), or are deleted when the person chose that; a move that stopped
-//! half way finishes when asked again. Scratch Spaces, no clock, no bus.
+//! (pending ones stay pending) and its event history to that of the app that recorded it, or
+//! either is deleted when the person chose that; a move that stopped half way finishes when
+//! asked again. Scratch Spaces, no clock, no bus.
 
 use almanac_core::*;
 use almanac_fake::*;
@@ -92,10 +93,80 @@ fn service_with_work() -> Service {
     service
 }
 
-async fn remove(service: &Service, fate: MemoryFate) -> MemoryReply {
+async fn remove(service: &Service, removal: Removal) -> MemoryReply {
     service
-        .handle(&Caller::ShellUi, MemoryRequest::RemoveSpace(work(), fate))
+        .handle(
+            &Caller::ShellUi,
+            MemoryRequest::RemoveSpace(work(), removal),
+        )
         .await
+}
+
+fn erase_all() -> Removal {
+    Removal {
+        memories: MemoryFate::Delete,
+        history: HistoryFate::Delete,
+    }
+}
+
+/// Three events in "work": Mail's archive, a Files save and the companion's forward.
+fn history() -> Vec<Record> {
+    let mut saved = file_saved_from_attachment().expect("fixture");
+    saved.actor = Actor::App { app: app(FILES) };
+    vec![
+        mail_thread_archived().expect("fixture"),
+        saved,
+        companion_forwarded().expect("fixture"),
+    ]
+}
+
+async fn record_history(service: &Service) -> Vec<EventRef> {
+    let mut refs = Vec::new();
+    for record in history() {
+        let reply = service
+            .handle(&Caller::Router, MemoryRequest::Record(record))
+            .await;
+        let MemoryReply::Recorded(event) = reply else {
+            panic!("{reply:?}")
+        };
+        refs.push(event);
+    }
+    refs
+}
+
+/// The events of `space` that are not the service's own audit, oldest first.
+async fn events_in(service: &Service, space: &SpaceId) -> Vec<TimelineEntry> {
+    let query = TimelineQuery {
+        before: None,
+        limit: Count(50),
+        filter: TimelineFilter {
+            actors: ActorFilter::Everyone,
+            apps: vec![],
+            kinds: vec![],
+            trust: TrustFilter::Any,
+            range: None,
+        },
+    };
+    let reply = service
+        .handle(
+            &Caller::ShellUi,
+            MemoryRequest::Timeline(space.clone(), query),
+        )
+        .await;
+    let MemoryReply::Timeline(page) = reply else {
+        panic!("{reply:?}")
+    };
+    let mut kept: Vec<TimelineEntry> = page
+        .entries
+        .into_iter()
+        .filter(|e| !e.kind.as_str().starts_with("memory."))
+        .collect();
+    kept.reverse();
+    kept
+}
+
+fn kinds(events: &[TimelineEntry]) -> Vec<&str> {
+    events.iter().map(|e| e.kind.as_str()).collect()
 }
 
 fn fact_ids(store: &Store<SharedVault>) -> Vec<FactId> {
@@ -123,13 +194,13 @@ fn fact_ids(store: &Store<SharedVault>) -> Vec<FactId> {
 #[tokio::test]
 async fn memories_move_to_the_app_that_wrote_them_and_pending_stays_pending() {
     let service = service_with_work();
-    let reply = remove(&service, MemoryFate::MoveToApps).await;
+    let reply = remove(&service, Removal::KEEP_ALL).await;
     assert_eq!(
         reply,
         MemoryReply::Relocated(Relocation {
             moved: Count(3),
             kept_pending: Count(1),
-            deleted: Count(0),
+            ..Relocation::NONE
         })
     );
     let (mail_home, files_home, shell_home) =
@@ -164,13 +235,12 @@ async fn memories_move_to_the_app_that_wrote_them_and_pending_stays_pending() {
 #[tokio::test]
 async fn deleting_instead_moves_nothing() {
     let service = service_with_work();
-    let reply = remove(&service, MemoryFate::Delete).await;
+    let reply = remove(&service, erase_all()).await;
     assert_eq!(
         reply,
         MemoryReply::Relocated(Relocation {
-            moved: Count(0),
-            kept_pending: Count(0),
             deleted: Count(3),
+            ..Relocation::NONE
         })
     );
     for name in ["org.quire.Mail", FILES, SHELL] {
@@ -189,7 +259,7 @@ async fn a_move_that_stopped_half_way_finishes_without_duplicates() {
     store(&service, &home_of("org.quire.Mail"))
         .append(&topic("people/ana"), copied)
         .expect("append");
-    let reply = remove(&service, MemoryFate::MoveToApps).await;
+    let reply = remove(&service, Removal::KEEP_ALL).await;
     assert!(matches!(reply, MemoryReply::Relocated(_)), "{reply:?}");
     assert_eq!(
         fact_ids(&store(&service, &home_of("org.quire.Mail"))).len(),
@@ -198,7 +268,7 @@ async fn a_move_that_stopped_half_way_finishes_without_duplicates() {
     assert_eq!(service.backend().removed_spaces(), vec![work()]);
     // Asked again once it is done, it has nothing left to do.
     assert_eq!(
-        remove(&service, MemoryFate::MoveToApps).await,
+        remove(&service, Removal::KEEP_ALL).await,
         MemoryReply::Relocated(Relocation::NONE)
     );
 }
@@ -216,7 +286,7 @@ async fn memories_no_app_wrote_need_an_app_to_take_them() {
     store(&bare, &work())
         .append(&topic("people/bo"), fact(3, planner(), trusted_label()))
         .expect("append");
-    let reply = remove(&bare, MemoryFate::MoveToApps).await;
+    let reply = remove(&bare, Removal::KEEP_ALL).await;
     assert!(
         matches!(reply, MemoryReply::Refused(Refusal::Invalid(_))),
         "{reply:?}"
@@ -233,7 +303,7 @@ async fn only_the_shell_removes_a_space_and_only_a_desktop_wide_one() {
     let by_router = service
         .handle(
             &Caller::Router,
-            MemoryRequest::RemoveSpace(work(), MemoryFate::Delete),
+            MemoryRequest::RemoveSpace(work(), erase_all()),
         )
         .await;
     assert_eq!(by_router, MemoryReply::Refused(Refusal::NotAllowed));
@@ -241,11 +311,135 @@ async fn only_the_shell_removes_a_space_and_only_a_desktop_wide_one() {
     let reply = service
         .handle(
             &Caller::ShellUi,
-            MemoryRequest::RemoveSpace(own, MemoryFate::Delete),
+            MemoryRequest::RemoveSpace(own, erase_all()),
         )
         .await;
     assert!(
         matches!(reply, MemoryReply::Refused(Refusal::Invalid(_))),
         "{reply:?}"
+    );
+}
+
+/// "work" with its history recorded, and a mail fact that cites the archive event.
+async fn service_with_history() -> (Service, Vec<EventRef>) {
+    let service = service_with_work();
+    let events = record_history(&service).await;
+    let mut cited = fact(4, Actor::User { via: mail() }, trusted_label());
+    cited.links = vec![Link::Event(events[0].clone())];
+    store(&service, &work())
+        .append(&topic("people/cy"), cited)
+        .expect("append");
+    (service, events)
+}
+
+fn cited_link(service: &Service) -> Vec<Link> {
+    let mail_store = store(service, &home_of("org.quire.Mail"));
+    mail_store
+        .read(&topic("people/cy"))
+        .expect("read")
+        .blocks
+        .into_iter()
+        .find_map(|b| match b {
+            memfiles::Block::Fact(f) => Some(f.links),
+            _ => None,
+        })
+        .expect("the cited fact moved")
+}
+
+#[tokio::test]
+async fn kept_history_follows_the_app_that_recorded_it() {
+    let (service, _) = service_with_history().await;
+    let reply = remove(&service, Removal::KEEP_ALL).await;
+    let MemoryReply::Relocated(report) = reply else {
+        panic!("{reply:?}")
+    };
+    assert_eq!(
+        (report.events_moved, report.events_deleted),
+        (Count(3), Count(0))
+    );
+    let mail_events = events_in(&service, &home_of("org.quire.Mail")).await;
+    assert_eq!(kinds(&mail_events), vec!["thing.archived"]);
+    assert_eq!(
+        kinds(&events_in(&service, &home_of(FILES)).await),
+        vec!["file.created"]
+    );
+    let forwarded = events_in(&service, &home_of(SHELL)).await;
+    assert_eq!(kinds(&forwarded), vec!["thing.forwarded"]);
+    assert_eq!(
+        forwarded[0].label.confidentiality,
+        Confidentiality::Private(BTreeSet::from([home_of(SHELL)])),
+        "private to the log it now lives in"
+    );
+    assert_eq!(
+        cited_link(&service),
+        vec![Link::Event(mail_events[0].event.clone())],
+        "a fact's link follows its event"
+    );
+    assert_eq!(service.backend().removed_spaces(), vec![work()]);
+}
+
+#[tokio::test]
+async fn deleted_history_leaves_no_event_and_no_link() {
+    let (service, _) = service_with_history().await;
+    let removal = Removal {
+        memories: MemoryFate::MoveToApps,
+        history: HistoryFate::Delete,
+    };
+    let reply = remove(&service, removal).await;
+    let MemoryReply::Relocated(report) = reply else {
+        panic!("{reply:?}")
+    };
+    assert_eq!(
+        (report.events_moved, report.events_deleted),
+        (Count(0), Count(3))
+    );
+    assert_eq!(report.moved, Count(4));
+    for name in ["org.quire.Mail", FILES, SHELL] {
+        assert!(
+            events_in(&service, &home_of(name)).await.is_empty(),
+            "{name}"
+        );
+    }
+    assert!(cited_link(&service).is_empty());
+}
+
+#[tokio::test]
+async fn history_can_be_kept_while_memories_are_deleted() {
+    let (service, _) = service_with_history().await;
+    let removal = Removal {
+        memories: MemoryFate::Delete,
+        history: HistoryFate::Keep,
+    };
+    let reply = remove(&service, removal).await;
+    let MemoryReply::Relocated(report) = reply else {
+        panic!("{reply:?}")
+    };
+    assert_eq!(
+        (report.moved, report.deleted, report.events_moved),
+        (Count(0), Count(4), Count(3))
+    );
+    assert_eq!(
+        kinds(&events_in(&service, &home_of("org.quire.Mail")).await),
+        vec!["thing.archived"]
+    );
+}
+
+#[tokio::test]
+async fn a_history_move_that_stopped_half_way_finishes_without_duplicates() {
+    let (service, _) = service_with_history().await;
+    // The daemon died after the archive event reached Mail's log and before the Space went.
+    let mut copied = mail_thread_archived().expect("fixture");
+    copied.space = home_of("org.quire.Mail");
+    let reply = service
+        .handle(&Caller::Router, MemoryRequest::Record(copied))
+        .await;
+    assert!(matches!(reply, MemoryReply::Recorded(_)), "{reply:?}");
+    let reply = remove(&service, Removal::KEEP_ALL).await;
+    assert!(matches!(reply, MemoryReply::Relocated(_)), "{reply:?}");
+    let mail_events = events_in(&service, &home_of("org.quire.Mail")).await;
+    assert_eq!(kinds(&mail_events), vec!["thing.archived"], "not twice");
+    assert_eq!(
+        cited_link(&service),
+        vec![Link::Event(mail_events[0].event.clone())]
     );
 }

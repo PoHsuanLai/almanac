@@ -70,7 +70,7 @@ pub fn encode_request(request: &MemoryRequest) -> Result<Call, CodecError> {
         R::Rebuild(s) => call(Control, "Rebuild", vec![space(s)]),
         R::Export(options) => call(Control, "Export", vec![body(options)?]),
         R::Sweep(s) => call(Control, "Sweep", vec![space(s)]),
-        R::RemoveSpace(s, fate) => call(Control, "RemoveSpace", vec![space(s), body(fate)?]),
+        R::RemoveSpace(s, removal) => call(Control, "RemoveSpace", vec![space(s), body(removal)?]),
     })
 }
 
@@ -205,9 +205,9 @@ pub fn decode_request(call: &Call) -> Result<MemoryRequest, CodecError> {
         (Control, "Sweep") => only_space(args).map(R::Sweep),
         (Control, "RemoveSpace") => {
             let id = parse_space(args.text()?)?;
-            let fate = args.json()?;
+            let removal = args.json()?;
             args.end()?;
-            Ok(R::RemoveSpace(id, fate))
+            Ok(R::RemoveSpace(id, removal))
         }
         (_, member) => Err(CodecError::Json(format!("no member {member}"))),
     }

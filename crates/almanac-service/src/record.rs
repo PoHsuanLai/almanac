@@ -95,7 +95,7 @@ impl<B: Backend> Open<B> {
     }
 
     /// Indexes the documents of a new entry; a narrated episode replaces its earlier events'.
-    async fn index_entry(&mut self, cx: &Cx<'_, B>, entry: &eventlog::Entry) {
+    pub(crate) async fn index_entry(&mut self, cx: &Cx<'_, B>, entry: &eventlog::Entry) {
         if let BodyState::Present(EventBody::Episode(episode)) = &entry.body {
             let older = self.older_episode_docs(&episode.id.to_string(), entry.header.seq);
             self.index_drop(&older);

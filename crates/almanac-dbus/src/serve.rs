@@ -533,7 +533,7 @@ impl<S: Serve> ControlObject<S> {
         &self,
         #[zbus(header)] h: Header<'_>,
         space: String,
-        fate: String,
+        removal: String,
     ) -> Result<String, MemoryError> {
         first(
             forward(
@@ -541,7 +541,7 @@ impl<S: Serve> ControlObject<S> {
                 &h,
                 Iface::Control,
                 "RemoveSpace",
-                vec![text(space), text(fate)],
+                vec![text(space), text(removal)],
                 None,
             )
             .await?,

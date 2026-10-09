@@ -4,6 +4,7 @@
 
 use crate::support::{SharedKeys, TestBackend, dirs_in, service, space};
 use almanac_core::*;
+use almanac_fake::mail_thread_archived;
 use almanac_service::spaces_from_toml;
 use memoryd::{Daemon, Removals, SHELL_APP, TablePeers};
 
@@ -84,7 +85,7 @@ async fn a_daemon_that_died_mid_move_finishes_on_the_next_start() {
     let first = daemon(&dirs, &keys);
     fill_old(&first).await;
     // It noted the removal and died before moving anything.
-    Removals::load(dirs.memory().join("removals.toml")).begin(&space("old"));
+    Removals::load(dirs.memory().join("removals.toml")).begin(&space("old"), Removal::KEEP_ALL);
     drop(first);
     assert!(dirs.space(&space("old")).exists());
 
@@ -96,7 +97,9 @@ async fn a_daemon_that_died_mid_move_finishes_on_the_next_start() {
         MemoryReply::Relocated(Relocation {
             moved: Count(2),
             kept_pending: Count(1),
-            deleted: Count(0),
+            // The audit line of the shell's own fact.
+            events_moved: Count(1),
+            ..Relocation::NONE
         })
     );
     assert!(!dirs.space(&space("old")).exists(), "the Space is gone");
@@ -166,4 +169,105 @@ async fn a_removal_the_registry_announces_moves_the_memories() {
         .await;
     assert!(!dirs.space(&space("old")).exists());
     assert_eq!(pending_in(&daemon, files_home()).await, 1);
+}
+
+fn mail_home() -> SpaceId {
+    SpaceId::app(
+        &AppName::parse("org.quire.Mail").expect("app"),
+        LocalSpace(0),
+    )
+}
+
+/// Mail's archive event, recorded in "old".
+async fn record_in_old(daemon: &TestDaemon) {
+    let record = Record {
+        space: space("old"),
+        ..mail_thread_archived().expect("fixture")
+    };
+    let reply = daemon
+        .queue()
+        .handle(&Caller::Router, MemoryRequest::Record(record))
+        .await;
+    assert!(matches!(reply, MemoryReply::Recorded(_)), "{reply:?}");
+}
+
+async fn archived_in(daemon: &TestDaemon, space: SpaceId) -> usize {
+    let query = TimelineQuery {
+        before: None,
+        limit: Count(50),
+        filter: TimelineFilter {
+            actors: ActorFilter::Everyone,
+            apps: vec![],
+            kinds: vec![KindPattern::parse("thing.archived").expect("kind")],
+            trust: TrustFilter::Any,
+            range: None,
+        },
+    };
+    match daemon
+        .queue()
+        .handle(&Caller::ShellUi, MemoryRequest::Timeline(space, query))
+        .await
+    {
+        MemoryReply::Timeline(page) => page.entries.len(),
+        other => panic!("{other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn a_removal_no_one_asked_about_keeps_memories_and_history() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let (dirs, keys) = (dirs_in(scratch.path()), SharedKeys::default());
+    let daemon = daemon(&dirs, &keys);
+    fill_old(&daemon).await;
+    record_in_old(&daemon).await;
+    let gone = DesktopSpace::parse("old").expect("space");
+    daemon
+        .on_change(&gone, porter_core::SpaceChange::Removed)
+        .await;
+    assert!(!dirs.space(&space("old")).exists());
+    assert_eq!(archived_in(&daemon, mail_home()).await, 1, "history kept");
+    assert!(dirs.facts(&shell_home()).exists(), "memories moved");
+}
+
+#[tokio::test]
+async fn a_choice_the_shell_noted_stands_when_the_registry_announces_the_removal() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let (dirs, keys) = (dirs_in(scratch.path()), SharedKeys::default());
+    let first = daemon(&dirs, &keys);
+    fill_old(&first).await;
+    record_in_old(&first).await;
+    first.persist();
+    // The shell asked to delete the history and the daemon died before it moved anything.
+    Removals::load(dirs.memory().join("removals.toml")).begin(
+        &space("old"),
+        Removal {
+            memories: MemoryFate::MoveToApps,
+            history: HistoryFate::Delete,
+        },
+    );
+    drop(first);
+
+    let second = daemon(&dirs, &keys);
+    let gone = DesktopSpace::parse("old").expect("space");
+    second
+        .on_change(&gone, porter_core::SpaceChange::Removed)
+        .await;
+    assert!(!dirs.space(&space("old")).exists());
+    assert_eq!(
+        archived_in(&second, mail_home()).await,
+        0,
+        "history deleted"
+    );
+    assert!(dirs.facts(&shell_home()).exists(), "memories moved");
+}
+
+#[test]
+fn a_note_from_before_the_history_choice_reads_as_keep_everything() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let path = scratch.path().join("removals.toml");
+    std::fs::write(&path, "removed = [\"old\"]\n").expect("write");
+    assert_eq!(
+        Removals::load(path).open(),
+        vec![(space("old"), Removal::KEEP_ALL)]
+    );
 }

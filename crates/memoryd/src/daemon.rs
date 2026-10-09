@@ -9,8 +9,7 @@ use crate::queue::Serialised;
 use crate::removals::Removals;
 use crate::signals::{FollowUp, follow_ups};
 use almanac_core::{
-    Caller, DesktopSpace, Dirs, MemoryFate, MemoryReply, MemoryRequest, PlanToken, SpaceId,
-    SpaceKind,
+    Caller, DesktopSpace, Dirs, MemoryReply, MemoryRequest, PlanToken, Removal, SpaceId, SpaceKind,
 };
 use almanac_dbus::{Call, MemoryError, Serve, Signal, decode_request, emit, encode_reply};
 use almanac_service::{
@@ -247,6 +246,11 @@ impl<B: Backend, P: Peers> Daemon<B, P> {
             (MemoryRequest::Export(_), None) => almanac_core::MemoryReply::Refused(
                 almanac_core::Refusal::Invalid("Export needs the stream it writes to".into()),
             ),
+            (MemoryRequest::RemoveSpace(space, removal), None)
+                if *caller == Caller::ShellUi && matches!(space.kind(), SpaceKind::Linked(_)) =>
+            {
+                self.settle(space, *removal).await
+            }
             _ => self.queue.handle(caller, request.clone()).await,
         };
         self.persist();
@@ -272,12 +276,20 @@ impl<B: Backend + 'static, P: Peers> Serve for Daemon<B, P> {
 }
 
 impl<B: Backend, P: Peers> Daemon<B, P> {
-    /// Settles the memories of `space`, a desktop-wide Space the registry no longer has: they
-    /// move to the App Space of the app that wrote them. Noted first and struck out when done,
-    /// so [`Daemon::resume_removals`] finishes what a crash or a busy Space interrupted.
+    /// Settles `space`, a desktop-wide Space the registry no longer has, when no one asked the
+    /// person: a choice the shell announced earlier (`RemoveSpace`, noted and not yet finished)
+    /// stands, else the memories move to the App Space of the app that wrote them and the
+    /// history to that of the app that recorded it ([`Removal::KEEP_ALL`]).
     pub async fn settle_removed(&self, space: &SpaceId) -> MemoryReply {
-        self.removals.begin(space);
-        let request = MemoryRequest::RemoveSpace(space.clone(), MemoryFate::MoveToApps);
+        let removal = self.removals.begin_unasked(space);
+        self.settle(space, removal).await
+    }
+
+    /// Settles `space` as `removal` says. Noted first and struck out when done, so
+    /// [`Daemon::resume_removals`] finishes what a crash or a busy Space interrupted.
+    async fn settle(&self, space: &SpaceId, removal: Removal) -> MemoryReply {
+        self.removals.begin(space, removal);
+        let request = MemoryRequest::RemoveSpace(space.clone(), removal);
         let reply = self.queue.handle(&Caller::ShellUi, request.clone()).await;
         self.persist();
         if matches!(reply, MemoryReply::Relocated(_)) {
@@ -290,8 +302,8 @@ impl<B: Backend, P: Peers> Daemon<B, P> {
     /// Finishes every removal that was begun and not struck out.
     pub async fn resume_removals(&self) -> Vec<(SpaceId, MemoryReply)> {
         let mut out = Vec::new();
-        for space in self.removals.open() {
-            out.push((space.clone(), self.settle_removed(&space).await));
+        for (space, removal) in self.removals.open() {
+            out.push((space.clone(), self.settle(&space, removal).await));
         }
         out
     }
@@ -306,7 +318,7 @@ impl<B: Backend, P: Peers> Daemon<B, P> {
             let orphan =
                 matches!(meta.id.kind(), SpaceKind::Linked(_)) && !known.contains(&meta.id);
             if orphan {
-                self.removals.begin(&meta.id);
+                self.removals.begin_unasked(&meta.id);
             }
         }
         self.resume_removals().await

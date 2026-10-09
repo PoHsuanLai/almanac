@@ -126,7 +126,7 @@ may reach `notify` and never `rusqlite`; `almanac-dbus` reaches `tokio` only thr
 | where files live in a Space | `memfiles::vault` (`VaultPath`) and `almanac-core::dirs` (`Dirs`) |
 | search, fusion, chunking, the index state, adopting an index file at start (`Index::sync`) | `recall` |
 | the Space, fact, plan and run machines | `almanac-service::{space, fact, forget, consolidation}` |
-| where a removed desktop-wide Space's memories go, and who may reach an App Space | `almanac-service::{rehome, relocate}` and `auth::allowed`; the registry's removals and the note that finishes a crashed move are `memoryd::{Daemon, Removals}` |
+| where a removed desktop-wide Space's memories and event history go (each person's choice, `Removal { memories, history }`), and who may reach an App Space | `almanac-service::{rehome, relocate, relocate_events}` and `auth::allowed`; the registry's removals and the note (with the choice) that finishes a crashed move are `memoryd::{Daemon, Removals}` |
 | topic files edited outside the service (the baseline) | `almanac-service::{baseline, edits}` |
 | what the bus hears that no reply says (`ServiceEvent`) | `almanac-service::events`, drained by `Daemon::flush_events` |
 | what memoryd may touch (Landlock) | `memoryd::sandbox` |

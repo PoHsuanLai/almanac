@@ -9,16 +9,17 @@ use crate::backend::Backend;
 use crate::docs::fact_doc;
 use crate::events::ServiceEvent;
 use crate::open::{Cx, Open, Stored, failed, files_refusal};
-use crate::rehome::{Held, Parcel, rehomed, sort_into_parcels};
+use crate::rehome::{EventMap, Held, Parcel, rehomed, sort_into_parcels};
 use crate::service::MemoryService;
 use almanac_core::{
-    Caller, Count, FactId, FactState, MemoryFate, MemoryOp, Refusal, Relocation, SpaceId, SpaceKind,
+    Caller, Count, FactId, FactState, HistoryFate, MemoryFate, MemoryOp, Refusal, Relocation,
+    Removal, SpaceId, SpaceKind,
 };
 use almanac_seal::{KeyError, KeyStore};
 use memfiles::{Vault, VaultPath};
 use std::collections::BTreeSet;
 
-fn count(n: usize) -> Count {
+pub(crate) fn count(n: usize) -> Count {
     Count(u32::try_from(n).unwrap_or(u32::MAX))
 }
 
@@ -44,6 +45,7 @@ impl<B: Backend> Open<B> {
         cx: &Cx<'_, B>,
         from: &SpaceId,
         parcel: Parcel,
+        moved: &EventMap,
     ) -> Result<(), Refusal> {
         let here = self.space().clone();
         let have: BTreeSet<FactId> = self.stored()?.into_iter().map(|s| s.fact.id).collect();
@@ -54,7 +56,7 @@ impl<B: Backend> Open<B> {
         for Stored { topic, fact, state } in
             facts.into_iter().filter(|s| !have.contains(&s.fact.id))
         {
-            let fact = rehomed(fact, from, &here);
+            let fact = rehomed(fact, from, &here, moved);
             match state {
                 FactState::Pending => self.rt.store.stage(fact, topic).map_err(files_refusal)?,
                 FactState::Active | FactState::Superseded { .. } => {
@@ -88,12 +90,13 @@ impl<B: Backend> Open<B> {
 }
 
 impl<B: Backend> MemoryService<B> {
-    /// Settles the memories of the removed desktop-wide Space `space` as `fate` says.
+    /// Settles the memories and the event history of the removed desktop-wide Space `space` as
+    /// `removal` says. The events move first, so the facts that moved can follow their links.
     pub(crate) async fn remove_space(
         &self,
         caller: &Caller,
         space: &SpaceId,
-        fate: MemoryFate,
+        removal: Removal,
     ) -> Result<Relocation, Refusal> {
         if !matches!(space.kind(), SpaceKind::Linked(_)) {
             return Err(Refusal::Invalid(
@@ -108,16 +111,44 @@ impl<B: Backend> MemoryService<B> {
         if !self.has_meta(space) {
             return Ok(Relocation::NONE);
         }
-        let held = {
+        let (held, events) = {
             let mut lease = self.checkout(caller, space).await?;
-            lease.open().ok_or(Refusal::Busy)?.held()?
+            let open = lease.open().ok_or(Refusal::Busy)?;
+            (open.held()?, open.entries()?)
         };
-        let moved = match fate {
-            MemoryFate::MoveToApps => self.move_to_apps(caller, space, held).await?,
+        let (history, moved_events) = match removal.history {
+            HistoryFate::Keep => {
+                let (n, map) = self.move_events(caller, space, events).await?;
+                (
+                    Relocation {
+                        events_moved: n,
+                        ..Relocation::NONE
+                    },
+                    map,
+                )
+            }
+            HistoryFate::Delete => (
+                Relocation {
+                    events_deleted: count(events.len()),
+                    ..Relocation::NONE
+                },
+                EventMap::new(),
+            ),
+        };
+        let memories = match removal.memories {
+            MemoryFate::MoveToApps => {
+                self.move_to_apps(caller, space, held, &moved_events)
+                    .await?
+            }
             MemoryFate::Delete => Relocation {
                 deleted: count(held.facts.len()),
                 ..Relocation::NONE
             },
+        };
+        let moved = Relocation {
+            events_moved: history.events_moved,
+            events_deleted: history.events_deleted,
+            ..memories
         };
         let lease = self.checkout(caller, space).await?;
         self.delete_space(caller, space, lease).await?;
@@ -136,6 +167,7 @@ impl<B: Backend> MemoryService<B> {
         caller: &Caller,
         from: &SpaceId,
         held: Held,
+        events: &EventMap,
     ) -> Result<Relocation, Refusal> {
         let parcels = sort_into_parcels(held, self.fallback_owner().as_ref())?;
         let mut report = Relocation::NONE;
@@ -151,7 +183,7 @@ impl<B: Backend> MemoryService<B> {
             let mut lease = self.checkout(caller, &home).await?;
             let cx = self.cx(caller);
             let open = lease.open().ok_or(Refusal::Busy)?;
-            open.receive(&cx, from, parcel).await?;
+            open.receive(&cx, from, parcel, events).await?;
             self.raise_all(open.outbox.drain(..));
             report.moved = count(report.moved.0 as usize + all);
             report.kept_pending = count(report.kept_pending.0 as usize + pending);

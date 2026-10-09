@@ -828,20 +828,46 @@ app's own). What this adds, on porter 993c56b (`Spaces1`, `SpaceId::{kind, for_a
 - **Ownership.** `allowed` refuses an app's request that names another app's own Space (`Refusal::OutsideSpace`, the
   existing refusal: "reaches into another Space"); a desktop-wide Space and `desktop` are open. An app's batch is
   checked record by record. The router, cuad and the shell are not apps and are not held to it.
-- **Removal.** `MemoryRequest::RemoveSpace(space, MemoryFate)` (shell only; D-Bus `Control.RemoveSpace(space, fate)`
-  answering `Relocation` JSON). `MoveToApps` (what memoryd does itself when `Spaces1.Changed(id, "removed")` arrives):
-  each fact goes to the first App Space (`app:<app>:0`) of the app that wrote it (`Actor::{User via, App, ThirdParty}`),
-  a procedure to the app named in its path, anything no app wrote to the fallback owner (memoryd names the shell;
-  with none named the removal is refused before it moves anything). Pending facts stay pending, with a label that
-  was private to the removed Space now private to the new one; links to events of the removed log are dropped (the log
-  goes with the Space). `Delete` is the explicit choice, never a default.
-- **Crash safety.** Facts are copied by id, then the Space is deleted, so a repeat finishes a half move without
+- **Removal.** `MemoryRequest::RemoveSpace(space, Removal)` with `Removal { memories: MemoryFate, history: HistoryFate }`
+  (shell only; D-Bus `Control.RemoveSpace(space, removal)`, `removal` the JSON
+  `{"memories":"move_to_apps"|"delete","history":"keep"|"delete"}`, answering `Relocation` JSON
+  `{moved, kept_pending, deleted, events_moved, events_deleted}`). Memories `move_to_apps`: each fact goes to the first
+  App Space (`app:<app>:0`) of the app that wrote it (`Actor::{User via, App, ThirdParty}`), a procedure to the app named
+  in its path, anything no app wrote to the fallback owner (memoryd names the shell; with none named the removal is
+  refused before it moves anything). Pending facts stay pending, with a label that was private to the removed Space now
+  private to the new one. History `keep`: each event of the removed log is appended to the log of the first App Space
+  of the app that recorded it (same rule, same fallback), oldest first, label rehomed the same way, indexed there; an
+  event's `cause` and a fact's `Link::Event` follow the event to its new address (`EventMap`), and one whose target is
+  not in the log any more (pruned) is dropped. Both `delete` choices are explicit, never a default.
+- **Unannounced removal.** When memoryd sees `Spaces1.Changed(id, "removed")` and the shell did not call `RemoveSpace`
+  first (someone else removed it, or the shell died before it called), the default is the non-destructive one:
+  `Removal::KEEP_ALL` (memories `move_to_apps`, history `keep`). A choice the shell already noted (below) stands.
+  So the shell must call `RemoveSpace` before it asks the registry to remove the Space; the other way round, memoryd
+  has already kept everything and a later `Delete` finds nothing to delete.
+- **Crash safety.** Events and facts are matched against what the destination already holds (an event by times, actor,
+  kind, label and body digest; a fact by id), then the Space is deleted, so a repeat finishes a half move without
   duplicates; a key already destroyed with no Space entry left means only the directories remain, and they are
-  removed. memoryd writes `removals.toml` before moving and strikes the Space out after, and finishes the open notes
-  at start (`Daemon::resume_removals`).
+  removed. memoryd writes `removals.toml` (`removed = [{ space, removal = { memories, history } }]`; a bare space name
+  from an older file reads as `KEEP_ALL`) before moving, for the shell's call as well as for the registry's, and
+  strikes the Space out after; it finishes the open notes at start (`Daemon::resume_removals`) with the choice noted.
 - **Spaces the registry does not know.** At start, after subscribing, `Daemon::reconcile` settles every desktop-wide
   Space that memory holds and `Spaces1.List` does not (an id from before Spaces were per app that no grant made
   accountd adopt) as a removed one. It runs only once `List` answered.
-- **Gaps.** `LocalSpace(0)` is assumed to be an app's first Space (quire's kit numbers from 0); the event history of a
-  removed Space is erased with it (only facts and procedures move). A Space an app records into that the registry
+- **Gaps.** `LocalSpace(0)` is assumed to be an app's first Space (quire's kit numbers from 0). The event-history gap
+  (a removed Space's events were erased with it) is closed by the history choice. A `cause` that points at an event
+  recorded for another app's log and moved later in the same run is dropped (the log moves one app at a time). A Space an app records into that the registry
   never had is moved at the next start.
+
+**The removal dialogue (for the Settings session; plain words, no app ids or protocol names).** A sheet, macOS style,
+shown by the shell before it calls `RemoveSpace` and before it removes the Space from the registry:
+
+- Title: `Remove “Trip”?` (the Space's name).
+- Body: `Its memories move to the apps that saved them.`
+- Choice, a two-item radio group under the body, first selected: `Keep its history` (default), `Delete its history`.
+  Footnote under the group: `History is what happened in this Space, like files you saved and messages you sent.`
+- A plain link-style button beside the group: `Delete its memories instead` (switches the body to
+  `Its memories will be deleted.` and the button to `Move its memories instead`).
+- Buttons: `Remove` (default, the only action button; destructive style only when a "Delete" choice is on) and `Cancel`.
+
+Mapping: default `Remove` sends `{"memories":"move_to_apps","history":"keep"}`; `Delete its history` sets
+`history` to `delete`; `Delete its memories instead` sets `memories` to `delete`. Cancel sends nothing.

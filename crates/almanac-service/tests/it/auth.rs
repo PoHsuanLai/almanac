@@ -456,7 +456,13 @@ fn another_apps_space_is_refused_for_every_request_that_names_one() {
 
 #[test]
 fn only_the_shell_settles_a_removed_spaces_memories() {
-    for fate in [MemoryFate::MoveToApps, MemoryFate::Delete] {
+    for fate in [
+        Removal::KEEP_ALL,
+        Removal {
+            memories: MemoryFate::Delete,
+            history: HistoryFate::Delete,
+        },
+    ] {
         let request = MemoryRequest::RemoveSpace(space("work"), fate);
         for (who, caller) in callers() {
             assert_eq!(yes(allowed(&caller, &request)), who == "shell", "{who}");

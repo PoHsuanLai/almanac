@@ -52,8 +52,8 @@ pub trait Control {
     fn rebuild(&self, space: &str) -> zbus::Result<()>;
     /// Runs the retention sweep now (answers `SweepReport` JSON).
     fn sweep(&self, space: &str) -> zbus::Result<String>;
-    /// Settles a removed desktop-wide Space's memories (`MemoryFate` JSON; answers `Relocation` JSON).
-    fn remove_space(&self, space: &str, fate: &str) -> zbus::Result<String>;
+    /// Settles a removed desktop-wide Space's memories and history (`Removal` JSON, the memories and the history fate; answers `Relocation` JSON).
+    fn remove_space(&self, space: &str, removal: &str) -> zbus::Result<String>;
     /// Writes a tar export to `out` (`ExportOptions` JSON; answers `ExportManifest` JSON).
     fn export(&self, options: &str, out: zbus::zvariant::Fd<'_>) -> zbus::Result<String>;
     /// A record was stored.
@@ -180,8 +180,8 @@ impl ControlSkeleton {
         Err(crate::introspect::frozen())
     }
 
-    fn remove_space(&self, space: String, fate: String) -> fdo::Result<String> {
-        let _ = (space, fate);
+    fn remove_space(&self, space: String, removal: String) -> fdo::Result<String> {
+        let _ = (space, removal);
         Err(crate::introspect::frozen())
     }
 
