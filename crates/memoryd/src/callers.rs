@@ -72,7 +72,11 @@ pub fn caller_for(found: porter_dbus::Caller) -> Caller {
         CallerRole::Cua => Caller::Cuad,
         CallerRole::SheetHost if name == SHELL_APP => Caller::ShellUi,
         CallerRole::Agent if name == ROUTER_APP => Caller::Router,
+        // A terminal (temor) is no app and no fixed caller, but this file maps every identified
+        // process that is not a fixed caller to an app, as porter's lane did for `Terminal`; it
+        // gets no shell or router standing, only its own app's access.
         CallerRole::App
+        | CallerRole::Terminal
         | CallerRole::Settings
         | CallerRole::SheetHost
         | CallerRole::PorterDaemon
