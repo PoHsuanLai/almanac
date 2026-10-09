@@ -334,6 +334,19 @@ async fn deleting_a_space_destroys_its_key_removes_its_directories_and_anchors_i
             .any(|e| e.kind.as_str() == "memory.space_deleted")
     );
     assert!(dirs.events_db(&SpaceId::desktop()).exists());
+
+    // Removing a Space that is not there (just deleted, or never was) is not an error.
+    let after: TestBackend = backend(&dirs, &keys, Default::default());
+    assert_eq!(
+        after.remove_space(&space("work")),
+        Ok(()),
+        "a second removal of the deleted Space"
+    );
+    assert_eq!(
+        after.remove_space(&space("never-was")),
+        Ok(()),
+        "a Space that never existed"
+    );
 }
 
 fn key_for(seed: u8) -> almanac_seal::SpaceKey {
@@ -451,15 +464,4 @@ fn the_backends_random_bytes_differ_from_call_to_call() {
             assert_ne!(a, b);
         }
     }
-}
-
-#[test]
-fn removing_a_space_that_is_not_there_is_not_an_error() {
-    let scratch = tempfile::tempdir().expect("scratch");
-    let backend: TestBackend = backend(
-        &dirs_in(scratch.path()),
-        &SharedKeys::default(),
-        Default::default(),
-    );
-    assert_eq!(backend.remove_space(&space("never-was")), Ok(()));
 }

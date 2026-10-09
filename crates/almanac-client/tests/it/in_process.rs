@@ -40,6 +40,28 @@ async fn a_space_is_written_recalled_and_forgotten_in_process() {
         app.record(mail_thread_archived().expect("fixture")).await,
         Ok(Recorded::Stored(_))
     ));
+    let page = shell
+        .timeline(
+            work(),
+            TimelineQuery {
+                before: None,
+                limit: Count(10),
+                filter: TimelineFilter {
+                    actors: ActorFilter::Everyone,
+                    apps: vec![],
+                    kinds: vec![],
+                    trust: TrustFilter::Any,
+                    range: None,
+                },
+            },
+        )
+        .await
+        .expect("timeline");
+    assert_eq!(
+        page.entries.len(),
+        1,
+        "the shell's timeline shows the app's one record"
+    );
     let thing = thing("mail.thread", "7f3a").expect("thing");
     let draft = FactDraft {
         topic: TopicPath::parse("people/ana").expect("topic"),

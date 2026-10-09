@@ -80,18 +80,6 @@ fn the_member_table() {
 }
 
 #[test]
-fn every_member_is_declared_in_the_introspection() {
-    let xml = introspection();
-    for request in requests() {
-        let member = encode_request(&request).expect("encode").member;
-        assert!(
-            xml.contains(&format!("<method name=\"{member}\">")),
-            "{member}"
-        );
-    }
-}
-
-#[test]
 fn replies_round_trip_through_their_members() {
     let event = event_ref(3);
     let pairs: Vec<(&str, MemoryReply)> = vec![

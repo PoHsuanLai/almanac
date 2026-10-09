@@ -86,12 +86,12 @@ fn an_empty_log_has_the_genesis_head() {
 }
 
 #[test]
-fn the_log_persists_across_reopen_and_keeps_its_replica() {
+fn the_log_persists_across_reopen_keeps_its_replica_and_continues_the_chain() {
     let dir = tempfile::tempdir().expect("scratch");
     let mut log = open(&dir);
     let written = fill(&mut log);
     drop(log);
-    let again = SqliteLog::open_for(
+    let mut again = SqliteLog::open_for(
         &path(&dir),
         &key(),
         &space(),
@@ -99,32 +99,32 @@ fn the_log_persists_across_reopen_and_keeps_its_replica() {
         &digest_key(),
     )
     .expect("reopen");
-    assert_eq!(again.replica(), ReplicaId([9; 16]));
-    assert_eq!(again.scan(Seq(1)).expect("scan"), written);
+    assert_eq!(
+        again.replica(),
+        ReplicaId([9; 16]),
+        "reopen keeps the stored replica"
+    );
+    assert_eq!(
+        again.scan(Seq(1)).expect("scan"),
+        written,
+        "reopen keeps every entry"
+    );
     assert!(matches!(audit(&again), ChainReport::Intact { .. }));
-}
-
-#[test]
-fn append_after_reopen_continues_the_chain() {
-    let dir = tempfile::tempdir().expect("scratch");
-    drop({
-        let mut log = open(&dir);
-        fill(&mut log);
-        log
-    });
-    let mut log = open(&dir);
     let rec = record("9c00", Verb::Archived, user());
-    let entry = log
+    let entry = again
         .append(
             NewHeader::of(&rec, NOW, &digest_key()),
             Some(rec.body.clone()),
         )
         .expect("append");
-    assert_eq!(entry.header.seq, Seq(4));
-    assert!(matches!(
-        audit(&log),
-        ChainReport::Intact { head, .. } if head.seq == Seq(4)
-    ));
+    assert_eq!(entry.header.seq, Seq(4), "append after reopen continues");
+    assert!(
+        matches!(
+            audit(&again),
+            ChainReport::Intact { head, .. } if head.seq == Seq(4)
+        ),
+        "the chain is intact through the appended entry"
+    );
 }
 
 #[test]

@@ -76,39 +76,3 @@ async fn replies_map_to_results() {
         .await;
     assert_eq!(pending, Ok(vec![]));
 }
-
-#[cfg(feature = "in_process")]
-#[tokio::test]
-async fn in_process_end_to_end() {
-    let service = std::sync::Arc::new(fake_service(ScriptedConsolidator::default()));
-    let app = Memory::over(InProcess::new(
-        service.clone(),
-        Caller::App(AppId {
-            name: mail(),
-            isolation: Isolation::InProcess,
-        }),
-    ));
-    let shell = Memory::over(InProcess::new(service, Caller::ShellUi));
-    assert!(matches!(
-        app.record(mail_thread_archived().expect("fixture")).await,
-        Ok(Recorded::Stored(_))
-    ));
-    let page = shell
-        .timeline(
-            SpaceId::parse("work").expect("s"),
-            TimelineQuery {
-                before: None,
-                limit: Count(10),
-                filter: TimelineFilter {
-                    actors: ActorFilter::Everyone,
-                    apps: vec![],
-                    kinds: vec![],
-                    trust: TrustFilter::Any,
-                    range: None,
-                },
-            },
-        )
-        .await
-        .expect("timeline");
-    assert_eq!(page.entries.len(), 1);
-}

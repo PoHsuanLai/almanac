@@ -1,6 +1,7 @@
 //! The checked-in introspection file is the interface the skeletons declare. A change to a
 //! signature changes the file in the same commit.
 
+use crate::support::*;
 use almanac_core::Refusal;
 use almanac_dbus::*;
 use std::path::PathBuf;
@@ -81,6 +82,14 @@ fn every_member_is_declared() {
         "memory.md section 3.10 declares 28 methods; the companion amendment adds Inject and Recent, the retention sweep adds Sweep, review-mode consolidation adds ApplyConsolidation and DiscardConsolidation, the durable session log adds RecordDurable and Entries, a removed Space's memories add RemoveSpace"
     );
     assert_eq!(xml.matches("<signal ").count(), 5);
+    // And the other direction: every member the codec encodes is declared.
+    for request in requests() {
+        let member = encode_request(&request).expect("encode").member;
+        assert!(
+            xml.contains(&format!("<method name=\"{member}\">")),
+            "the codec encodes {member}, which the introspection does not declare"
+        );
+    }
 }
 
 #[test]

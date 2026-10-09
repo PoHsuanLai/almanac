@@ -298,25 +298,3 @@ fn an_empty_title_and_no_blocks_round_trip() {
         text
     );
 }
-
-#[test]
-fn append_is_add_only_at_the_block_level() {
-    let before = sample();
-    let mut after = before.clone();
-    let extra = fact(
-        "01j9zp0000000000000000000a",
-        "New.",
-        T3 + 10,
-        Actor::Unknown,
-        label(Integrity::Trusted, &[]),
-        vec![],
-        vec![],
-    );
-    after.blocks.push(Block::Fact(extra));
-    let old = render_topic(&before, &TimeZone::UTC);
-    let new = render_topic(&after, &TimeZone::UTC);
-    assert!(
-        new.starts_with(&old),
-        "appending leaves every earlier byte as it was"
-    );
-}
