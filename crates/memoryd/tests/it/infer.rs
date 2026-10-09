@@ -307,6 +307,7 @@ async fn a_reply_that_does_not_fit_the_index_is_fatal() {
             tool_calls: vec![],
             stop: StopReason::EndTurn,
             thought: None,
+            scores: None,
             usage: usage(),
             served: served(),
         }),
@@ -430,6 +431,7 @@ fn chat(text: &str) -> InferReply {
         tool_calls: vec![],
         stop: StopReason::EndTurn,
         thought: None,
+        scores: None,
         usage: usage(),
         served: served(),
     })

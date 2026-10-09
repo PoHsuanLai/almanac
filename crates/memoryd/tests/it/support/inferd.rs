@@ -126,6 +126,7 @@ fn answer(class: &str, request: InferRequest, seen: &Mutex<Seen>, draft: &str) -
                 tool_calls: vec![],
                 stop: StopReason::EndTurn,
                 thought: None,
+                scores: None,
                 usage: usage(),
                 served: served(),
             })

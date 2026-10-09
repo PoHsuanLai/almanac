@@ -194,6 +194,9 @@ fn transport_failure(error: TransportError) -> EmbedError {
         // A caller inferd's table does not name, or one without the grant: asking again does not
         // help until someone changes who may call, so it is fatal with the daemon's own text.
         TransportError::Denied(why) | TransportError::Malformed(why) => fatal(why),
+        // porter may add reasons (`TransportError` is non-exhaustive); one this code does not
+        // name is fatal too, with its own text, since asking again will not change it.
+        other => fatal(other.to_string()),
     }
 }
 
