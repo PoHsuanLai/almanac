@@ -1,6 +1,6 @@
 //! `Index`: lexical and vector search together, rebuildable from the truth.
 
-use crate::doc::{Allow, ClassTag, Count, Doc, DocId, Ranked, StoredDoc, TopK};
+use crate::doc::{Allow, ClassTag, Count, Doc, DocId, Ranked, StoredDoc, TopK, TrustTier};
 use crate::embed::{Classed, EmbedError, Embedder, RetryClass};
 use crate::exact::VectorIndex;
 use crate::fts::Fts5;
@@ -112,6 +112,16 @@ impl<V: VectorIndex> Index<V> {
     /// The fusion constant.
     pub fn rrf_k(&self) -> RrfK {
         self.k
+    }
+
+    /// The documents of the given facet kinds and trust tier (`None` is any), as the allow-list
+    /// of a search.
+    pub fn allow_kinds(
+        &self,
+        kinds: &[&str],
+        trust: Option<TrustTier>,
+    ) -> Result<Allow, IndexError> {
+        self.fts.ids_of(kinds, trust).map(Allow::Only)
     }
 
     /// The two halves.

@@ -13,7 +13,6 @@ almanac-core = { workspace = true }
 almanac-seal = { workspace = true }
 blake3 = { workspace = true }
 jiff = { workspace = true }
-rusqlite = { workspace = true }
 eventlog = { workspace = true }
 memfiles = { workspace = true }
 recall = { workspace = true }

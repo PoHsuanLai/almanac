@@ -12,10 +12,9 @@ use almanac_core::{
 };
 use eventlog::{Entry, LogRead};
 use recall::{
-    Allow, DocId, EmbedRole, Embedder, EmbedderCard, Fused, HitWhy, Ranked, SearchQuery,
-    SpaceCheck, TopK, Urgency, Vector, VectorIndex, chunk, fuse_rrf,
+    Allow, EmbedRole, Embedder, EmbedderCard, Fused, HitWhy, Ranked, SearchQuery, SpaceCheck, TopK,
+    TrustTier, Urgency, Vector, VectorIndex, chunk, fuse_rrf,
 };
-use std::collections::BTreeSet;
 
 fn why_of(why: HitWhy) -> RecallWhy {
     match why {
@@ -50,26 +49,15 @@ impl<B: Backend> Open<B> {
     /// The documents a search may return: those of the kinds `over` covers and of the trust
     /// asked for. The facets live in the lexical half of the index.
     fn allow(&self, over: RecallOver, trust: TrustFilter) -> Result<Allow, Refusal> {
-        let kinds = over.facet_kinds();
-        let marks = vec!["?"; kinds.len()].join(",");
-        let tier = match trust {
-            TrustFilter::Any => "",
-            TrustFilter::TrustedOnly => " AND trust = 'trusted'",
-            TrustFilter::UntrustedOnly => " AND trust = 'untrusted'",
+        let trust = match trust {
+            TrustFilter::Any => None,
+            TrustFilter::TrustedOnly => Some(TrustTier::Trusted),
+            TrustFilter::UntrustedOnly => Some(TrustTier::Untrusted),
         };
-        let sql = format!("SELECT id FROM docs WHERE kind IN ({marks}){tier}");
-        let conn = self.rt.index.parts().0.connection();
-        let mut statement = conn.prepare_cached(&sql).map_err(crate::open::failed)?;
-        let ids = statement
-            .query_map(rusqlite::params_from_iter(kinds.iter()), |row| {
-                row.get::<_, String>(0)
-            })
-            .map_err(crate::open::failed)?;
-        let mut set = BTreeSet::new();
-        for id in ids {
-            set.insert(DocId(id.map_err(crate::open::failed)?));
-        }
-        Ok(Allow::Only(set))
+        self.rt
+            .index
+            .allow_kinds(over.facet_kinds(), trust)
+            .map_err(crate::open::failed)
     }
 
     /// Fused lexical and semantic results over `over`, best first, from a query vector that was

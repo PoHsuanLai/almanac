@@ -178,7 +178,6 @@ dependencies = [
  "jiff",
  "memfiles",
  "recall",
- "rusqlite",
  "serde",
  "serde_json",
  "tar",

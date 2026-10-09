@@ -3,6 +3,7 @@
 use crate::doc::{Allow, Doc, DocId, Facets, Ranked, StoredDoc, TopK, TrustTier};
 use crate::index::IndexError;
 use crate::vector::EmbedderCard;
+use std::collections::BTreeSet;
 
 /// The tables of `index.db` (SQLCipher, deletable and rebuilt from the files and the log).
 /// `docs` is the FTS5 table; `vectors` holds `ExactScan`'s BLOBs; `meta` records the embedder
@@ -184,6 +185,27 @@ impl Fts5 {
             })
         })?;
         Ok(rows.collect::<Result<Vec<_>, _>>()?)
+    }
+
+    /// The ids of the documents whose `kind` is one of `kinds` and, when `trust` is given, whose
+    /// trust tier is that one.
+    pub fn ids_of(
+        &self,
+        kinds: &[&str],
+        trust: Option<TrustTier>,
+    ) -> Result<BTreeSet<DocId>, IndexError> {
+        let marks = vec!["?"; kinds.len()].join(",");
+        let tier = match trust {
+            None => "",
+            Some(TrustTier::Trusted) => " AND trust = 'trusted'",
+            Some(TrustTier::Untrusted) => " AND trust = 'untrusted'",
+        };
+        let sql = format!("SELECT id FROM docs WHERE kind IN ({marks}){tier}");
+        let mut statement = self.conn.prepare_cached(&sql)?;
+        let rows = statement.query_map(rusqlite::params_from_iter(kinds.iter()), |row| {
+            row.get::<_, String>(0).map(DocId)
+        })?;
+        Ok(rows.collect::<Result<BTreeSet<_>, _>>()?)
     }
 
     /// Removes everything.
