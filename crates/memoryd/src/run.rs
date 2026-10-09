@@ -90,7 +90,12 @@ async fn run(
     keys: AnyKeys,
     proc_root: ProcRoot,
 ) -> Result<(), StartError> {
-    let connection = zbus::connection::Builder::session()?.build().await?;
+    // The bus is the injected environment's too: a test starts the daemon on a private bus.
+    let builder = match env("DBUS_SESSION_BUS_ADDRESS") {
+        Some(address) => zbus::connection::Builder::address(address.as_str())?,
+        None => zbus::connection::Builder::session()?,
+    };
+    let connection = builder.build().await?;
     let inferd = inferd_link(&connection);
     let backend = SystemBackend::with(
         dirs.clone(),
