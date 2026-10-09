@@ -186,6 +186,20 @@ impl Backend for FakeBackend {
 }
 
 /// A service over a [`FakeBackend`] with the standard rules and the stepped clock (it stands at `NOW` until a test advances it).
+///
+/// ```
+/// use almanac_core::{Caller, MemoryReply, MemoryRequest};
+/// use almanac_fake::{ScriptedConsolidator, fake_service};
+///
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// # tokio::runtime::Builder::new_current_thread().build()?.block_on(async {
+/// let service = fake_service(ScriptedConsolidator::default());
+/// let reply = service.handle(&Caller::ShellUi, MemoryRequest::Spaces).await;
+/// assert!(matches!(reply, MemoryReply::Spaces(_)));
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// # })
+/// # }
+/// ```
 pub fn fake_service(consolidator: ScriptedConsolidator) -> MemoryService<FakeBackend> {
     MemoryService::new(FakeBackend::new(consolidator), RuleSet::standard())
 }

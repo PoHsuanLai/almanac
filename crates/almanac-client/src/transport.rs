@@ -38,6 +38,24 @@ mod in_process {
     use std::sync::Arc;
 
     /// The app hosts the service itself (tests, single-process embedders). Feature `in_process`.
+    ///
+    /// ```
+    /// use almanac_client::{InProcess, Memory, Recorded};
+    /// use almanac_core::{AppId, Caller, Isolation};
+    /// use almanac_fake::{ScriptedConsolidator, fake_service, mail, mail_thread_archived};
+    /// use std::sync::Arc;
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # tokio::runtime::Builder::new_current_thread().build()?.block_on(async {
+    /// let service = Arc::new(fake_service(ScriptedConsolidator::default()));
+    /// let caller = Caller::App(AppId { name: mail(), isolation: Isolation::InProcess });
+    /// let app = Memory::over(InProcess::new(service, caller));
+    /// let record = mail_thread_archived().ok_or("fixture")?;
+    /// assert!(matches!(app.record(record).await?, Recorded::Stored(_)));
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// # })
+    /// # }
+    /// ```
     pub struct InProcess<B: Backend> {
         service: Arc<MemoryService<B>>,
         caller: Caller,

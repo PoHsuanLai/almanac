@@ -14,6 +14,31 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 /// An app's own memory on disk: SQLCipher log and index, sealed or plain files, keys derived from
 /// the master key the app provides. The embedder, consolidator and clock are the app's.
+///
+/// ```
+/// use almanac_client::{InProcess, Memory, Recorded};
+/// use almanac_core::{AppId, Caller, Isolation, RuleSet, SpaceId, VaultKind};
+/// use almanac_fake::{mail, mail_thread_archived};
+/// use almanac_local::{LocalBackend, Root, WallClock, create_space, open};
+/// use almanac_seal::{ProvidedKeys, SpaceKey};
+/// use std::sync::Arc;
+///
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// # tokio::runtime::Builder::new_current_thread().build()?.block_on(async {
+/// let dir = tempfile::tempdir()?;
+/// let keys = ProvidedKeys::new(SpaceKey::from_bytes([7; 32]));
+/// let backend = LocalBackend::new(Root::new(dir.path()), keys, WallClock);
+/// let service = Arc::new(open(backend, RuleSet::standard())?);
+/// create_space(&service, SpaceId::parse("work")?, VaultKind::Sealed)?;
+///
+/// let caller = Caller::App(AppId { name: mail(), isolation: Isolation::InProcess });
+/// let app = Memory::over(InProcess::new(service, caller));
+/// let record = mail_thread_archived().ok_or("fixture")?;
+/// assert!(matches!(app.record(record).await?, Recorded::Stored(_)));
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// # })
+/// # }
+/// ```
 #[derive(Debug)]
 pub struct LocalBackend<Clk, E = NoEmbedder, C = NoConsolidator> {
     root: Root,
