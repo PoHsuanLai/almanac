@@ -2,14 +2,12 @@
 //! call to [`start`]); the environment is injected as a lookup closure, so a test can start the
 //! daemon over a private bus and a scratch home.
 
+use crate::keysel::{AnyKeys, KEYS_VAR, SANDBOX_VAR, Sandbox, TestKeys, sandbox_choice, select};
 use crate::{
-    AnyKeys, Daemon, Enforcement, InferdConsolidator, InferdEmbedder, LockChanges, ProcPeers,
-    ProcRoot, SHELL_APP, Sandbox, SettingsWatch, SystemBackend, TestKeys, TestProcRoot, WatchState,
-    apply, apply_next, default_card, dirs_from, enforce, inferd_link, load_callers, policy_for,
-    prepare, proc_root_choice, sandbox_choice, select,
-};
-use crate::{
-    CallerFileError, KEYS_VAR, KeysError, PROC_ROOT_VAR, SANDBOX_VAR, SandboxError, XdgError,
+    CallerFileError, Daemon, Enforcement, InferdConsolidator, InferdEmbedder, KeysError,
+    LockChanges, PROC_ROOT_VAR, ProcPeers, ProcRoot, SHELL_APP, SandboxError, SettingsWatch,
+    SystemBackend, TestProcRoot, WatchState, XdgError, apply, apply_next, default_card, dirs_from,
+    enforce, inferd_link, load_callers, policy_for, prepare, proc_root_choice,
 };
 use almanac_core::{Dirs, RuleSet};
 use almanac_dbus::serve_on;

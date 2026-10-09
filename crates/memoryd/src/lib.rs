@@ -21,7 +21,6 @@ mod settings_watch;
 mod signals;
 mod xdg;
 
-pub use almanac_dbus::{MEMORY_BUS, MEMORY_PATH};
 pub use almanac_watch::InotifyWatch as Watcher;
 pub use backend::{SpaceVault, SystemBackend};
 pub use callers::{
@@ -32,9 +31,7 @@ pub use clock::SystemClock;
 pub use daemon::Daemon;
 pub use infer::{InferdConsolidator, InferdEmbedder, class_of, parse_draft, render_prompt};
 pub use keyring::{LockChanges, is_lock_change};
-pub use keysel::{
-    AnyKeys, KEYS_VAR, KeysError, SANDBOX_VAR, Sandbox, Selection, TestKeys, sandbox_choice, select,
-};
+pub use keysel::KeysError;
 pub use peers::{Peers, ProcPeers, TablePeers};
 pub use procroot::{PROC_ROOT_VAR, ProcRoot, TestProcRoot, proc_root_choice};
 pub use queue::{Claim, Serialised, claim_of};
@@ -59,7 +56,7 @@ pub fn inferd_link(connection: &zbus::Connection) -> Arc<AnyTransport> {
 /// The card of the embedding model the default inferd tier maps (nomic-embed-text v1.5): 768
 /// numbers, asymmetric prefixes. It must match what inferd serves, or the vector index refuses
 /// the answers (their length differs) and search stays lexical.
-pub fn default_card() -> recall::EmbedderCard {
+pub(crate) fn default_card() -> recall::EmbedderCard {
     recall::EmbedderCard {
         model: "nomic-embed-text-v1.5".to_owned(),
         dims: 768,
