@@ -15,8 +15,7 @@ use almanac_core::{
     Actor, Cause, Digest32, EXPORT_ROOT, Effect, EventBody, ExportManifest, KindTag, Label, Link32,
     ReplicaId, Seq, SpaceId, UnixSeconds,
 };
-use eventlog::{BodyState, Entry};
-use memfiles::VaultPath;
+use almanac_store::{BodyState, Entry, VaultPath};
 use serde::{Deserialize, Serialize};
 use std::io::Write;
 

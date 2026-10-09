@@ -16,7 +16,7 @@ use almanac_core::{
     Removal, SpaceId, SpaceKind,
 };
 use almanac_seal::{KeyError, KeyStore};
-use memfiles::{Vault, VaultPath};
+use almanac_store::{Vault, VaultPath};
 use std::collections::BTreeSet;
 
 pub(crate) fn count(n: usize) -> Count {

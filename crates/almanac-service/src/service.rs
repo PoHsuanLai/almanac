@@ -17,8 +17,8 @@ use almanac_core::{
     PlanToken, Record, Refusal, RuleSet, RunState, SpaceId, SpaceMeta, SpaceState, SpaceSummary,
 };
 use almanac_seal::{KeyError, KeyStore, Purpose, derive};
+use almanac_store::SearchIndex;
 use memfiles::Store;
-use recall::Index;
 use std::collections::{BTreeMap, BTreeSet};
 use std::future::Future;
 use std::io::Write;
@@ -35,7 +35,7 @@ pub struct SpaceRuntime<B: Backend> {
     /// Its facts.
     pub store: Store<B::Files>,
     /// Its index.
-    pub index: Index<B::Vectors>,
+    pub index: B::Index,
     /// Things marked "do not remember".
     pub marks: Marks,
     /// Records waiting while it is locked (at most `BUFFER_LIMIT`).
@@ -341,7 +341,7 @@ impl<B: Backend> MemoryService<B> {
             baseline,
             dirty: std::collections::BTreeSet::new(),
             outbox: Vec::new(),
-            announced: recall::IndexState::Absent,
+            announced: almanac_store::IndexState::Absent,
         };
         let cx = self.cx(caller);
         open.sync_index(&cx).await?;

@@ -12,7 +12,7 @@ use almanac_core::{
     FactView, Integrity, Label, Link, MemoryOp, ModelRole, Refusal, Settlement, Source, SourceView,
     SpaceId, UnixSeconds, UseCount, Validity, desktop_admits,
 };
-use eventlog::Entry;
+use almanac_store::Entry;
 use std::collections::{BTreeMap, BTreeSet};
 
 const SECONDS_PER_DAY: i64 = 86_400;
@@ -68,7 +68,7 @@ fn proposal_label(caller: &Caller, space: &SpaceId, cited: &[Label]) -> Label {
 fn reads_of(entries: &[Entry]) -> BTreeMap<FactId, (u32, UnixSeconds)> {
     let mut uses: BTreeMap<FactId, (u32, UnixSeconds)> = BTreeMap::new();
     for entry in entries {
-        let eventlog::BodyState::Present(EventBody::Memory {
+        let almanac_store::BodyState::Present(EventBody::Memory {
             op: MemoryOp::Read { facts, .. },
         }) = &entry.body
         else {
@@ -138,8 +138,8 @@ impl<B: Backend> Open<B> {
                 entries
                     .iter()
                     .filter_map(|en| match &en.body {
-                        eventlog::BodyState::Present(b) => Some(b),
-                        eventlog::BodyState::Erased => None,
+                        almanac_store::BodyState::Present(b) => Some(b),
+                        almanac_store::BodyState::Erased => None,
                     })
                     .flat_map(|b| b.things())
                     .find(|(v, _)| &v.thing == t)

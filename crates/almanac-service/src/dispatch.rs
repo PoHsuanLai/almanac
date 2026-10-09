@@ -11,8 +11,7 @@ use almanac_core::{
     FactState, ForgetScope, Head, MemoryOp, MemoryReply, MemoryRequest, Refusal, RunId, SpaceId,
     VerificationKey, hex_of,
 };
-use eventlog::LogRead;
-use memfiles::{Vault, VaultPath};
+use almanac_store::{LogRead, Vault, VaultPath};
 use std::io::Write;
 
 fn count(n: usize) -> Count {

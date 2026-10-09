@@ -11,6 +11,7 @@ publish.workspace = true
 [dependencies]
 almanac-core = { workspace = true }
 almanac-seal = { workspace = true }
+almanac-store = { workspace = true }
 blake3 = { workspace = true }
 rusqlite = { workspace = true }
 serde = { workspace = true }

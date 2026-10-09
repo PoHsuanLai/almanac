@@ -2,8 +2,31 @@
 //! lifecycle, facts, forget plans, consolidation runs), retention, timeline assembly, the
 //! export writer, the config files, and `MemoryService` over a `Backend`.
 //!
-//! Pure over its seams (`Clock`, `KeyStore`, `Vault`, `LogWrite`, `Embedder`, `Consolidator`):
-//! it builds wherever the stores do. The machines return effects as values.
+//! Pure over its seams (`Clock`, `KeyStore`, `Vault`, `LogWrite`, `SearchIndex`, `Embedder`,
+//! `Consolidator`): the store seams come from `almanac-store`, so the service links no SQLite,
+//! SQLCipher or OpenSSL, and builds wherever the stores do. Whoever builds a service picks the
+//! concrete stores by implementing [`Backend`] (`almanac-local`, `almanac-fake`, `memoryd`). The
+//! machines return effects as values.
+//!
+//! ```
+//! use almanac_core::{Caller, MemoryReply, MemoryRequest, RuleSet};
+//! use almanac_fake::{FakeBackend, ScriptedConsolidator};
+//! use almanac_service::{Backend, MemoryService};
+//!
+//! // Generic over the backend: nothing here names a store.
+//! fn serve<B: Backend>(backend: B) -> MemoryService<B> {
+//!     MemoryService::new(backend, RuleSet::standard())
+//! }
+//!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! # tokio::runtime::Builder::new_current_thread().build()?.block_on(async {
+//! let service = serve(FakeBackend::new(ScriptedConsolidator::default()));
+//! let reply = service.handle(&Caller::ShellUi, MemoryRequest::Spaces).await;
+//! assert!(matches!(reply, MemoryReply::Spaces(_)));
+//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! # })
+//! # }
+//! ```
 
 mod auth;
 mod backend;

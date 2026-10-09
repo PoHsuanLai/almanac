@@ -5,7 +5,7 @@ use crate::open::{Cx, Open, log_refusal};
 use almanac_core::{
     Cursor, EntriesPage, EntriesQuery, KindPattern, ReadScope, RecentEntry, Refusal, Seq,
 };
-use eventlog::{Entry, LogRead, RoleFilter};
+use almanac_store::{Entry, LogRead, RoleFilter};
 
 /// The entries of `candidates` (oldest first) whose kind matches `kinds`, at most `limit`, and
 /// whether more matched after them. Pure.

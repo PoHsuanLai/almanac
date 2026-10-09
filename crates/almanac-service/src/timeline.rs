@@ -3,7 +3,7 @@
 use almanac_core::{
     Count, EntryBody, EraseCause, EventRef, SpaceId, ThingView, TimelineEntry, UndoRef,
 };
-use eventlog::{BodyState, Entry};
+use almanac_store::{BodyState, Entry};
 
 /// The timeline row of `entry` in `space`. `erased_by` says why an erased body is gone and
 /// `derived_facts` how many facts came from the event: the service knows both (the audit log

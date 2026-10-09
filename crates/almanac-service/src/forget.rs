@@ -8,8 +8,7 @@ use almanac_core::{
     Count, FactId, FactState, ForgetCounts, ForgetScope, Link, PlanDigest, PlanToken, Refusal, Seq,
     SpaceId, UnixSeconds,
 };
-use eventlog::{BodyState, Entry, LogRead};
-use memfiles::VaultPath;
+use almanac_store::{BodyState, Entry, LogRead, VaultPath};
 use std::collections::BTreeSet;
 
 /// A plan lapses this long after it was made.

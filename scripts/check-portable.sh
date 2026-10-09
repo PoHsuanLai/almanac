@@ -14,6 +14,7 @@ cd "$(dirname "$0")/.."
 CORE=(
   "almanac-core"
   "almanac-seal"
+  "almanac-store"
   "eventlog"
   "memfiles"
   "recall"
@@ -28,11 +29,12 @@ FORBIDDEN='zbus|zvariant|inotify|notify|landlock|oo7|secret-service'
 TARGETS=(x86_64-apple-darwin x86_64-pc-windows-gnu x86_64-pc-windows-msvc)
 # Crates without C dependencies check on every target; the SQLCipher ones need that target's C
 # toolchain (and OpenSSL's cross build), which a Linux box lacks, so they are only reported.
-PURE_RUST=(almanac-core almanac-seal memfiles almanac-watch)
+PURE_RUST=(almanac-core almanac-seal almanac-store memfiles almanac-watch)
 # blake3 builds C and assembly SIMD for x86_64 targets, which needs the target's C compiler too;
 # its `pure` feature (through each crate's `pure-hash`) is a plain-Rust build for the check.
 declare -A PURE_HASH=(
   [almanac-seal]="pure-hash"
+  [almanac-store]="almanac-seal/pure-hash"
   [memfiles]="almanac-seal/pure-hash"
   [almanac-watch]="pure-hash"
 )

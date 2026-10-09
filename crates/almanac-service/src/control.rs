@@ -11,12 +11,10 @@ use almanac_core::{
     IndexView, MemoryOp, Refusal, Retention, Seq, SpaceStatus, StaleWhy, TimelinePage,
     TimelineQuery, UnixSeconds,
 };
-use eventlog::{Entry, LogRead, verify_chain};
-use memfiles::{Vault, VaultPath};
-use recall::IndexState;
+use almanac_store::{Entry, IndexState, LogRead, SearchIndex, Vault, VaultPath, verify_chain};
 
 fn index_view(state: IndexState) -> IndexView {
-    let n = |c: recall::Count| Count(c.0);
+    let n = |c: almanac_store::Count| Count(c.0);
     match state {
         IndexState::Absent => IndexView::Absent,
         IndexState::Building { done, total } => IndexView::Building {
@@ -25,13 +23,13 @@ fn index_view(state: IndexState) -> IndexView {
         },
         IndexState::Ready => IndexView::Ready,
         IndexState::Stale(why) => IndexView::Stale(match why {
-            recall::StaleWhy::EmbedderChanged => StaleWhy::EmbedderChanged,
-            recall::StaleWhy::FormatChanged => StaleWhy::FormatChanged,
-            recall::StaleWhy::TruthNewer => StaleWhy::TruthNewer,
+            almanac_store::StaleWhy::EmbedderChanged => StaleWhy::EmbedderChanged,
+            almanac_store::StaleWhy::FormatChanged => StaleWhy::FormatChanged,
+            almanac_store::StaleWhy::TruthNewer => StaleWhy::TruthNewer,
         }),
         IndexState::LexicalOnly(why) => IndexView::LexicalOnly(match why {
-            recall::DegradedWhy::EmbedderUnavailable => DegradedWhy::EmbedderUnavailable,
-            recall::DegradedWhy::EmbedderRefused => DegradedWhy::EmbedderRefused,
+            almanac_store::DegradedWhy::EmbedderUnavailable => DegradedWhy::EmbedderUnavailable,
+            almanac_store::DegradedWhy::EmbedderRefused => DegradedWhy::EmbedderRefused,
         }),
     }
 }

@@ -18,14 +18,15 @@ trait), section 5 (what is built), section 6 (copy the recipe).
 | --- | --- | --- |
 | `almanac-core` | the vocabulary: ids and their grammars (`FactId`, `TopicPath`, `KindTag`, `KindPattern`, `SpacePath`), things (`ThingRef` = `prov::EntityId`), `Record`, `EventBody` (with `Message` and `Episode`), `AreaPayload`, `Episode` and its skeleton, `InjectQuery`/`RecentQuery`, facts, remember rules and the pure `admit`, the wire (`MemoryRequest`, `MemoryReply`, `Refusal`, `Caller`), the timeline, forget-plan, draft and status views, the export manifest, `Dirs`; re-exports the porter and `prov` names the other crates use | none |
 | `almanac-seal` | `SpaceKey`, purpose subkeys (`derive`), `DbKey`, `seal`/`unseal` for files, the `KeyStore` seam, `ProvidedKeys` (Space keys derived from a master key the app provides: the portable key source), `MemoryKeys` (feature `testing`), `Oo7Keys` (feature `oo7`) | none (oo7 behind its feature) |
-| `eventlog` | the header's canonical bytes, `link`, `verify_chain`, `LogRead`/`LogWrite`, `SqliteLog` (SQLCipher), `MemoryLog` (feature `testing`), the schema | rusqlite |
+| `almanac-store` | the seams the service stands on, traits and types only: the log (`LogRead`, `LogWrite`, `Entry`, `Header`, `NewHeader`, `verify_chain`, `LogError`), the vault (`Vault`, `VaultPath`, `VaultError`), the search index (`SearchIndex`, `IndexFailure`, `SearchQuery`, `Doc`, `DocId`, `Allow`, `IndexState`, `Embedder`, `EmbedderCard`, `Vector`, `fuse_rrf`, `chunk`). Each store crate implements them and re-exports the names it used to hold | none |
+| `eventlog` | `SqliteLog` (SQLCipher), `MemoryLog` (feature `testing`), the schema; re-exports the log seam from `almanac-store` | rusqlite |
 | `memfiles` | the topic file format (`parse_topic`, `render_topic`, the trailer), `VaultPath`, the `Vault` seam, `PlainDir`/`SealedDir`, `MemoryVault` (feature `testing`), `Store`, `Primer` | the filesystem through `Vault` |
-| `recall` | generic: `Embedder`, `VectorIndex`, `Fts5`, `ExactScan`, `Index`, `fuse_rrf`, `chunk`, the index state machine, `FakeEmbedder` (feature `testing`). Knows nothing of almanac | rusqlite |
+| `recall` | generic: `VectorIndex`, `Fts5`, `ExactScan`, `Index` (implements `SearchIndex`), `FakeEmbedder` (feature `testing`); re-exports the `Embedder`, document, fusion and index-state types from `almanac-store`. Knows nothing of almanac's domain | rusqlite |
 | `recall-fastembed` | `FastembedEmbedder` (in-process ONNX). Excluded from clippy and test: ort downloads binaries | ort through fastembed |
-| `almanac-service` | memoryd's core over seams: `allowed`, the Space, fact, forget-plan and consolidation machines, retention, timeline rows, the export writer, the config files, `MemorySettings` and the lenient settings reader (`settings`: the key table held to `dist/settings/almanac.settings.toml`, `Locator`), `Backend` and `MemoryService` | none (seams are passed in) |
+| `almanac-service` | memoryd's core over seams: `allowed`, the Space, fact, forget-plan and consolidation machines, retention, timeline rows, the export writer, the config files, `MemorySettings` and the lenient settings reader (`settings`: the key table held to `dist/settings/almanac.settings.toml`, `Locator`), `Backend` and `MemoryService`. Depends on `almanac-store` and `memfiles`, never on `eventlog` or `recall`, so it links no SQLite, SQLCipher or OpenSSL | none (seams are passed in) |
 | `almanac-watch` | `FileWatch`, `WatchError`, the pure `join` of observed changes and app-supplied reasons; `InotifyWatch` (notify 8.2) behind the `linux` feature | inotify (feature `linux`) |
 | `almanac-dbus` | `org.quire.Memory1` (`Record`, `Recall`, `Control`) as zbus proxies and skeletons (the introspection source), `MemoryError`, the argument codec (`encode_request`/`decode_request`, `encode_reply`/`decode_reply`), `invoke` (the caller's half) and the served objects over a `Serve` handler (the daemon's half) | zbus |
-| `almanac-client` | the app-facing `Memory` over a `Transport`: `Absent` (no-op on other desktops), `DbusTransport` (feature `dbus`), `InProcess` (feature `in_process`, off by default: only it links `almanac-service`, SQLCipher and OpenSSL) | through its transport |
+| `almanac-client` | the app-facing `Memory` over a `Transport`: `Absent` (no-op on other desktops), `DbusTransport` (feature `dbus`), `InProcess` (feature `in_process`, off by default: only it links `almanac-service`, which links no storage) | through its transport |
 | `almanac-local` | the portable on-disk `Backend` for an app that hosts its own memory: `LocalBackend` (SQLCipher log and index, sealed or plain files, `ProvidedKeys`, an app-passed clock, embedder and consolidator, `NoEmbedder`/`NoConsolidator` by default), `Root` (the one directory the app gives), `open`, `create_space`, `save_spaces` (`spaces.toml`); no XDG, bus, inotify or Landlock | none (seams are passed in) |
 | `almanac-fake` | test-only: `fake_service`, `FakeBackend`, `FixedClock`, `SteppedClock`, `SharedVault`, `ScriptedConsolidator`, `Scratch`, the five fixtures | none |
 | `memoryd` | the daemon and its library: `SystemBackend` (over any key store, embedder and consolidator), `SystemClock`, `InferdEmbedder`, `InferdConsolidator`, the XDG roots, `Serialised` (a queue per Space), `Peers` (who is calling), `Daemon` (the bus handler), the Landlock `sandbox` policy, `keysel` (which key store: the Secret Service, or with the test-only `test-keys` feature a sealed file named by `MEMORYD_KEYS=file:<path>`; the same feature lets `MEMORYD_SANDBOX=off` skip Landlock, see FINDINGS; `procroot`: the test-only `test-proc-root` feature's `MEMORYD_PROC_ROOT=<dir>`, a fixture `/proc` for callers); `callers` (the callers file and porter's caller mapped onto almanac's); the binary applies the sandbox, then serves the session bus; `SettingsWatch` (the directory watch on `almanac/settings.toml`; `apply_next` puts each change in force on the service), the nightly consolidation timer, `Policy.read_dirs`, `--write-schema` | everything |
@@ -37,7 +38,7 @@ cross-platform, and the desktop's features are additive. For almanac:
 
 | Portable core (builds with `--no-default-features`) | Desktop extra |
 | --- | --- |
-| `almanac-core`, `almanac-seal` (`ProvidedKeys`), `eventlog`, `memfiles`, `recall`, `almanac-service`, `almanac-local` (the app's disk `Backend`), `almanac-client` with `in_process`, `almanac-watch`'s seam and `join` | `almanac-dbus`, `memoryd` (the one shared memory daemon: Secret Service keys, Landlock, the bus, file watching, the nightly timer), `almanac-client`'s `dbus` feature, `almanac-seal`'s `oo7` feature, `almanac-watch`'s `linux` feature (`InotifyWatch`) |
+| `almanac-core`, `almanac-seal` (`ProvidedKeys`), `almanac-store`, `eventlog`, `memfiles`, `recall`, `almanac-service`, `almanac-local` (the app's disk `Backend`), `almanac-client` with `in_process`, `almanac-watch`'s seam and `join` | `almanac-dbus`, `memoryd` (the one shared memory daemon: Secret Service keys, Landlock, the bus, file watching, the nightly timer), `almanac-client`'s `dbus` feature, `almanac-seal`'s `oo7` feature, `almanac-watch`'s `linux` feature (`InotifyWatch`) |
 | test helpers: `almanac-fake`; `recall-fastembed` (ONNX, optional) | |
 
 An app on another desktop hosts the service itself: `Memory::over(InProcess::new(service,
@@ -49,8 +50,8 @@ the life of the store: erasing a Space for good is the app discarding the key it
 Feature layout. Two kinds of feature, as design/36 names them. A **platform feature** says what
 the OS provides and keeps its name: `almanac-watch` `linux` (default; `InotifyWatch`, the `notify`
 dependency), `almanac-client` `dbus` (the D-Bus transport), `almanac-seal` `oo7` (Secret Service
-keys), plus `in_process` (hosting the service in the app; off by default because it links SQLCipher
-and OpenSSL). An **app-level desktop switch** says "this app is on the Quire desktop" and is
+keys), plus `in_process` (hosting the service in the app; off by default, though the service links no SQLCipher
+or OpenSSL: the app's `Backend` does). An **app-level desktop switch** says "this app is on the Quire desktop" and is
 `quire-desktop`; it is declared only by a crate that holds a D-Bus client, by implication, never as a
 rename: `almanac-client` `quire-desktop = ["dbus"]`, default on. No other almanac crate needs the
 alias: `almanac-dbus`, `memoryd` are the desktop itself, `almanac-watch` and `almanac-seal` hold no
@@ -68,10 +69,11 @@ Allowed direct edges (checked by `scripts/check-boundary.sh`; dev-dependencies a
 | --- | --- |
 | `almanac-core` | `porter-core`, `prov` (porter, by git rev) |
 | `almanac-seal` | `almanac-core` |
-| `eventlog`, `memfiles` | `almanac-core`, `almanac-seal` |
-| `recall` | nothing of ours |
+| `almanac-store` | `almanac-core`, `almanac-seal` |
+| `eventlog`, `memfiles` | `almanac-core`, `almanac-seal`, `almanac-store` |
+| `recall` | `almanac-store` |
 | `recall-fastembed` | `recall` |
-| `almanac-service` | `almanac-core`, `almanac-seal`, `eventlog`, `memfiles`, `recall` |
+| `almanac-service` | `almanac-core`, `almanac-seal`, `almanac-store`, `memfiles` |
 | `almanac-watch`, `almanac-dbus` | `almanac-core` |
 | `almanac-client` | `almanac-core`; `almanac-service` with feature `in_process`; `almanac-dbus` with feature `dbus` |
 | `almanac-fake` | `almanac-core`, `almanac-seal`, `eventlog`, `memfiles`, `recall`, `almanac-service` |
@@ -85,11 +87,11 @@ fails if any of their crates enters the tree. Other crates reach porter's names 
 
 External boundaries (default features): `almanac-core` never reaches `zbus zvariant tokio
 reqwest hyper oo7 ort fastembed rusqlite notify toml`; `almanac-seal`, `memfiles`: the same
-minus `toml`/with `rusqlite` forbidden; `eventlog`, `recall`, `almanac-service`, `almanac-fake`,
-`almanac-client` (default features) never reach the effect list (`zbus ... fastembed`) or `notify`; `almanac-watch`
+minus `toml`/with `rusqlite` forbidden; `eventlog`, `recall`, `almanac-fake`,
+`almanac-client` (default features) never reach the effect list (`zbus ... fastembed`) or `notify`; `almanac-store` and `almanac-service` also never reach `rusqlite`, `libsqlite3-sys` (SQLCipher), `openssl-sys` or `openssl`; `almanac-watch`
 may reach `notify` and never `rusqlite`; `almanac-dbus` reaches `tokio` only through zbus's
 `tokio` feature. `oo7` is behind `almanac-seal`'s `oo7` feature only; `zbus` behind
-`almanac-client`'s `dbus` feature only; `rusqlite` and `openssl-sys` behind its `in_process` feature only.
+`almanac-client`'s `dbus` feature only; `almanac-client` with `in_process` reaches no `rusqlite` or `openssl-sys` either.
 
 ## 2. Modules
 

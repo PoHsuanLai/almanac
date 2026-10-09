@@ -163,7 +163,7 @@ impl<K: KeyStore, E: Embedder, C: Consolidator> Backend for SystemBackend<K, E, 
     type Keys = K;
     type Log = SqliteLog;
     type Files = SpaceVault;
-    type Vectors = ExactScan;
+    type Index = Index<ExactScan>;
     type Embedder = E;
     type Consolidator = C;
     type Clock = SystemClock;
@@ -234,10 +234,7 @@ impl<K: KeyStore, E: Embedder, C: Consolidator> Backend for SystemBackend<K, E, 
         key: &SpaceKey,
     ) -> Result<Index<ExactScan>, BackendError> {
         let db_key = DbKey::of(&derive(key, space, Purpose::Index));
-        Ok(open_index_file(
-            &self.dirs.index_db(space),
-            &db_key,
-            &self.embedder,
-        )?)
+        open_index_file(&self.dirs.index_db(space), &db_key, &self.embedder)
+            .map_err(|e| BackendError::Index(e.into()))
     }
 }

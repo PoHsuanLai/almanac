@@ -7,6 +7,8 @@ use crate::fts::Fts5;
 use crate::fuse::{Fused, RrfK, chunk, fuse_rrf};
 use crate::state::{DegradedWhy, IndexEvent, IndexState, step};
 use crate::vector::{EmbedRole, SpaceCheck, Urgency, Vector};
+use almanac_store::IndexFailure;
+pub use almanac_store::SearchQuery;
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Mutex;
 
@@ -30,17 +32,14 @@ impl From<rusqlite::Error> for IndexError {
     }
 }
 
-/// One search.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SearchQuery {
-    /// What to look for.
-    pub text: String,
-    /// How many results.
-    pub k: TopK,
-    /// Which documents may match.
-    pub allow: Allow,
-    /// How urgent the query embedding is.
-    pub urgency: Urgency,
+impl From<IndexError> for IndexFailure {
+    fn from(e: IndexError) -> Self {
+        match e {
+            IndexError::Embed(e) => IndexFailure::Embed(e),
+            IndexError::CardMismatch => IndexFailure::CardMismatch,
+            IndexError::Sqlite(why) => IndexFailure::Storage(why),
+        }
+    }
 }
 
 /// Lexical + vector search. `search` falls back to lexical only, and says so in `state`, when

@@ -113,7 +113,7 @@ impl Backend for FakeBackend {
     type Keys = MemoryKeys;
     type Log = MemoryLog;
     type Files = SharedVault;
-    type Vectors = ExactScan;
+    type Index = Index<ExactScan>;
     type Embedder = FakeEmbedder;
     type Consolidator = ScriptedConsolidator;
     type Clock = SteppedClock;
@@ -177,12 +177,16 @@ impl Backend for FakeBackend {
         _key: &SpaceKey,
     ) -> Result<Index<ExactScan>, BackendError> {
         let card = recall::Embedder::card(&self.embedder).clone();
-        let fts =
-            Fts5::new(rusqlite::Connection::open_in_memory().map_err(recall::IndexError::from)?);
-        fts.create()?;
-        let vectors = ExactScan::in_memory(card)?;
-        Ok(Index::new(fts, vectors))
+        in_memory_index(card).map_err(|e| BackendError::Index(e.into()))
     }
+}
+
+/// An empty index in private in-memory SQLite databases.
+fn in_memory_index(card: recall::EmbedderCard) -> Result<Index<ExactScan>, recall::IndexError> {
+    let fts = Fts5::new(rusqlite::Connection::open_in_memory()?);
+    fts.create()?;
+    let vectors = ExactScan::in_memory(card)?;
+    Ok(Index::new(fts, vectors))
 }
 
 /// A service over a [`FakeBackend`] with the standard rules and the stepped clock (it stands at `NOW` until a test advances it).

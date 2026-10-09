@@ -10,7 +10,7 @@ use almanac_core::{
     Count, EventBody, FileChange, MemoryOp, Record, Refusal, Retention, Seq, SpaceState,
     SweepReport, Verb,
 };
-use eventlog::{BodyState, Entry, LogWrite};
+use almanac_store::{BodyState, Entry, LogWrite};
 
 fn count(n: usize) -> Count {
     Count(u32::try_from(n).unwrap_or(u32::MAX))

@@ -19,7 +19,7 @@ use almanac_core::{
     DraftView, Fact, FactId, FactState, Hunk, Lands, MemoryOp, Refusal, RunId, RunState, Seq,
     SkipReason, SkippedHunk, TopicPath, hex_of,
 };
-use eventlog::BodyState;
+use almanac_store::BodyState;
 
 /// Where promoted facts land: the model names no topic.
 const TOPIC: &str = "consolidated";

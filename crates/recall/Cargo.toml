@@ -1,6 +1,6 @@
 [package]
 name = "recall"
-description = "A rebuildable search index: FTS5 lexical search, Embedder and VectorIndex traits, exact-scan vectors and reciprocal-rank fusion. Generic: knows nothing of almanac."
+description = "A rebuildable search index: FTS5 lexical search, Embedder and VectorIndex traits, exact-scan vectors and reciprocal-rank fusion. Generic: knows nothing of almanac (its seam types live in almanac-store)."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -9,6 +9,7 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
+almanac-store = { workspace = true }
 rusqlite = { workspace = true }
 thiserror = { workspace = true }
 

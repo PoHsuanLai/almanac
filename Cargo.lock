@@ -172,12 +172,13 @@ name = "almanac-service"
 version = "0.1.0"
 dependencies = [
  "almanac-core",
+ "almanac-fake",
  "almanac-seal",
+ "almanac-store",
  "blake3",
  "eventlog",
  "jiff",
  "memfiles",
- "recall",
  "serde",
  "serde_json",
  "tar",
@@ -185,6 +186,20 @@ dependencies = [
  "thiserror",
  "tokio",
  "toml",
+]
+
+[[package]]
+name = "almanac-store"
+version = "0.1.0"
+dependencies = [
+ "almanac-core",
+ "almanac-fake",
+ "almanac-seal",
+ "almanac-service",
+ "blake3",
+ "serde",
+ "serde_json",
+ "thiserror",
 ]
 
 [[package]]
@@ -1122,6 +1137,7 @@ version = "0.1.0"
 dependencies = [
  "almanac-core",
  "almanac-seal",
+ "almanac-store",
  "blake3",
  "eventlog",
  "rusqlite",
@@ -2136,6 +2152,7 @@ version = "0.1.0"
 dependencies = [
  "almanac-core",
  "almanac-seal",
+ "almanac-store",
  "jiff",
  "memfiles",
  "proptest",
@@ -3147,6 +3164,7 @@ checksum = "03251193000f4bd3b042892be858ee50e8b3719f2b08e5833ac4353724632430"
 name = "recall"
 version = "0.1.0"
 dependencies = [
+ "almanac-store",
  "recall",
  "rusqlite",
  "tempfile",

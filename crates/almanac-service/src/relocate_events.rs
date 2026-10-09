@@ -11,7 +11,7 @@ use crate::rehome::{EventMap, rehomed_cause, rehomed_label};
 use crate::relocate::count;
 use crate::service::MemoryService;
 use almanac_core::{Caller, Count, Refusal, SpaceId};
-use eventlog::{BodyState, Entry, LogWrite, NewHeader, body_digest};
+use almanac_store::{BodyState, Entry, LogWrite, NewHeader, body_digest};
 
 /// The header `entry` gets in the log of `here`, apart from its cause.
 fn moved_header(

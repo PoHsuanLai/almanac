@@ -3,6 +3,7 @@ resolver = "3"
 members = [
   "crates/almanac-core",
   "crates/almanac-seal",
+  "crates/almanac-store",
   "crates/eventlog",
   "crates/memfiles",
   "crates/recall",
@@ -28,6 +29,7 @@ publish = false
 [workspace.dependencies]
 almanac-core    = { path = "crates/almanac-core" }
 almanac-seal    = { path = "crates/almanac-seal" }
+almanac-store   = { path = "crates/almanac-store" }
 eventlog        = { path = "crates/eventlog" }
 memfiles        = { path = "crates/memfiles" }
 recall          = { path = "crates/recall" }

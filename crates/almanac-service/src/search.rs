@@ -10,11 +10,11 @@ use almanac_core::{
     ReadScope, RecallHit, RecallOver, RecallQuery, RecallWhy, RecentEntry, RecentQuery, Refusal,
     SystemPart, ThingRef, TimelineQuery, TrustFilter, UserText, estimate_tokens, fit_budget,
 };
-use eventlog::{Entry, LogRead};
-use recall::{
-    Allow, EmbedRole, Embedder, EmbedderCard, Fused, HitWhy, Ranked, SearchQuery, SpaceCheck, TopK,
-    TrustTier, Urgency, Vector, VectorIndex, chunk, fuse_rrf,
+use almanac_store::{
+    Allow, EmbedRole, Embedder, EmbedderCard, Fused, HitWhy, Ranked, SearchIndex, SearchQuery,
+    SpaceCheck, TopK, TrustTier, Urgency, Vector, chunk, fuse_rrf,
 };
+use almanac_store::{Entry, LogRead};
 
 fn why_of(why: HitWhy) -> RecallWhy {
     match why {
@@ -81,13 +81,7 @@ impl<B: Backend> Open<B> {
         let failed = crate::open::failed;
         let lexical = self.rt.index.lexical(&query).map_err(failed)?;
         let semantic = match vector {
-            Some(v) => self
-                .rt
-                .index
-                .parts()
-                .1
-                .nearest(v, TopK(k), &allow)
-                .map_err(failed)?,
+            Some(v) => self.rt.index.nearest(v, TopK(k), &allow).map_err(failed)?,
             None => Vec::new(),
         };
         let mut fused = fuse_rrf(&[lexical, semantic], self.rt.index.rrf_k());
@@ -172,7 +166,7 @@ impl<B: Backend> Open<B> {
     }
 
     async fn query_vector(&mut self, cx: &Cx<'_, B>, text: &str) -> Option<Vector> {
-        let card = self.rt.index.parts().1.card().clone();
+        let card = self.rt.index.card().clone();
         Self::embed_query(card, cx.backend.embedder(), text).await
     }
 
@@ -412,12 +406,12 @@ impl<B: Backend> Open<B> {
 
     /// The primer: `facts/INDEX.md` when the vault holds one (consolidation does not write it), else one line per topic.
     pub(crate) fn primer(&mut self, cx: &Cx<'_, B>) -> Result<String, Refusal> {
-        use memfiles::Vault;
+        use almanac_store::Vault;
         let written = self
             .rt
             .store
             .vault()
-            .read(&memfiles::VaultPath::primer())
+            .read(&almanac_store::VaultPath::primer())
             .ok()
             .and_then(|bytes| String::from_utf8(bytes).ok());
         let text = match written {

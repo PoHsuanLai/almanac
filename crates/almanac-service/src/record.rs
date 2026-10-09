@@ -9,7 +9,7 @@ use almanac_core::{
     FileView, FileWhy, FileWhyClaim, IndexPart, Integrity, KindPattern, Label, MarkKind,
     MarkRequest, Record, Refusal, Source, Verb, admit_with, withheld,
 };
-use eventlog::{BodyState, LogRead};
+use almanac_store::{BodyState, LogRead};
 use std::collections::BTreeSet;
 
 /// What a record came to.
@@ -95,7 +95,7 @@ impl<B: Backend> Open<B> {
     }
 
     /// Indexes the documents of a new entry; a narrated episode replaces its earlier events'.
-    pub(crate) async fn index_entry(&mut self, cx: &Cx<'_, B>, entry: &eventlog::Entry) {
+    pub(crate) async fn index_entry(&mut self, cx: &Cx<'_, B>, entry: &almanac_store::Entry) {
         if let BodyState::Present(EventBody::Episode(episode)) = &entry.body {
             let older = self.older_episode_docs(&episode.id.to_string(), entry.header.seq);
             self.index_drop(&older);

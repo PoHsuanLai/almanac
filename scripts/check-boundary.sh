@@ -13,22 +13,27 @@ cd "$(dirname "$0")/.."
 # embedding library. rusqlite is allowed to eventlog, recall and everything above them (it is
 # their storage), but never to almanac-core, almanac-seal or memfiles; notify only to
 # almanac-watch (the Space roots) and memoryd (the directory watch on the person's settings file). almanac-seal reaches oo7 only through its `oo7` feature, almanac-client reaches
-# zbus only through its `dbus` feature and rusqlite and openssl-sys (SQLCipher, vendored OpenSSL)
-# only through its `in_process` feature, and almanac-dbus reaches tokio only through zbus's
-# `tokio` feature. recall-fastembed and memoryd are the places that reach fastembed and the
+# zbus only through its `dbus` feature, and links no rusqlite or openssl-sys (SQLCipher, vendored
+# OpenSSL) even with its `in_process` feature (the service is generic over the store seams), and almanac-dbus reaches tokio only through zbus's
+# `tokio` feature. almanac-store (the seam traits and types the service stands on) and
+# almanac-service reach no storage at all: no rusqlite, no SQLCipher (libsqlite3-sys), no OpenSSL,
+# no runtime, no bus. recall-fastembed and memoryd are the places that reach fastembed and the
 # daemon's runtime, so they have no rule.
 EFFECTS="zbus zvariant tokio reqwest hyper oo7 ort fastembed"
 # almanac-core is also light enough for cua-bus to depend on (interface ask 26: `HandedBack`
 # carries `almanac_core::EventRef`; cua's own EFFECTS list adds these to ours), so it reaches none
 # of them either.
 CUA_EFFECTS="hyper-util rustls pipewire wayland-client wayland-backend wayland-server reis atspi rmcp cedar-policy"
+# What a storage-free crate must never link: the SQL engine, SQLCipher's host crate and OpenSSL.
+STORAGE="rusqlite libsqlite3-sys openssl-sys openssl"
 RULES=(
   "almanac-core: $EFFECTS rusqlite notify toml $CUA_EFFECTS"
   "almanac-seal: $EFFECTS rusqlite notify"
+  "almanac-store: $EFFECTS $STORAGE notify"
   "eventlog: $EFFECTS notify"
   "memfiles: $EFFECTS rusqlite notify"
   "recall: $EFFECTS notify"
-  "almanac-service: $EFFECTS notify"
+  "almanac-service: $EFFECTS $STORAGE notify"
   "almanac-watch: $EFFECTS rusqlite"
   "almanac-dbus: reqwest hyper oo7 ort fastembed rusqlite notify"
   "almanac-client: $EFFECTS rusqlite openssl-sys notify"
@@ -47,9 +52,10 @@ for rule in "${RULES[@]}"; do
     continue
   fi
   # almanac-client's default feature (`quire-desktop`, the app-level desktop switch) turns `dbus` on;
-  # the rule is about what an app without it links, so that crate is checked without defaults.
+  # the rule is about what an app without it links, hosting the service in process, so that crate is
+  # checked without defaults and with `in_process`.
   defaults=()
-  [ "$crate" = almanac-client ] && defaults=(--no-default-features)
+  [ "$crate" = almanac-client ] && defaults=(--no-default-features --features in_process)
   leaked=0
   for dep in "${forbidden[@]}"; do
     if cargo tree -p "$crate" "${defaults[@]}" -i "$dep" -e normal,build 2>/dev/null | grep -q .; then
@@ -74,11 +80,12 @@ done
 EDGES=(
   "almanac-core: porter-core prov"
   "almanac-seal: almanac-core"
-  "eventlog: almanac-core almanac-seal"
-  "memfiles: almanac-core almanac-seal"
-  "recall:"
+  "almanac-store: almanac-core almanac-seal"
+  "eventlog: almanac-core almanac-seal almanac-store"
+  "memfiles: almanac-core almanac-seal almanac-store"
+  "recall: almanac-store"
   "recall-fastembed: recall"
-  "almanac-service: almanac-core almanac-seal eventlog memfiles recall"
+  "almanac-service: almanac-core almanac-seal almanac-store memfiles"
   "almanac-watch: almanac-core"
   "almanac-dbus: almanac-core"
   "almanac-client: almanac-core almanac-dbus almanac-service"

@@ -11,7 +11,8 @@ use almanac_core::{
     Caller, Fact, FactId, FactState, FactText, FlagNote, Hunk, Label, MemoryOp, Refusal, RunId,
     TidyHunk, TopicPath, UnixSeconds, UserText, Validity,
 };
-use memfiles::{Block, TopicFile, Vault, VaultPath, parse_topic, render_topic};
+use almanac_store::{Vault, VaultPath};
+use memfiles::{Block, TopicFile, parse_topic, render_topic};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 

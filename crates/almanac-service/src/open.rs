@@ -13,9 +13,9 @@ use almanac_core::{
     UnixSeconds,
 };
 use almanac_seal::{KeyError, SubKey};
-use eventlog::{BodyState, Entry, LogError, LogRead, LogWrite, NewHeader};
-use memfiles::{Block, MemfilesError, Vault, VaultPath};
-use recall::{Doc, DocId};
+use almanac_store::{BodyState, Entry, LogError, LogRead, LogWrite, NewHeader, Vault, VaultPath};
+use almanac_store::{Doc, DocId, IndexFailure, SearchIndex};
+use memfiles::{Block, MemfilesError};
 use std::collections::{BTreeMap, BTreeSet};
 
 /// What one request runs against: the seams, the rules as they are now and who is asking.
@@ -76,7 +76,7 @@ pub(crate) struct Open<B: Backend> {
     /// What happened during the request that the bus should hear of (drained by the service).
     pub outbox: Vec<crate::events::ServiceEvent>,
     /// The index state the bus was last told of (or found when the Space opened).
-    pub announced: recall::IndexState,
+    pub announced: almanac_store::IndexState,
 }
 
 /// A fact as the files hold it.
@@ -308,10 +308,10 @@ impl<B: Backend> Open<B> {
         let docs = self.truth_docs()?;
         self.rt
             .index
-            .rebuild(docs.into_iter(), cx.backend.embedder())
+            .rebuild(docs, cx.backend.embedder())
             .await
             .map_err(|e| match e {
-                recall::IndexError::Embed(_) => Refusal::Busy,
+                IndexFailure::Embed(_) => Refusal::Busy,
                 other => failed(other),
             })
     }
@@ -322,13 +322,8 @@ impl<B: Backend> Open<B> {
     /// start tries again.
     pub(crate) async fn sync_index(&mut self, cx: &Cx<'_, B>) -> Result<(), Refusal> {
         let docs = self.truth_docs()?;
-        match self
-            .rt
-            .index
-            .sync(docs.into_iter(), cx.backend.embedder())
-            .await
-        {
-            Ok(()) | Err(recall::IndexError::Embed(_)) => Ok(()),
+        match self.rt.index.sync(docs, cx.backend.embedder()).await {
+            Ok(()) | Err(IndexFailure::Embed(_)) => Ok(()),
             Err(other) => Err(failed(other)),
         }
     }

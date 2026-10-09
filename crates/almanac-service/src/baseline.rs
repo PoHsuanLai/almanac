@@ -8,7 +8,8 @@
 //! edit is not absorbed by the service's own write.
 
 use almanac_core::{FactId, TopicPath};
-use memfiles::{Block, Vault, VaultError, VaultPath, parse_topic, render_topic};
+use almanac_store::{Vault, VaultError, VaultPath};
+use memfiles::{Block, parse_topic, render_topic};
 use std::collections::BTreeMap;
 
 fn path() -> Option<VaultPath> {

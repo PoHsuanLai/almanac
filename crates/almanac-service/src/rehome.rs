@@ -9,8 +9,7 @@ use almanac_core::{
     Actor, AppName, Cause, Confidentiality, EventRef, Fact, Label, Link, LocalSpace, Refusal,
     SpaceId,
 };
-use eventlog::Entry;
-use memfiles::VaultPath;
+use almanac_store::{Entry, VaultPath};
 use std::collections::BTreeMap;
 
 /// An app's first Space: where its memories land (quire's Spaces kit numbers from 0).

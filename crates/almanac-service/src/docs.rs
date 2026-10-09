@@ -9,8 +9,7 @@ use almanac_core::{
     AppName, EventBody, EventRef, Fact, FactId, IndexPart, Integrity, Label, MessageFault,
     Recallable, ReplicaId, SenderCheck, Seq, UnixSeconds, from_hex,
 };
-use eventlog::{BodyState, Entry};
-use recall::{Doc, DocId, Facets, TrustTier};
+use almanac_store::{BodyState, Doc, DocId, Entry, Facets, TrustTier};
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 

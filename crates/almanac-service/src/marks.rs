@@ -2,7 +2,7 @@
 //! other file of a sealed Space) so they outlive the daemon.
 
 use almanac_core::Marks;
-use memfiles::{Vault, VaultError, VaultPath};
+use almanac_store::{Vault, VaultError, VaultPath};
 
 fn path() -> Option<VaultPath> {
     VaultPath::parse("meta/marks.json")

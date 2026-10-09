@@ -12,6 +12,7 @@ mod fake;
 mod fts;
 mod fuse;
 mod index;
+mod search_index;
 mod state;
 mod vector;
 

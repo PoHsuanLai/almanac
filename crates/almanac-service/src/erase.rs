@@ -8,8 +8,7 @@ use crate::open::{Cx, Open, failed, files_refusal, log_refusal};
 use almanac_core::{
     FactId, ForgetPlanView, ForgetReport, ForgetScope, MemoryOp, PlanToken, Refusal,
 };
-use eventlog::LogWrite;
-use memfiles::Vault;
+use almanac_store::{LogWrite, Vault};
 
 impl<B: Backend> Open<B> {
     /// Computes what forgetting `scope` removes and keeps the plan for `Forget(token)`.

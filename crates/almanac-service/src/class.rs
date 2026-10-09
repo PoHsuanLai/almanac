@@ -6,7 +6,7 @@
 //! here.
 
 use almanac_core::{DataClass, Label};
-use recall::ClassTag;
+use almanac_store::ClassTag;
 
 /// The data class a request carries when its input mixes several: the most sensitive present, in
 /// this order (the grant and the on-device floor are per class, so the request takes the

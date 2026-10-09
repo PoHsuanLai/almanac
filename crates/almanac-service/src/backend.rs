@@ -5,9 +5,7 @@ use crate::clock::Clock;
 use crate::consolidation::Consolidator;
 use almanac_core::{ReplicaId, SpaceId, SpaceMeta};
 use almanac_seal::{KeyError, KeyStore, SpaceKey};
-use eventlog::{LogError, LogWrite};
-use memfiles::{Vault, VaultError};
-use recall::{Embedder, Index, IndexError, VectorIndex};
+use almanac_store::{Embedder, IndexFailure, LogError, LogWrite, SearchIndex, Vault, VaultError};
 
 /// Why a backend could not open a Space's stores.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -23,7 +21,7 @@ pub enum BackendError {
     Files(#[from] VaultError),
     /// The index could not be opened.
     #[error("index: {0}")]
-    Index(#[from] IndexError),
+    Index(#[from] IndexFailure),
     /// A Space's directories could not be removed.
     #[error("removing a Space: {0}")]
     Remove(String),
@@ -37,8 +35,8 @@ pub trait Backend: Send + Sync {
     type Log: LogWrite + Send;
     /// One Space's file vault.
     type Files: Vault;
-    /// One Space's vector index.
-    type Vectors: VectorIndex;
+    /// One Space's search index.
+    type Index: SearchIndex;
     /// The embedder (background priority for indexing).
     type Embedder: Embedder;
     /// The consolidation model.
@@ -72,9 +70,5 @@ pub trait Backend: Send + Sync {
     /// Opens the Space's vault, sealed or plain as `meta.vault` says.
     fn open_files(&self, meta: &SpaceMeta, key: &SpaceKey) -> Result<Self::Files, BackendError>;
     /// Opens the Space's recall index.
-    fn open_index(
-        &self,
-        space: &SpaceId,
-        key: &SpaceKey,
-    ) -> Result<Index<Self::Vectors>, BackendError>;
+    fn open_index(&self, space: &SpaceId, key: &SpaceKey) -> Result<Self::Index, BackendError>;
 }

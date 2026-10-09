@@ -20,7 +20,7 @@ impl Backend for Refusing {
     type Keys = MemoryKeys;
     type Log = MemoryLog;
     type Files = SharedVault;
-    type Vectors = ExactScan;
+    type Index = Index<ExactScan>;
     type Embedder = FakeEmbedder;
     type Consolidator = ScriptedConsolidator;
     type Clock = SteppedClock;

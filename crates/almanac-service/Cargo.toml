@@ -13,9 +13,8 @@ almanac-core = { workspace = true }
 almanac-seal = { workspace = true }
 blake3 = { workspace = true }
 jiff = { workspace = true }
-eventlog = { workspace = true }
+almanac-store = { workspace = true }
 memfiles = { workspace = true }
-recall = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tar = { workspace = true }
@@ -23,6 +22,7 @@ thiserror = { workspace = true }
 toml = { workspace = true }
 
 [dev-dependencies]
+almanac-fake = { workspace = true }
 almanac-seal = { workspace = true, features = ["testing"] }
 eventlog = { workspace = true, features = ["testing"] }
 tokio = { workspace = true }

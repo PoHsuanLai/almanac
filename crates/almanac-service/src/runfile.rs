@@ -13,7 +13,7 @@
 use almanac_core::{
     DraftView, Fact, FactId, Hunk, Link, RunId, RunState, Seq, SkippedHunk, UnixSeconds,
 };
-use memfiles::{Vault, VaultError, VaultPath};
+use almanac_store::{Vault, VaultError, VaultPath};
 use serde::{Deserialize, Serialize};
 
 /// The directory under the Space's vault.
