@@ -33,13 +33,13 @@ pub use daemon::Daemon;
 pub use infer::{InferdConsolidator, InferdEmbedder, class_of, parse_draft, render_prompt};
 pub use keyring::{LockChanges, is_lock_change};
 pub use keysel::{
-    AnyKeys, KEYS_VAR, SANDBOX_VAR, Sandbox, Selection, TestKeys, sandbox_choice, select,
+    AnyKeys, KEYS_VAR, KeysError, SANDBOX_VAR, Sandbox, Selection, TestKeys, sandbox_choice, select,
 };
 pub use peers::{Peers, ProcPeers, TablePeers};
 pub use procroot::{PROC_ROOT_VAR, ProcRoot, TestProcRoot, proc_root_choice};
 pub use queue::{Claim, Serialised, claim_of};
 pub use removals::Removals;
-pub use run::{Env, start};
+pub use run::{Env, StartError, start};
 pub use sandbox::{Enforcement, Policy, SandboxError, bus_socket, enforce, policy_for, prepare};
 pub use settings_watch::{DEBOUNCE, SettingsWatch, WatchState, apply, apply_next};
 pub use signals::{FollowUp, follow_ups};

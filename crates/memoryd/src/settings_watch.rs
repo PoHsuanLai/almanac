@@ -42,16 +42,35 @@ fn touches(event: &notify::Event, file: &OsStr) -> bool {
             .any(|path| path.file_name() == Some(file))
 }
 
+/// Why the settings directory could not be watched.
+#[derive(Debug, thiserror::Error)]
+enum WatchError {
+    #[error("no configuration directory")]
+    NoDirectory,
+    #[error("no settings file name")]
+    NoFileName,
+    #[error("{}: {source}", dir.display())]
+    CreateDir {
+        dir: std::path::PathBuf,
+        source: std::io::Error,
+    },
+    #[error("{0}")]
+    Notify(#[from] notify::Error),
+}
+
 fn start_watcher(
     locator: &Locator,
     events: mpsc::UnboundedSender<()>,
-) -> Result<RecommendedWatcher, String> {
-    let dir = locator.watch_dir().ok_or("no configuration directory")?;
-    std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+) -> Result<RecommendedWatcher, WatchError> {
+    let dir = locator.watch_dir().ok_or(WatchError::NoDirectory)?;
+    std::fs::create_dir_all(&dir).map_err(|source| WatchError::CreateDir {
+        dir: dir.clone(),
+        source,
+    })?;
     let file = std::path::Path::new(SETTINGS_FILE)
         .file_name()
         .map(OsStr::to_owned)
-        .ok_or("no settings file name")?;
+        .ok_or(WatchError::NoFileName)?;
     let mut watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
         if let Ok(event) = res
             && touches(&event, &file)
@@ -59,11 +78,8 @@ fn start_watcher(
             // The receiver is gone once the watch ended; nobody is left to tell.
             let _ = events.send(());
         }
-    })
-    .map_err(|e| e.to_string())?;
-    watcher
-        .watch(&dir, RecursiveMode::NonRecursive)
-        .map_err(|e| e.to_string())?;
+    })?;
+    watcher.watch(&dir, RecursiveMode::NonRecursive)?;
     Ok(watcher)
 }
 
@@ -105,7 +121,9 @@ impl SettingsWatch {
             }
             Err(reason) => Self {
                 changes,
-                state: WatchState::Blind { reason },
+                state: WatchState::Blind {
+                    reason: reason.to_string(),
+                },
                 _watcher: None,
             },
         }

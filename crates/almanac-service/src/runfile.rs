@@ -139,8 +139,8 @@ impl RunRecord {
         }
     }
 
-    pub(crate) fn to_toml(&self) -> Result<String, String> {
-        toml::to_string(self).map_err(|e| e.to_string())
+    pub(crate) fn to_toml(&self) -> Result<String, toml::ser::Error> {
+        toml::to_string(self)
     }
 
     /// A record from its text, or `None` when it is torn, not TOML, or from another format.
@@ -216,6 +216,6 @@ pub(crate) fn load(vault: &impl Vault, run: &RunId) -> Option<RunRecord> {
 /// Writes the record atomically (the vault's temporary file, then rename).
 pub(crate) fn save(vault: &impl Vault, rec: &RunRecord) -> Result<(), VaultError> {
     let p = path(&rec.run).ok_or_else(|| VaultError::Io("run file path".into()))?;
-    let text = rec.to_toml().map_err(VaultError::Io)?;
+    let text = rec.to_toml().map_err(|e| VaultError::Io(e.to_string()))?;
     vault.write_atomic(&p, text.as_bytes())
 }

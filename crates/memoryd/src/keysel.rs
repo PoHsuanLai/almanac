@@ -99,9 +99,20 @@ pub enum AnyKeys {
     File(almanac_seal::FileKeys),
 }
 
+/// Why the key store could not be chosen.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum KeysError {
+    /// The variable is set to something that is not `file:<path>`.
+    #[error("MEMORYD_KEYS={0} is not file:<path>")]
+    Unreadable(String),
+    /// A file key store was asked for in a build without the `test-keys` feature.
+    #[error("a file key store needs the test-keys feature")]
+    NeedsTestKeys,
+}
+
 impl AnyKeys {
     /// The store `selection` names, and the line the daemon says about it, if any.
-    pub fn from_selection(selection: Selection) -> Result<(Self, Option<String>), String> {
+    pub fn from_selection(selection: Selection) -> Result<(Self, Option<String>), KeysError> {
         match selection {
             Selection::SecretService => Ok((Self::Oo7(Oo7Keys), None)),
             Selection::SecretServiceIgnoring(_) => Ok((
@@ -110,7 +121,7 @@ impl AnyKeys {
                     "{KEYS_VAR} is set but this build has no test-keys feature; ignoring it and using the Secret Service"
                 )),
             )),
-            Selection::Unreadable(value) => Err(format!("{KEYS_VAR}={value} is not file:<path>")),
+            Selection::Unreadable(value) => Err(KeysError::Unreadable(value)),
             #[cfg(feature = "test-keys")]
             Selection::File(path) => Ok((
                 Self::File(almanac_seal::FileKeys::at(&path)),
@@ -120,7 +131,7 @@ impl AnyKeys {
                 )),
             )),
             #[cfg(not(feature = "test-keys"))]
-            Selection::File(_) => Err("a file key store needs the test-keys feature".to_owned()),
+            Selection::File(_) => Err(KeysError::NeedsTestKeys),
         }
     }
 }

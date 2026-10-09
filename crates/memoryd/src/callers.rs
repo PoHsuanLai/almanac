@@ -18,7 +18,8 @@ pub const ROUTER_APP: &str = "org.quire.Intents";
 pub const SHELL_APP: &str = "org.quire.Shell";
 
 /// A table file that exists and cannot be used.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("{}: {message}", path.display())]
 pub struct CallerFileError {
     /// The file.
     pub path: PathBuf,
@@ -26,17 +27,9 @@ pub struct CallerFileError {
     pub message: String,
 }
 
-impl std::fmt::Display for CallerFileError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}: {}", self.path.display(), self.message)
-    }
-}
-
-impl std::error::Error for CallerFileError {}
-
 /// The table in TOML text: `[[caller]]` rows of `app`, optional `unit` and `role`.
-pub fn table_from_toml(text: &str) -> Result<CallerTable, String> {
-    toml::from_str(text).map_err(|e| e.to_string())
+pub fn table_from_toml(text: &str) -> Result<CallerTable, toml::de::Error> {
+    toml::from_str(text)
 }
 
 /// The table in the file `path`; a file that is not there is an empty table.
@@ -46,7 +39,7 @@ pub fn table_from_file(path: &Path) -> Result<CallerTable, CallerFileError> {
         message,
     };
     match std::fs::read_to_string(path) {
-        Ok(text) => table_from_toml(&text).map_err(failed),
+        Ok(text) => table_from_toml(&text).map_err(|e| failed(e.to_string())),
         Err(e) if e.kind() == ErrorKind::NotFound => Ok(CallerTable::default()),
         Err(e) => Err(failed(e.to_string())),
     }
