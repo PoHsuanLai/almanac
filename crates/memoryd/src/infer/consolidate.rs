@@ -59,8 +59,11 @@ fn failure(why: ModelError) -> ConsolidateError {
         | ModelError::Unparseable
         | ModelError::ContextOverflow
         | ModelError::OnlyThought { .. } => ConsolidateError::Unparseable,
+        // Out of credit or a refused sign-in: nothing this daemon can retry its way past.
         ModelError::Unreachable
         | ModelError::Unauthorized
+        | ModelError::PaymentRequired
+        | ModelError::SignInRefused
         | ModelError::Refused
         | ModelError::NotReady => ConsolidateError::Unavailable,
     }
