@@ -10,6 +10,7 @@ use almanac_core::{
 
 /// Why a call failed.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[non_exhaustive]
 pub enum ClientError {
     /// The request did not get an answer.
     #[error("transport: {0}")]

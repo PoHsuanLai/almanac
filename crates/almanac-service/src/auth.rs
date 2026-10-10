@@ -61,6 +61,8 @@ fn app_may_record(app: &AppName, record: &Record) -> bool {
         | EventBody::Message(_)
         | EventBody::Episode(_)
         | EventBody::Area(_) => false,
+        // A body kind this build does not know is not the app's own: refuse.
+        _ => false,
     };
     own_body && is_own_actor(&record.actor, app)
 }
@@ -82,6 +84,8 @@ fn cuad_may_record(record: &Record) -> bool {
         | EventBody::Search { .. }
         | EventBody::Memory { .. }
         | EventBody::Episode(_) => false,
+        // A body kind this build does not know: refuse.
+        _ => false,
     }
 }
 
@@ -161,6 +165,8 @@ fn by_class(caller: &Caller, request: &MemoryRequest) -> Allowed {
         | R::Sweep(_)
         | R::Export(_)
         | R::RemoveSpace(..) => yes_if(matches!(caller, Caller::ShellUi)),
+        // A request kind this build does not know is not allowed to anyone.
+        _ => NO,
     }
 }
 

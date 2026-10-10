@@ -90,6 +90,8 @@ pub fn plan_forget(
         | ForgetScope::Range(..)
         | ForgetScope::App(_)
         | ForgetScope::Kind(_) => BTreeSet::new(),
+        // An unknown scope seeds no facts: forgetting less is the safe side.
+        _ => BTreeSet::new(),
     };
     let closure = derived_closure(graph, roots, seeds);
     let (pending, facts): (Vec<&FactNode>, Vec<&FactNode>) = graph
@@ -159,6 +161,8 @@ fn scope_matches(space: &SpaceId, scope: &ForgetScope, entry: &Entry) -> bool {
         ForgetScope::App(app) => body.involves_app(&h.actor, app),
         ForgetScope::Kind(pattern) => pattern.covers_event(body),
         ForgetScope::Space => true,
+        // An unknown scope matches nothing: forgetting less is the safe side.
+        _ => false,
     }
 }
 

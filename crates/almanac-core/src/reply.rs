@@ -22,6 +22,7 @@ use serde::{Deserialize, Serialize};
 /// Why a hit matched.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "v", rename_all = "snake_case")]
+#[non_exhaustive]
 pub enum RecallWhy {
     /// Full-text only.
     Lexical {
@@ -81,6 +82,7 @@ pub struct SweepReport {
 /// Why memoryd said no. Each maps 1:1 to an `org.quire.Memory1.Error.<Variant>`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "v", rename_all = "snake_case")]
+#[non_exhaustive]
 pub enum Refusal {
     /// The caller's class may not do this.
     NotAllowed,
@@ -115,6 +117,7 @@ pub enum Refusal {
 /// What memoryd answers.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "v", rename_all = "snake_case")]
+#[non_exhaustive]
 pub enum MemoryReply {
     /// One event recorded.
     Recorded(EventRef),

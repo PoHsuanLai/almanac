@@ -56,6 +56,8 @@ impl From<&Refusal> for MemoryError {
                 MemoryError::NotKept(serde_json::to_string(why).unwrap_or_default())
             }
             Refusal::Invalid(why) => MemoryError::Invalid(why.clone()),
+            // A refusal this build does not know: report it as unavailable, a refusal, never success.
+            _ => MemoryError::Unavailable(text),
         }
     }
 }

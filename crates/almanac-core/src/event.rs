@@ -26,6 +26,7 @@ pub struct EventRef {
 /// What caused an event, when something did.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "v", rename_all = "snake_case")]
+#[non_exhaustive]
 pub enum Cause {
     /// Nothing recorded.
     None,
@@ -60,6 +61,7 @@ pub struct Record {
 /// One event's typed body. Other areas' payloads are [`AreaPayload`]s.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "v", rename_all = "snake_case")]
+#[non_exhaustive]
 pub enum EventBody {
     /// Something happened to a thing.
     Thing {

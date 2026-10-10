@@ -52,6 +52,8 @@ impl RecordState {
             | RunState::Drafting
             | RunState::Checking
             | RunState::Failed(_) => None,
+            // A state this build does not know is not recorded.
+            _ => None,
         }
     }
 

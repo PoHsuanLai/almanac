@@ -22,6 +22,7 @@ pub struct SearchQuery {
 
 /// Why an index operation failed, whatever the index stores in.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[non_exhaustive]
 pub enum IndexFailure {
     /// Embedding failed.
     #[error("embedding: {0}")]

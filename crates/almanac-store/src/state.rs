@@ -4,6 +4,7 @@ use crate::doc::Count;
 
 /// Why an index is out of date.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum StaleWhy {
     /// The configured embedder differs from the one the vectors came from.
     EmbedderChanged,
@@ -15,6 +16,7 @@ pub enum StaleWhy {
 
 /// Why search is lexical only.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum DegradedWhy {
     /// No embedder is reachable.
     EmbedderUnavailable,
@@ -24,6 +26,7 @@ pub enum DegradedWhy {
 
 /// Where an index is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum IndexState {
     /// Not built.
     Absent,

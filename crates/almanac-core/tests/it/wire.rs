@@ -3,7 +3,7 @@
 use crate::support::*;
 use almanac_core::*;
 
-/// An exhaustive match: adding a variant breaks this until the sample table covers it.
+/// Indexes every variant: a variant with a sample but no index breaks the coverage assert.
 fn request_index(r: &MemoryRequest) -> usize {
     match r {
         MemoryRequest::Record(_) => 0,
@@ -42,6 +42,9 @@ fn request_index(r: &MemoryRequest) -> usize {
         MemoryRequest::RecordDurable(_) => 33,
         MemoryRequest::Entries(..) => 34,
         MemoryRequest::RemoveSpace(..) => 35,
+        // The enum is non_exhaustive, so this match cannot be exhaustive from outside the crate.
+        // A new variant that has a sample lands here and fails the coverage assert below.
+        _ => usize::MAX,
     }
 }
 
@@ -84,6 +87,8 @@ fn reply_index(r: &MemoryReply) -> usize {
         MemoryReply::Durable(_) => 22,
         MemoryReply::Entries(_) => 23,
         MemoryReply::Relocated(_) => 24,
+        // See `request_index`: a new variant with a sample breaks the coverage assert.
+        _ => usize::MAX,
     }
 }
 

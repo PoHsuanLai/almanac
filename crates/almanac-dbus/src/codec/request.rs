@@ -71,6 +71,8 @@ pub fn encode_request(request: &MemoryRequest) -> Result<Call, CodecError> {
         R::Export(options) => call(Control, "Export", vec![body(options)?]),
         R::Sweep(s) => call(Control, "Sweep", vec![space(s)]),
         R::RemoveSpace(s, removal) => call(Control, "RemoveSpace", vec![space(s), body(removal)?]),
+        // A request kind this build has no member for.
+        _ => return Err(CodecError::Unsupported),
     })
 }
 

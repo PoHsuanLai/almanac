@@ -6,6 +6,7 @@ use almanac_core::{ChainHealth, Count, IndexView, SpaceId, SpaceState, SpaceStat
 
 /// Something the bus should be told about.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum ServiceEvent {
     /// The Space's pending facts changed (settled, or aged out): count them.
     PendingChanged(SpaceId),

@@ -326,6 +326,8 @@ fn degraded_why(error: &EmbedError) -> DegradedWhy {
         | EmbedError::Busy
         | EmbedError::TooLong
         | EmbedError::Failed { .. } => DegradedWhy::EmbedderUnavailable,
+        // An error this build does not know: the embedder is unavailable.
+        _ => DegradedWhy::EmbedderUnavailable,
     }
 }
 
