@@ -1,6 +1,6 @@
 //! `Index`: lexical and vector search together, rebuildable from the truth.
 
-use crate::doc::{Allow, ClassTag, Count, Doc, DocId, Ranked, StoredDoc, TopK, TrustTier};
+use crate::doc::{Allow, ClassTag, Count, Doc, DocId, Ranked, StoredDoc, TrustTier};
 use crate::embed::{Classed, EmbedError, Embedder, RetryClass};
 use crate::exact::VectorIndex;
 use crate::fts::Fts5;
