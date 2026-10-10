@@ -34,10 +34,7 @@ impl<T: Transport> InferdConsolidator<T> {
 }
 
 fn need() -> Need {
-    Need::Llm(LlmNeed {
-        features: BTreeSet::from([LlmFeature::Chat]),
-        context: CONTEXT,
-    })
+    Need::Llm(LlmNeed::new(BTreeSet::from([LlmFeature::Chat]), CONTEXT))
 }
 
 fn refusal(why: InferRefusal) -> ConsolidateError {
@@ -48,6 +45,8 @@ fn refusal(why: InferRefusal) -> ConsolidateError {
         | InferRefusal::Denied
         | InferRefusal::Unsupported => ConsolidateError::Unavailable,
         InferRefusal::OverBudget => ConsolidateError::Busy,
+        // porter may add reasons (`InferRefusal` is non-exhaustive); one not named means no run.
+        _ => ConsolidateError::Unavailable,
     }
 }
 
@@ -66,6 +65,8 @@ fn failure(why: ModelError) -> ConsolidateError {
         | ModelError::SignInRefused
         | ModelError::Refused
         | ModelError::NotReady => ConsolidateError::Unavailable,
+        // porter may add failures (`ModelError` is non-exhaustive); one not named left no draft.
+        _ => ConsolidateError::Unparseable,
     }
 }
 
@@ -82,12 +83,12 @@ impl<T: Transport> Consolidator for InferdConsolidator<T> {
             .open(&need(), class, Tier::Balanced)
             .await
             .map_err(|_| ConsolidateError::Unavailable)?;
-        let request = InferRequest::Task(TaskRequest {
-            task: Task::Extract,
-            input: render_prompt(&input),
+        let request = InferRequest::Task(TaskRequest::new(
+            Task::Extract,
+            render_prompt(&input),
             class,
-            usage: Usage::Background,
-        });
+            Usage::Background,
+        ));
         match turn(&mut session, request)
             .await
             .map_err(|_| ConsolidateError::Unavailable)?
@@ -100,6 +101,8 @@ impl<T: Transport> Consolidator for InferdConsolidator<T> {
             | InferReply::CuaStep(_)
             | InferReply::Transcribed(_)
             | InferReply::Spoke(_) => Err(ConsolidateError::Unparseable),
+            // porter may add reply kinds (`InferReply` is non-exhaustive); one not named is no draft.
+            _ => Err(ConsolidateError::Unparseable),
         }
     }
 }

@@ -82,10 +82,10 @@ impl<T: Transport> InferdEmbedder<T> {
 
 /// The need that finds an embedding model for `card`.
 pub(crate) fn need_for(card: &EmbedderCard) -> Need {
-    Need::Embeddings(EmbedNeed {
-        dims: DimsNeed::Exactly(Dims(card.dims)),
-        modalities: BTreeSet::from([Modality::Text]),
-    })
+    Need::Embeddings(EmbedNeed::new(
+        DimsNeed::Exactly(Dims(card.dims)),
+        BTreeSet::from([Modality::Text]),
+    ))
 }
 
 /// The wire request for `texts`.
@@ -96,19 +96,19 @@ pub(crate) fn request_for(
     role: EmbedRole,
     urgency: Urgency,
 ) -> InferRequest {
-    InferRequest::Embed(EmbedRequest {
-        inputs: texts.to_vec(),
-        role: match role {
+    InferRequest::Embed(EmbedRequest::new(
+        texts.to_vec(),
+        match role {
             EmbedRole::Query => WireRole::Query,
             EmbedRole::Document => WireRole::Document,
         },
-        dims: DimsNeed::Exactly(Dims(card.dims)),
+        DimsNeed::Exactly(Dims(card.dims)),
         class,
-        usage: match urgency {
+        match urgency {
             Urgency::Interactive => Usage::Interactive,
             Urgency::Background => Usage::Background,
         },
-    })
+    ))
 }
 
 fn fatal(why: impl Into<String>) -> EmbedError {
@@ -127,6 +127,8 @@ pub(crate) fn refusal(why: InferRefusal) -> EmbedError {
         | InferRefusal::Denied
         | InferRefusal::OverBudget
         | InferRefusal::Unsupported => EmbedError::Refused(why.to_string()),
+        // porter may add reasons (`InferRefusal` is non-exhaustive); one not named is a refusal.
+        _ => EmbedError::Refused(why.to_string()),
     }
 }
 
@@ -146,6 +148,8 @@ pub(crate) fn model_failure(why: ModelError) -> EmbedError {
                 why: why.to_string(),
             }
         }
+        // porter may add failures (`ModelError` is non-exhaustive); one not named is a refusal.
+        _ => EmbedError::Refused(why.to_string()),
     }
 }
 
@@ -188,6 +192,8 @@ pub(crate) fn vectors_of(
         | InferReply::CuaStep(_)
         | InferReply::Transcribed(_)
         | InferReply::Spoke(_) => Err(fatal("inferd answered with another kind of reply")),
+        // porter may add reply kinds (`InferReply` is non-exhaustive); one not named is unreadable.
+        _ => Err(fatal("inferd answered with another kind of reply")),
     }
 }
 

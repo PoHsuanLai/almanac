@@ -140,11 +140,11 @@ fn usage() -> TokenUsage {
 }
 
 fn embed_reply(vectors: Vec<Vec<f32>>) -> InferReply {
-    InferReply::Embed(EmbedReply {
-        vectors: vectors.into_iter().map(EmbedVector).collect(),
-        usage: usage(),
-        served: served(),
-    })
+    InferReply::Embed(EmbedReply::new(
+        vectors.into_iter().map(EmbedVector).collect(),
+        usage(),
+        served(),
+    ))
 }
 
 fn card() -> EmbedderCard {
@@ -302,15 +302,12 @@ async fn a_reply_that_does_not_fit_the_index_is_fatal() {
     let wrong_dims = embed_error(embed_reply(vec![vec![0.5; 7]]), 1).await;
     assert!(failed(RetryClass::Fatal)(&wrong_dims), "{wrong_dims:?}");
     let wrong_kind = embed_error(
-        InferReply::Chat(ChatReply {
-            text: "hello".into(),
-            tool_calls: vec![],
-            stop: StopReason::EndTurn,
-            thought: None,
-            scores: None,
-            usage: usage(),
-            served: served(),
-        }),
+        InferReply::Chat(ChatReply::new(
+            "hello".into(),
+            StopReason::EndTurn,
+            usage(),
+            served(),
+        )),
         1,
     )
     .await;
@@ -426,15 +423,12 @@ fn event_link(seq: u64) -> String {
 }
 
 fn chat(text: &str) -> InferReply {
-    InferReply::Chat(ChatReply {
-        text: text.to_owned(),
-        tool_calls: vec![],
-        stop: StopReason::EndTurn,
-        thought: None,
-        scores: None,
-        usage: usage(),
-        served: served(),
-    })
+    InferReply::Chat(ChatReply::new(
+        text.to_owned(),
+        StopReason::EndTurn,
+        usage(),
+        served(),
+    ))
 }
 
 #[test]

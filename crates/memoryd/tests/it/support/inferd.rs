@@ -113,23 +113,16 @@ fn answer(class: &str, request: InferRequest, seen: &Mutex<Seen>, draft: &str) -
                 .expect("lock")
                 .embeds
                 .push((class.to_owned(), embed.inputs));
-            InferReply::Embed(EmbedReply {
-                vectors,
-                usage: usage(),
-                served: served(),
-            })
+            InferReply::Embed(EmbedReply::new(vectors, usage(), served()))
         }
         InferRequest::Task(_) => {
             seen.lock().expect("lock").tasks.push(class.to_owned());
-            InferReply::Chat(ChatReply {
-                text: draft.to_owned(),
-                tool_calls: vec![],
-                stop: StopReason::EndTurn,
-                thought: None,
-                scores: None,
-                usage: usage(),
-                served: served(),
-            })
+            InferReply::Chat(ChatReply::new(
+                draft.to_owned(),
+                StopReason::EndTurn,
+                usage(),
+                served(),
+            ))
         }
         _ => InferReply::Refused(InferRefusal::Unsupported),
     };
