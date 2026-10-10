@@ -5,6 +5,7 @@ use std::future::Future;
 
 /// Why a request did not get an answer.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[non_exhaustive]
 pub enum TransportError {
     /// There is no memory on this desktop: writers treat it as a no-op.
     #[error("no memory on this desktop")]

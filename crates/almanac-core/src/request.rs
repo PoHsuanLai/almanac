@@ -18,6 +18,7 @@ use serde::{Deserialize, Serialize};
 /// What a forget covers.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "v", rename_all = "snake_case")]
+#[non_exhaustive]
 pub enum ForgetScope {
     /// One event.
     Event(EventRef),
@@ -41,6 +42,7 @@ pub enum ForgetScope {
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "v", rename_all = "snake_case")]
+#[non_exhaustive]
 pub enum MemoryRequest {
     // Writers.
     /// Record one event.

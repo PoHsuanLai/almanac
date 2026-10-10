@@ -16,6 +16,7 @@ pub enum RetryClass {
 
 /// Why texts could not be embedded.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[non_exhaustive]
 pub enum EmbedError {
     /// No embedder is reachable. Retry.
     #[error("embedder unavailable")]

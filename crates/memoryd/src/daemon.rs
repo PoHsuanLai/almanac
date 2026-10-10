@@ -159,6 +159,8 @@ impl<B: Backend, P: Peers> Daemon<B, P> {
                         let space = space.to_string();
                         self.signal(Signal::StatusChanged { space, status }).await;
                     }
+                    // An event this build does not know has no signal to send.
+                    _ => {}
                 }
             }
         }

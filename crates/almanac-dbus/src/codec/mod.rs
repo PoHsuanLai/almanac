@@ -55,6 +55,9 @@ pub enum CodecError {
     /// The reply has more or fewer values than the member returns.
     #[error("unexpected reply shape")]
     Shape,
+    /// The request has no bus member in this build.
+    #[error("no bus member for this request")]
+    Unsupported,
 }
 
 pub(crate) fn json<T: serde::Serialize>(value: &T) -> Result<String, CodecError> {

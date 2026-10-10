@@ -92,6 +92,7 @@ slug_enum!(
 /// Whether an entry still has its body.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "v", rename_all = "snake_case")]
+#[non_exhaustive]
 pub enum EntryBody {
     /// Present.
     Present,

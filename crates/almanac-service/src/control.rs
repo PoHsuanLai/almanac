@@ -26,11 +26,16 @@ fn index_view(state: IndexState) -> IndexView {
             almanac_store::StaleWhy::EmbedderChanged => StaleWhy::EmbedderChanged,
             almanac_store::StaleWhy::FormatChanged => StaleWhy::FormatChanged,
             almanac_store::StaleWhy::TruthNewer => StaleWhy::TruthNewer,
+            // Unknown reason: report the one that makes the person re-sync.
+            _ => StaleWhy::TruthNewer,
         }),
         IndexState::LexicalOnly(why) => IndexView::LexicalOnly(match why {
             almanac_store::DegradedWhy::EmbedderUnavailable => DegradedWhy::EmbedderUnavailable,
             almanac_store::DegradedWhy::EmbedderRefused => DegradedWhy::EmbedderRefused,
+            _ => DegradedWhy::EmbedderUnavailable,
         }),
+        // An index state this build does not know is not ready: report it absent.
+        _ => IndexView::Absent,
     }
 }
 

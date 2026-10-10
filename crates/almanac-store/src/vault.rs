@@ -84,6 +84,7 @@ impl fmt::Display for VaultPath {
 
 /// Why a vault operation failed.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[non_exhaustive]
 pub enum VaultError {
     /// No such file.
     #[error("no such file: {0}")]

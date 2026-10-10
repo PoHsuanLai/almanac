@@ -137,6 +137,8 @@ pub(crate) fn event_docs(
             app: Some(app.clone()),
         }],
         EventBody::File { .. } | EventBody::Memory { .. } | EventBody::Area(_) => Vec::new(),
+        // A body kind this build does not know has no text to index.
+        _ => Vec::new(),
     }
 }
 
@@ -229,6 +231,8 @@ pub(crate) fn record_fault(record: &almanac_core::Record) -> Option<String> {
         | EventBody::Search { .. }
         | EventBody::Memory { .. }
         | EventBody::Area(_) => None,
+        // A body kind this build cannot check is refused, not admitted unchecked.
+        _ => Some("unknown event body kind".to_owned()),
     };
     body_fault.or_else(|| {
         documents_label(&record.body)

@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 /// Where a Space is in its lifecycle (the machine in `almanac-service::space`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "v", rename_all = "snake_case")]
+#[non_exhaustive]
 pub enum SpaceState {
     /// The key is not available; records are buffered.
     Locked,
@@ -67,6 +68,7 @@ pub struct SpaceSummary {
 /// Why an index is out of date.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[non_exhaustive]
 pub enum StaleWhy {
     /// The configured embedder differs from the one the vectors came from.
     EmbedderChanged,
@@ -79,6 +81,7 @@ pub enum StaleWhy {
 /// Why search is lexical only.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[non_exhaustive]
 pub enum DegradedWhy {
     /// No embedder is reachable.
     EmbedderUnavailable,
@@ -89,6 +92,7 @@ pub enum DegradedWhy {
 /// The recall index as the UI shows it (the wire form of `recall::IndexState`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "v", rename_all = "snake_case")]
+#[non_exhaustive]
 pub enum IndexView {
     /// Not built yet.
     Absent,
@@ -110,6 +114,7 @@ pub enum IndexView {
 /// What the last verification found.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "v", rename_all = "snake_case")]
+#[non_exhaustive]
 pub enum ChainHealth {
     /// Not verified since the daemon started.
     Unchecked,

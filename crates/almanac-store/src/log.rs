@@ -20,6 +20,7 @@ pub enum RoleFilter {
 
 /// Why a log operation failed.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[non_exhaustive]
 pub enum LogError {
     /// The key does not open the database.
     #[error("the event log is locked")]

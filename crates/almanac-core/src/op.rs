@@ -59,6 +59,7 @@ pub struct ExportCounts {
 /// memoryd's own audit: every change it makes to what it knows.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "v", rename_all = "snake_case")]
+#[non_exhaustive]
 pub enum MemoryOp {
     /// A fact joined a topic.
     FactAdded {
