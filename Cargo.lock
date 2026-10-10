@@ -2761,7 +2761,7 @@ dependencies = [
 [[package]]
 name = "porter-client"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=9c01699eda3bfae0f8c6504c72c9b05672728243#9c01699eda3bfae0f8c6504c72c9b05672728243"
+source = "git+https://github.com/PoHsuanLai/porter?rev=5e6b65988b0062a60f5af3d6e8e43ad032a113dc#5e6b65988b0062a60f5af3d6e8e43ad032a113dc"
 dependencies = [
  "porter-core",
  "porter-dbus",
@@ -2781,7 +2781,7 @@ dependencies = [
 [[package]]
 name = "porter-core"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=9c01699eda3bfae0f8c6504c72c9b05672728243#9c01699eda3bfae0f8c6504c72c9b05672728243"
+source = "git+https://github.com/PoHsuanLai/porter?rev=5e6b65988b0062a60f5af3d6e8e43ad032a113dc#5e6b65988b0062a60f5af3d6e8e43ad032a113dc"
 dependencies = [
  "serde",
  "serde_json",
@@ -2792,7 +2792,7 @@ dependencies = [
 [[package]]
 name = "porter-daemon"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=9c01699eda3bfae0f8c6504c72c9b05672728243#9c01699eda3bfae0f8c6504c72c9b05672728243"
+source = "git+https://github.com/PoHsuanLai/porter?rev=5e6b65988b0062a60f5af3d6e8e43ad032a113dc#5e6b65988b0062a60f5af3d6e8e43ad032a113dc"
 dependencies = [
  "notify",
  "thiserror",
@@ -2801,7 +2801,7 @@ dependencies = [
 [[package]]
 name = "porter-dbus"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=9c01699eda3bfae0f8c6504c72c9b05672728243#9c01699eda3bfae0f8c6504c72c9b05672728243"
+source = "git+https://github.com/PoHsuanLai/porter?rev=5e6b65988b0062a60f5af3d6e8e43ad032a113dc#5e6b65988b0062a60f5af3d6e8e43ad032a113dc"
 dependencies = [
  "porter-core",
  "serde",
@@ -2814,12 +2814,12 @@ dependencies = [
 [[package]]
 name = "porter-fs"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=9c01699eda3bfae0f8c6504c72c9b05672728243#9c01699eda3bfae0f8c6504c72c9b05672728243"
+source = "git+https://github.com/PoHsuanLai/porter?rev=5e6b65988b0062a60f5af3d6e8e43ad032a113dc#5e6b65988b0062a60f5af3d6e8e43ad032a113dc"
 
 [[package]]
 name = "porter-infer"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=9c01699eda3bfae0f8c6504c72c9b05672728243#9c01699eda3bfae0f8c6504c72c9b05672728243"
+source = "git+https://github.com/PoHsuanLai/porter?rev=5e6b65988b0062a60f5af3d6e8e43ad032a113dc#5e6b65988b0062a60f5af3d6e8e43ad032a113dc"
 dependencies = [
  "base64 0.22.1",
  "cua-action",
@@ -2832,7 +2832,7 @@ dependencies = [
 [[package]]
 name = "porter-provider"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=9c01699eda3bfae0f8c6504c72c9b05672728243#9c01699eda3bfae0f8c6504c72c9b05672728243"
+source = "git+https://github.com/PoHsuanLai/porter?rev=5e6b65988b0062a60f5af3d6e8e43ad032a113dc#5e6b65988b0062a60f5af3d6e8e43ad032a113dc"
 dependencies = [
  "porter-core",
  "serde",
@@ -2843,7 +2843,7 @@ dependencies = [
 [[package]]
 name = "porter-secrets"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=9c01699eda3bfae0f8c6504c72c9b05672728243#9c01699eda3bfae0f8c6504c72c9b05672728243"
+source = "git+https://github.com/PoHsuanLai/porter?rev=5e6b65988b0062a60f5af3d6e8e43ad032a113dc#5e6b65988b0062a60f5af3d6e8e43ad032a113dc"
 dependencies = [
  "porter-core",
  "porter-fs",
@@ -2854,7 +2854,7 @@ dependencies = [
 [[package]]
 name = "porter-service"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=9c01699eda3bfae0f8c6504c72c9b05672728243#9c01699eda3bfae0f8c6504c72c9b05672728243"
+source = "git+https://github.com/PoHsuanLai/porter?rev=5e6b65988b0062a60f5af3d6e8e43ad032a113dc#5e6b65988b0062a60f5af3d6e8e43ad032a113dc"
 dependencies = [
  "porter-core",
  "porter-provider",
@@ -2945,7 +2945,7 @@ dependencies = [
 [[package]]
 name = "prov"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=9c01699eda3bfae0f8c6504c72c9b05672728243#9c01699eda3bfae0f8c6504c72c9b05672728243"
+source = "git+https://github.com/PoHsuanLai/porter?rev=5e6b65988b0062a60f5af3d6e8e43ad032a113dc#5e6b65988b0062a60f5af3d6e8e43ad032a113dc"
 dependencies = [
  "porter-core",
  "serde",
