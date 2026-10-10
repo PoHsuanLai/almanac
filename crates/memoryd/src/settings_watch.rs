@@ -4,8 +4,7 @@
 //! reader.
 
 use almanac_service::{Backend, Loaded, Locator, MemoryService, MemorySettings, SETTINGS_FILE};
-use notify::{RecommendedWatcher, RecursiveMode, Watcher};
-use std::ffi::OsStr;
+use porter_daemon::Watch;
 use std::time::Duration;
 use tokio::sync::{mpsc, watch};
 
@@ -29,58 +28,7 @@ pub enum WatchState {
 pub struct SettingsWatch {
     changes: watch::Receiver<Loaded>,
     state: WatchState,
-    _watcher: Option<RecommendedWatcher>,
-}
-
-/// Whether `event` writes the settings file itself: not an access (reading the file to apply it
-/// must not re-arm the watch), and not another file in the directory.
-fn touches(event: &notify::Event, file: &OsStr) -> bool {
-    !event.kind.is_access()
-        && event
-            .paths
-            .iter()
-            .any(|path| path.file_name() == Some(file))
-}
-
-/// Why the settings directory could not be watched.
-#[derive(Debug, thiserror::Error)]
-enum WatchError {
-    #[error("no configuration directory")]
-    NoDirectory,
-    #[error("no settings file name")]
-    NoFileName,
-    #[error("{}: {source}", dir.display())]
-    CreateDir {
-        dir: std::path::PathBuf,
-        source: std::io::Error,
-    },
-    #[error("{0}")]
-    Notify(#[from] notify::Error),
-}
-
-fn start_watcher(
-    locator: &Locator,
-    events: mpsc::UnboundedSender<()>,
-) -> Result<RecommendedWatcher, WatchError> {
-    let dir = locator.watch_dir().ok_or(WatchError::NoDirectory)?;
-    std::fs::create_dir_all(&dir).map_err(|source| WatchError::CreateDir {
-        dir: dir.clone(),
-        source,
-    })?;
-    let file = std::path::Path::new(SETTINGS_FILE)
-        .file_name()
-        .map(OsStr::to_owned)
-        .ok_or(WatchError::NoFileName)?;
-    let mut watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
-        if let Ok(event) = res
-            && touches(&event, &file)
-        {
-            // The receiver is gone once the watch ended; nobody is left to tell.
-            let _ = events.send(());
-        }
-    })?;
-    watcher.watch(&dir, RecursiveMode::NonRecursive)?;
-    Ok(watcher)
+    _watcher: Option<Watch>,
 }
 
 /// Reads again after every settled burst of events and publishes, until the watch is dropped.
@@ -110,20 +58,32 @@ impl SettingsWatch {
         let initial = locator.read(base);
         let (out, changes) = watch::channel(initial);
         let (signal, events) = mpsc::unbounded_channel();
-        match start_watcher(&locator, signal) {
-            Ok(watcher) => {
+        let started = locator
+            .watch_dir()
+            .ok_or_else(|| "no configuration directory".to_owned())
+            .and_then(|dir| {
+                let file = std::path::Path::new(SETTINGS_FILE)
+                    .file_name()
+                    .map(ToOwned::to_owned)
+                    .ok_or_else(|| "no settings file name".to_owned())?;
+                Watch::start(dir, file, move || {
+                    // The receiver is gone once the watch ended; nobody is left to tell.
+                    let _ = signal.send(());
+                })
+                .map_err(|error| error.to_string())
+            });
+        match started {
+            Ok(watch) => {
                 tokio::spawn(settle(locator, base, events, out));
                 Self {
                     changes,
                     state: WatchState::Live,
-                    _watcher: Some(watcher),
+                    _watcher: Some(watch),
                 }
             }
             Err(reason) => Self {
                 changes,
-                state: WatchState::Blind {
-                    reason: reason.to_string(),
-                },
+                state: WatchState::Blind { reason },
                 _watcher: None,
             },
         }

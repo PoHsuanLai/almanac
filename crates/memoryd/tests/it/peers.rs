@@ -354,28 +354,11 @@ fn what_a_reply_makes_the_bus_say() {
 }
 
 #[test]
-fn the_proc_root_knob_works_in_a_test_build_only() {
-    use memoryd::{ProcRoot, TestProcRoot, proc_root_choice};
-    use std::path::PathBuf;
-    for (var, build, expected) in [
-        (None, TestProcRoot::Built, ProcRoot::System),
-        (None, TestProcRoot::NotBuilt, ProcRoot::System),
-        (Some(""), TestProcRoot::Built, ProcRoot::System),
-        (
-            Some("/x/proc"),
-            TestProcRoot::Built,
-            ProcRoot::Fixture(PathBuf::from("/x/proc")),
-        ),
-        (
-            Some("/x/proc"),
-            TestProcRoot::NotBuilt,
-            ProcRoot::SystemIgnoring("/x/proc".to_owned()),
-        ),
-    ] {
-        assert_eq!(proc_root_choice(var, build), expected, "{var:?} {build:?}");
-    }
-    let ignored = proc_root_choice(Some("/x/proc"), TestProcRoot::NotBuilt);
-    assert_eq!(ignored.path(), PathBuf::from("/proc"));
-    assert!(ignored.said().is_some_and(|l| l.contains("ignoring it")));
-    assert!(ProcRoot::System.said().is_none());
+fn the_proc_gate_follows_the_test_proc_root_feature() {
+    let expected = if cfg!(feature = "test-proc-root") {
+        memoryd::ProcGate::Honour
+    } else {
+        memoryd::ProcGate::Ignore
+    };
+    assert_eq!(memoryd::PROC_GATE, expected);
 }

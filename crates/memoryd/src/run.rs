@@ -5,9 +5,9 @@
 use crate::keysel::{AnyKeys, KEYS_VAR, SANDBOX_VAR, Sandbox, TestKeys, sandbox_choice, select};
 use crate::{
     CallerFileError, Daemon, Enforcement, InferdConsolidator, InferdEmbedder, KeysError,
-    LockChanges, PROC_ROOT_VAR, ProcPeers, ProcRoot, SHELL_APP, SandboxError, SettingsWatch,
-    SystemBackend, TestProcRoot, WatchState, XdgError, apply, apply_next, default_card, dirs_from,
-    enforce, inferd_link, load_callers, policy_for, prepare, proc_root_choice,
+    LockChanges, ProcGate, ProcPeers, SHELL_APP, SandboxError, SettingsWatch, SystemBackend,
+    WatchState, XdgError, apply, apply_next, default_card, dirs_from, enforce, inferd_link,
+    load_callers, policy_for, prepare,
 };
 use almanac_core::{Dirs, RuleSet};
 use almanac_dbus::serve_on;
@@ -16,13 +16,26 @@ use almanac_service::{
     spaces_from_toml,
 };
 use porter_client::DbusTransport;
+use porter_daemon::ProcRoot;
 use porter_dbus::CallerTable;
+use std::ffi::OsString;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
 /// The environment, as a lookup by variable name.
 pub type Env<'a> = &'a dyn Fn(&str) -> Option<String>;
+
+/// The environment variable the test-only fixture `/proc` switch reads.
+pub const PROC_ROOT_VAR: &str = "MEMORYD_PROC_ROOT";
+
+/// Whether this build honours [`PROC_ROOT_VAR`]: only one built with the `test-proc-root` feature.
+/// A release build ignores the variable and says so.
+pub const PROC_GATE: ProcGate = if cfg!(feature = "test-proc-root") {
+    ProcGate::Honour
+} else {
+    ProcGate::Ignore
+};
 
 /// Why the daemon did not start, or stopped.
 #[derive(Debug, thiserror::Error)]
@@ -119,8 +132,11 @@ async fn run(
             .into_iter()
             .for_each(|meta| service.register(meta));
     }
-    let peers =
-        ProcPeers::with_proc_root(connection.clone(), read_callers(&dirs)?, proc_root.path());
+    let peers = ProcPeers::with_proc_root(
+        connection.clone(),
+        read_callers(&dirs)?,
+        proc_root.path().to_path_buf(),
+    );
     if let Ok(shell) = almanac_core::AppName::parse(SHELL_APP) {
         service.set_fallback_owner(shell);
     }
@@ -185,15 +201,17 @@ pub fn start(env: Env<'_>) -> Result<(), StartError> {
     if let Some(line) = said {
         eprintln!("memoryd: {line}");
     }
-    let proc_root = proc_root_choice(env(PROC_ROOT_VAR).as_deref(), TestProcRoot::THIS_BUILD);
-    if let Some(line) = proc_root.said() {
-        eprintln!("memoryd: {line}");
+    let proc_root = ProcRoot::choose(PROC_GATE, PROC_ROOT_VAR, |name| {
+        env(name).map(OsString::from)
+    });
+    if let Some(line) = proc_root.notice("memoryd", PROC_ROOT_VAR) {
+        eprintln!("{line}");
     }
     let bus = env("DBUS_SESSION_BUS_ADDRESS");
     let mut policy = policy_for(&dirs, bus.as_deref());
     // A fixture /proc is read like /proc is: files only.
-    if let ProcRoot::Fixture(dir) = &proc_root {
-        policy.read_files.push(dir.clone());
+    if let Some(dir) = proc_root.fixture() {
+        policy.read_files.push(dir.to_path_buf());
     }
     // Only a test build's file key store has a directory of its own to write.
     policy.writable.extend(key_dir);

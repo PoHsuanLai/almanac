@@ -91,7 +91,7 @@ EDGES=(
   "almanac-client: almanac-core almanac-dbus almanac-service"
   "almanac-fake: almanac-core almanac-seal eventlog memfiles recall almanac-service"
   "almanac-local: almanac-core almanac-seal eventlog memfiles recall almanac-service"
-  "memoryd: almanac-core almanac-seal eventlog memfiles recall almanac-service almanac-watch almanac-dbus porter-core porter-dbus porter-infer porter-client"
+  "memoryd: almanac-core almanac-seal eventlog memfiles recall almanac-service almanac-watch almanac-dbus porter-core porter-daemon porter-dbus porter-infer porter-client"
 )
 for edge in "${EDGES[@]}"; do
   crate="${edge%%:*}"
