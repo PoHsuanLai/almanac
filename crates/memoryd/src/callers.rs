@@ -75,5 +75,7 @@ pub fn caller_for(found: porter_dbus::Caller) -> Caller {
         | CallerRole::PorterDaemon
         | CallerRole::AgentLauncher
         | CallerRole::Agent => Caller::App(found.app),
+        // The compositor, or a role a later porter adds: its own app's access, no fixed standing.
+        _ => Caller::App(found.app),
     }
 }
