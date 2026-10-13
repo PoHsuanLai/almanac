@@ -4,7 +4,7 @@
 # then `at_rest = "plain"`; memoryd reads them live (crates/almanac-service/src/settings). Every row
 # is hands-off for an agent (no `agent = "settable"`): memory.* is never agent-settable, so the
 # companion can never loosen what memory keeps or how it is held. The rows design/22 section 5 puts
-# on the Intelligence page are Memory's; the retention rows are Advanced. Not here, because nothing
+# on the Intelligence page are Memory's two; the others (Memory, History) are Advanced. Not here, because nothing
 # reads it yet: `memory.join_window_ms` (memoryd does not run the file watch yet). See FINDINGS.
 app = "almanac"
 file = "almanac/settings.toml"
@@ -13,8 +13,8 @@ version = 1
 [[key]]
 path = "memory.files.at_rest"
 default = "sealed"
-label = "Keep memory files"
-help = "Sealed keeps each Space's memory files encrypted on disk and opens one in the editor through memory only. Plain keeps ordinary markdown files that any app on this computer can read. A Space that exists keeps the way it was made; this is for new Spaces."
+label = "Memory files"
+help = "Private keeps memory files encrypted, readable only through memory. Readable by apps keeps ordinary files that any app on this computer can read. Spaces already made keep their setting."
 section = "Memory"
 exposure = "basic"
 
@@ -28,14 +28,14 @@ variants = ["sealed", "plain"]
 kind = "intelligence"
 
 [key.labels]
-sealed = "Sealed"
-plain = "Plain"
+sealed = "Private"
+plain = "Readable by apps"
 
 [[key]]
 path = "memory.consolidation.when"
 default = "nightly"
 label = "Tidy memory"
-help = "Consolidation reads what happened, proposes facts and tidies the memory files, and you can revert any run. Nightly runs it every night; Manual only when you ask; Never not at all."
+help = "Reads what happened, proposes facts and tidies the memory files. You can undo any run. Nightly is the default."
 section = "Memory"
 exposure = "basic"
 
@@ -50,16 +50,16 @@ kind = "intelligence"
 
 [key.labels]
 nightly = "Nightly"
-manual = "Only when I ask"
+manual = "When I ask"
 never = "Never"
 
 [[key]]
 path = "memory.consolidation.apply"
 default = "auto"
-label = "Apply tidy-ups"
-help = "Auto applies each run's changes as soon as they are drafted, keeping what is needed to revert them. Review stops a run at its proposal; nothing changes until you apply it."
+label = "Apply tidying"
+help = "Right away applies each run as soon as it is drafted, and you can undo it. After I review waits for you to approve."
 section = "Memory"
-exposure = "basic"
+exposure = "advanced"
 
 [key.kind]
 kind = "toggle"
@@ -71,15 +71,15 @@ variants = ["auto", "review"]
 kind = "intelligence"
 
 [key.labels]
-auto = "Automatically"
+auto = "Right away"
 review = "After I review"
 
 [[key]]
 path = "memory.retention.search_days"
 default = 30
-label = "Keep searches for"
+label = "Search history"
 help = "How long searches and selections are remembered."
-section = "Retention"
+section = "History"
 exposure = "advanced"
 
 [key.kind]
@@ -96,9 +96,9 @@ kind = "intelligence"
 [[key]]
 path = "memory.retention.file_unexplained_days"
 default = 7
-label = "Keep unexplained file changes for"
-help = "How long a file change that no app explained is remembered, header and all."
-section = "Retention"
+label = "Unexplained edits"
+help = "How long a file change that no app explained is remembered."
+section = "History"
 exposure = "advanced"
 
 [key.kind]
@@ -115,9 +115,9 @@ kind = "intelligence"
 [[key]]
 path = "memory.retention.session_days"
 default = 30
-label = "Keep sessions for"
-help = "How long the assistant's sessions and computer-use runs are remembered."
-section = "Retention"
+label = "Task history"
+help = "How long the assistant's tasks and computer-use runs are remembered."
+section = "History"
 exposure = "advanced"
 
 [key.kind]
@@ -134,9 +134,9 @@ kind = "intelligence"
 [[key]]
 path = "memory.retention.audit_body_days"
 default = 90
-label = "Keep audit details for"
-help = "How long the details of policy, consent and memory events are kept."
-section = "Retention"
+label = "Activity details"
+help = "How long the details of permission and memory events are kept."
+section = "History"
 exposure = "advanced"
 
 [key.kind]
@@ -153,9 +153,9 @@ kind = "intelligence"
 [[key]]
 path = "memory.retention.audit_header_days"
 default = 365
-label = "Keep audit records for"
+label = "Activity records"
 help = "How long the bare record of those events is kept after their details are gone."
-section = "Retention"
+section = "History"
 exposure = "advanced"
 
 [key.kind]
@@ -172,9 +172,9 @@ kind = "intelligence"
 [[key]]
 path = "memory.pending_ttl_days"
 default = 14
-label = "Wait for me to settle a fact for"
-help = "How long a fact the assistant is not sure of waits for you to accept or discard it before it is dropped."
-section = "Retention"
+label = "Unsure facts"
+help = "How long a fact the assistant is unsure of waits for you to accept or discard it before it is dropped."
+section = "History"
 exposure = "advanced"
 
 [key.kind]
