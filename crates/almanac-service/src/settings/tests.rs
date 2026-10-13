@@ -129,20 +129,13 @@ fn the_schema_has_the_shape_the_settings_app_loads() {
 }
 
 #[test]
-fn the_intelligence_page_shows_memory_and_the_retention_rows_are_advanced() {
+fn the_intelligence_page_shows_two_memory_rows_and_the_rest_is_advanced() {
     let shown: Vec<String> = rows()
         .iter()
         .filter(|r| r["exposure"].as_str() == Some("basic"))
         .map(|r| path(r).to_owned())
         .collect();
-    assert_eq!(
-        shown,
-        [
-            "memory.files.at_rest",
-            "memory.consolidation.when",
-            "memory.consolidation.apply"
-        ]
-    );
+    assert_eq!(shown, ["memory.files.at_rest", "memory.consolidation.when"]);
 }
 
 #[test]
