@@ -68,7 +68,9 @@ impl Loaded {
         }
     }
 
-    /// One line per fallback and per unknown key, for the daemon's log.
+    /// One line per fallback, per unknown key and per value looser than the shipped default
+    /// (ALM-16: the file is unauthenticated, so what it loosens is always logged), for the
+    /// daemon's log.
     pub fn lines(&self, daemon: &str) -> Vec<String> {
         let fell = self.fallbacks.iter().map(|f| {
             format!(
@@ -80,7 +82,10 @@ impl Loaded {
             .unknown
             .iter()
             .map(|path| format!("{daemon}: settings: {path}: no such key, ignored"));
-        fell.chain(unknown).collect()
+        let loose = super::loosenings(&self.value)
+            .into_iter()
+            .map(|what| format!("{daemon}: settings: loosened from the shipped default: {what}"));
+        fell.chain(unknown).chain(loose).collect()
     }
 }
 

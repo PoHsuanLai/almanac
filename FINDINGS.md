@@ -871,3 +871,14 @@ shown by the shell before it calls `RemoveSpace` and before it removes the Space
 
 Mapping: default `Remove` sends `{"memories":"move_to_apps","history":"keep"}`; `Delete its history` sets
 `history` to `delete`; `Delete its memories instead` sets `memories` to `delete`. Cancel sends nothing.
+
+## ALM-16: the settings file is not authenticated
+
+`settings.toml` is writable by any process of the same user, and nothing here can tell the Settings
+app's write from another process's. Done: every read (at start and on each reload) logs each value
+looser than the shipped default by name (`almanac_service::loosenings`, through `Loaded::lines`):
+retention or pending-fact days below the shipped ones, `at_rest = "plain"`, `apply = "auto"` when
+the base is `review`. Open, needs the owner: the shipped `apply` default is already `auto`, and a
+real fix (a loosening takes effect only with a consent the person gave in the app, stored where the
+agent sandbox cannot write, such as a root- or shell-owned file the daemon can verify) needs that
+store and a decision on whether the default becomes `review`. Not done.

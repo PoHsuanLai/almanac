@@ -8,6 +8,7 @@
 
 mod keys;
 mod locate;
+mod loosen;
 mod read;
 #[cfg(test)]
 mod tests;
@@ -15,6 +16,7 @@ mod tests;
 use almanac_core::{DayCount, RetentionDays, VaultKind};
 
 pub use locate::Locator;
+pub use loosen::loosenings;
 pub use read::{Fallback, Loaded, Why, read};
 
 /// The schema almanac ships for its settings (design/22 section 9.2).

@@ -98,7 +98,7 @@ pub use retention::{SourceState, Sweep, header_expired, header_expired_after, sw
 pub use service::{MemoryService, SpaceRuntime};
 pub use settings::{
     ConsolidateApply, ConsolidateWhen, Fallback, Loaded, Locator, MemorySettings, SCHEMA,
-    SETTINGS_FILE, Why, read as read_settings,
+    SETTINGS_FILE, Why, loosenings, read as read_settings,
 };
 pub use space::{BUFFER_LIMIT, SpaceEffect, SpaceEvent};
 pub use timeline::timeline_entry;

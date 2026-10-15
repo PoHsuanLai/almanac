@@ -351,3 +351,26 @@ fn the_locator_reads_the_first_file_of_the_configuration_directories() {
         Loaded::of(MemorySettings::default())
     );
 }
+
+#[test]
+fn what_the_file_loosens_below_the_shipped_defaults_is_named() {
+    let table: [(&str, usize); 4] = [
+        ("", 0),
+        ("[memory]\npending_ttl_days = 14\n", 0),
+        ("[memory]\npending_ttl_days = 1\n", 1),
+        (
+            "[memory]\npending_ttl_days = 1\n[memory.retention]\nsearch_days = 2\n[memory.files]\nat_rest = \"plain\"\n",
+            3,
+        ),
+    ];
+    for (text, count) in table {
+        let loaded = read(text, MemorySettings::default());
+        assert_eq!(loosenings(&loaded.value).len(), count, "{text}");
+        let lines = loaded.lines("memoryd");
+        assert_eq!(
+            lines.iter().filter(|l| l.contains("loosened")).count(),
+            count,
+            "{text}"
+        );
+    }
+}
