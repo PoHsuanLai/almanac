@@ -14,6 +14,7 @@ use almanac_core::{
 use almanac_dbus::{Call, MemoryError, Serve, Signal, decode_request, emit, encode_reply};
 use almanac_service::{
     Backend, MemoryService, ServiceEvent, SpacesFile, locked_status, rules_to_toml, spaces_to_toml,
+    write_private_atomic,
 };
 use porter_core::SpaceChange;
 use std::collections::{BTreeMap, BTreeSet};
@@ -43,16 +44,13 @@ fn locked<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
     m.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
-/// Writes `text` to `path` unless it is what the file already says (created with its parent).
+/// Writes `text` to `path` unless it is what the file already says (atomically, mode 0600, with
+/// its parent created).
 fn write_if_changed(path: &std::path::Path, text: &str, last: &Mutex<String>) {
     if *locked(last) == text {
         return;
     }
-    let written = path
-        .parent()
-        .map_or(Ok(()), std::fs::create_dir_all)
-        .and_then(|()| std::fs::write(path, text));
-    match written {
+    match write_private_atomic(path, text) {
         Ok(()) => *locked(last) = text.to_owned(),
         // The daemon's one log path is standard error, prefixed with its name.
         Err(e) => eprintln!("memoryd: could not write {}: {e}", path.display()),

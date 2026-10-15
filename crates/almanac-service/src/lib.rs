@@ -73,7 +73,8 @@ pub use backend::{Backend, BackendError};
 pub use class::{class_from_tag, class_of, class_tag};
 pub use clock::Clock;
 pub use config::{
-    ConfigError, SpacesFile, rules_from_toml, rules_to_toml, spaces_from_toml, spaces_to_toml,
+    ConfigError, SpacesFile, read_config, rules_from_toml, rules_to_toml, spaces_from_toml,
+    spaces_to_toml, write_private_atomic,
 };
 pub use consolidation::{
     CheckedDraft, ConsolidateError, ConsolidationInput, Consolidator, Desktop, Draft, HunkFault,

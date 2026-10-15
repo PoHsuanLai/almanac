@@ -52,10 +52,7 @@ pub fn save_spaces<B: Backend>(
         spaces: service.metas(),
     })?;
     let path = dirs.spaces_toml();
-    if let Some(dir) = path.parent() {
-        std::fs::create_dir_all(dir).map_err(|e| LocalError::File(e.to_string()))?;
-    }
-    std::fs::write(path, text).map_err(|e| LocalError::File(e.to_string()))
+    almanac_service::write_private_atomic(&path, &text).map_err(|e| LocalError::File(e.to_string()))
 }
 
 /// Registers a new Space (created now, with a fresh replica id) and saves `spaces.toml`.

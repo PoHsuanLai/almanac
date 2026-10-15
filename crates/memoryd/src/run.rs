@@ -12,8 +12,8 @@ use crate::{
 use almanac_core::{Dirs, RuleSet};
 use almanac_dbus::serve_on;
 use almanac_service::{
-    ConfigError, ConsolidateWhen, Locator, MemoryService, MemorySettings, rules_from_toml,
-    spaces_from_toml,
+    ConfigError, ConsolidateWhen, Locator, MemoryService, MemorySettings, read_config,
+    rules_from_toml, spaces_from_toml,
 };
 use porter_client::DbusTransport;
 use porter_daemon::ProcRoot;
@@ -58,6 +58,17 @@ pub enum StartError {
     /// `spaces.toml` does not parse.
     #[error("spaces.toml: {0}")]
     Spaces(ConfigError),
+    /// `memory.toml` or `spaces.toml` exists but cannot be read.
+    #[error("{file}: {reason}")]
+    Unreadable {
+        /// Which file.
+        file: &'static str,
+        /// Why.
+        reason: String,
+    },
+    /// `memory.toml` does not parse: starting without the person's rules would forget them.
+    #[error("memory.toml: {0}")]
+    Rules(ConfigError),
     /// The callers files do not read.
     #[error(transparent)]
     Callers(#[from] CallerFileError),
@@ -83,13 +94,19 @@ fn user_callers(dirs: &Dirs) -> std::path::PathBuf {
     dirs.memory_toml().with_file_name("memory-callers.toml")
 }
 
-fn read_rules(dirs: &Dirs) -> RuleSet {
-    match std::fs::read_to_string(dirs.memory_toml()) {
-        Ok(text) => rules_from_toml(&text).unwrap_or_else(|e| {
-            eprintln!("memoryd: memory.toml is unreadable ({e}); using the standard rules");
-            RuleSet::standard()
+/// The person's rules. No file is a fresh install (the standard rules); a file that cannot be
+/// read or parsed stops the start, so a damaged file never loosens the do-not-remember rules.
+fn read_rules(dirs: &Dirs) -> Result<RuleSet, StartError> {
+    let text = read_config(&dirs.memory_toml()).map_err(|e| StartError::Unreadable {
+        file: "memory.toml",
+        reason: e.to_string(),
+    })?;
+    match text {
+        None => Ok(RuleSet::standard()),
+        Some(text) => rules_from_toml(&text).map_err(|e| {
+            eprintln!("memoryd: memory.toml is unreadable ({e}); not starting with other rules");
+            StartError::Rules(e)
         }),
-        Err(_) => RuleSet::standard(),
     }
 }
 
@@ -116,7 +133,7 @@ async fn run(
         InferdEmbedder::new(inferd.clone(), default_card()),
         InferdConsolidator::new(inferd),
     );
-    let service = MemoryService::new(backend, read_rules(&dirs));
+    let service = MemoryService::new(backend, read_rules(&dirs)?);
     // The person's settings (`almanac/settings.toml`) now, and whenever the file changes.
     let mut watched = SettingsWatch::start(
         Locator::from_env(&|key| env(key)),
@@ -126,7 +143,11 @@ async fn run(
         eprintln!("memoryd: settings are read once, not watched: {reason}");
     }
     apply(&service, &watched.current());
-    if let Ok(text) = std::fs::read_to_string(dirs.spaces_toml()) {
+    let spaces_text = read_config(&dirs.spaces_toml()).map_err(|e| StartError::Unreadable {
+        file: "spaces.toml",
+        reason: e.to_string(),
+    })?;
+    if let Some(text) = spaces_text {
         let file = spaces_from_toml(&text).map_err(StartError::Spaces)?;
         file.spaces
             .into_iter()
