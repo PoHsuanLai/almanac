@@ -1,15 +1,18 @@
 # memoryd as a systemd user unit (org.quire.Memory1 on the session bus).
 #
 # It needs no network (the bus is a unix socket; inferd is another daemon behind the bus) and
-# writes only the memory directories, so the unit says so. memoryd also applies a Landlock policy
-# to itself (the same directories, the session bus socket, nothing else), so outside systemd the
-# daemon is confined by the kernel all the same. Paths are `-` prefixed because they do
-# not exist before the first run.
+# writes only the memory directories. The lines that give it a private view of the file system
+# and the network (no network, a read-only system, writes only to the memory directories) are in
+# memoryd.service.d/sandbox.conf, because some systems refuse them to user units; see there. What
+# stays here needs no namespace. memoryd also applies a Landlock policy to itself (the same
+# directories, the session bus socket, nothing else), so with or without the drop-in, and outside
+# systemd, the daemon is confined by the kernel all the same.
 #
 # Forget (ALM-18) scrubs the live files only. Keep ~/.local/share/quire/memory out of snapshots
-# and backups: make it its own btrfs subvolume (a snapshot of the parent does not descend into
-# it) or list it in the snapshot tool's and the backup tool's excludes. A systemd unit cannot do
-# this; see FINDINGS.md.
+# and backups. The way that works on every file system: list it in the snapshot tool's and the
+# backup tool's excludes. On btrfs (the Fedora default; Ubuntu uses ext4) you can instead make it
+# its own subvolume, since a snapshot of the parent does not descend into it. A systemd unit
+# cannot do either; see FINDINGS.md.
 [Unit]
 Description=quire memory (org.quire.Memory1)
 Documentation=man:memoryd(1)
@@ -21,14 +24,7 @@ ExecStart=/usr/libexec/quire/memoryd
 Restart=on-failure
 RestartSec=2
 
-PrivateNetwork=yes
-PrivateTmp=yes
 NoNewPrivileges=yes
-ProtectSystem=strict
-ProtectHome=read-only
-ReadWritePaths=-%h/.local/share/quire/memory -%h/.cache/quire/memory -%h/.config/quire -%t/quire/memory
-ProtectKernelTunables=yes
-ProtectControlGroups=yes
 RestrictAddressFamilies=AF_UNIX
 LockPersonality=yes
 MemoryDenyWriteExecute=yes
