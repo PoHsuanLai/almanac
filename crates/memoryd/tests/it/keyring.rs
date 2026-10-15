@@ -2,7 +2,7 @@
 //! A fake Secret Service on a private bus emits the signal; nothing here waits on a timer.
 
 use crate::support::bus::PrivateBus;
-use crate::support::{SharedKeys, World, connect, dirs_in, space};
+use crate::support::{SharedKeys, World, connect, dirs_in, listed_spaces, space};
 use almanac_client::{DbusTransport, Memory};
 use almanac_core::*;
 use almanac_dbus::ControlProxy;
@@ -177,7 +177,8 @@ async fn an_index_that_changes_state_is_announced_once() {
         SharedKeys::default(),
         embedder,
         ScriptedConsolidator::default(),
-    );
+    )
+    .with_registry(listed_spaces());
     let service = MemoryService::new(backend, RuleSet::standard());
     let app = Caller::App(AppId {
         name: almanac_fake::mail(),

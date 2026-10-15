@@ -3,9 +3,11 @@
 
 use crate::clock::Clock;
 use crate::consolidation::Consolidator;
+use crate::registry::{Listing, RegistryError};
 use almanac_core::{ReplicaId, SpaceId, SpaceMeta};
 use almanac_seal::{KeyError, KeyStore, SpaceKey};
 use almanac_store::{Embedder, IndexFailure, LogError, LogWrite, SearchIndex, Vault, VaultError};
+use std::future::Future;
 
 /// Why a backend could not open a Space's stores.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -72,4 +74,15 @@ pub trait Backend: Send + Sync {
     fn open_files(&self, meta: &SpaceMeta, key: &SpaceKey) -> Result<Self::Files, BackendError>;
     /// Opens the Space's recall index.
     fn open_index(&self, space: &SpaceId, key: &SpaceKey) -> Result<Self::Index, BackendError>;
+    /// Whether the registry of desktop-wide Spaces lists `space`: asked before an app opens or
+    /// provisions one. An implementation that talks to a service must bound the wait and answer
+    /// [`RegistryError::Unreachable`] when it expires. The default fails closed: a backend with
+    /// no registry opens no desktop-wide Space for an app.
+    fn is_listed(
+        &self,
+        space: &SpaceId,
+    ) -> impl Future<Output = Result<Listing, RegistryError>> + Send {
+        let _ = space;
+        async { Err(RegistryError::Unreachable) }
+    }
 }

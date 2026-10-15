@@ -4,7 +4,7 @@
 //! the real session bus, the real inferd or the real Secret Service.
 
 use crate::support::inferd::{FakeInferd, Seen};
-use crate::support::{SharedKeys, bus::PrivateBus, connect, dirs_in, space};
+use crate::support::{SharedKeys, bus::PrivateBus, connect, dirs_in, listed_spaces, space};
 use almanac_core::*;
 use almanac_fake::{mail_label, mail_thread_archived};
 use almanac_service::{ConsolidateError, ConsolidationInput, Consolidator, MemoryService};
@@ -49,7 +49,8 @@ async fn rig(draft: Option<&str>) -> Rig {
         SharedKeys::default(),
         InferdEmbedder::new(link.clone(), card),
         InferdConsolidator::new(link.clone()),
-    );
+    )
+    .with_registry(listed_spaces());
     Rig {
         service: MemoryService::new(backend, RuleSet::standard()),
         _scratch: scratch,

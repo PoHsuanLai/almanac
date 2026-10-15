@@ -4,11 +4,12 @@ use crate::clock::SteppedClock;
 use crate::consolidator::ScriptedConsolidator;
 use almanac_core::{ReplicaId, RuleSet, SpaceId, SpaceMeta, UnixSeconds};
 use almanac_seal::{MemoryKeys, Purpose, SpaceKey, derive};
-use almanac_service::{Backend, BackendError, MemoryService};
+use almanac_service::{Backend, BackendError, Listing, MemoryService, RegistryError};
 use eventlog::MemoryLog;
 use memfiles::{MemoryVault, Vault, VaultError, VaultPath};
 use recall::{ExactScan, FakeEmbedder, Fts5, Index};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
+use std::future::Future;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
 
@@ -38,6 +39,15 @@ impl Vault for SharedVault {
     }
 }
 
+/// What the fake registry of desktop-wide Spaces answers.
+#[derive(Debug)]
+enum FakeRegistry {
+    /// It lists these Spaces.
+    Listing(BTreeSet<SpaceId>),
+    /// It does not answer.
+    Down,
+}
+
 /// In-memory keys, log, vault, index (an in-memory SQLite), embedder, a scripted
 /// consolidator and a stepped clock (it stands at `NOW` until a test advances it).
 #[derive(Debug)]
@@ -49,6 +59,7 @@ pub struct FakeBackend {
     draws: AtomicU64,
     removed: Mutex<Vec<SpaceId>>,
     vaults: Mutex<BTreeMap<SpaceId, SharedVault>>,
+    registry: Mutex<FakeRegistry>,
 }
 
 impl FakeBackend {
@@ -62,7 +73,28 @@ impl FakeBackend {
             draws: AtomicU64::new(0),
             removed: Mutex::new(Vec::new()),
             vaults: Mutex::new(BTreeMap::new()),
+            registry: Mutex::new(FakeRegistry::Listing(
+                FAKE_SPACES
+                    .iter()
+                    .filter_map(|id| SpaceId::parse(id).ok())
+                    .collect(),
+            )),
         }
+    }
+
+    /// Makes the fake registry list `space` (it lists [`FAKE_SPACES`] to begin with).
+    pub fn list_space(&self, space: SpaceId) {
+        let mut registry = self.registry.lock().unwrap_or_else(PoisonError::into_inner);
+        if let FakeRegistry::Listing(listed) = &mut *registry {
+            listed.insert(space);
+            return;
+        }
+        *registry = FakeRegistry::Listing(BTreeSet::from([space]));
+    }
+
+    /// Makes the fake registry stop answering.
+    pub fn take_registry_down(&self) {
+        *self.registry.lock().unwrap_or_else(PoisonError::into_inner) = FakeRegistry::Down;
     }
 
     /// A backend for the same machine after the daemon restarted: the vaults (the files outlive
@@ -169,6 +201,18 @@ impl Backend for FakeBackend {
 
     fn open_files(&self, meta: &SpaceMeta, _key: &SpaceKey) -> Result<SharedVault, BackendError> {
         Ok(self.vault_of(&meta.id))
+    }
+
+    fn is_listed(
+        &self,
+        space: &SpaceId,
+    ) -> impl Future<Output = Result<Listing, RegistryError>> + Send {
+        let answer = match &*self.registry.lock().unwrap_or_else(PoisonError::into_inner) {
+            FakeRegistry::Listing(listed) if listed.contains(space) => Ok(Listing::Listed),
+            FakeRegistry::Listing(_) => Ok(Listing::Unlisted),
+            FakeRegistry::Down => Err(RegistryError::Unreachable),
+        };
+        async move { answer }
     }
 
     fn open_index(

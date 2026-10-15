@@ -228,3 +228,38 @@ async fn space_delete_destroys_key() {
     let key = almanac_seal::KeyStore::get(service.backend().memory_keys(), &space("home")).await;
     assert_eq!(key, Err(almanac_seal::KeyError::Missing));
 }
+
+fn mail_app() -> Caller {
+    Caller::App(AppId {
+        name: mail(),
+        isolation: Isolation::InProcess,
+    })
+}
+
+fn mail_record_in(id: &str) -> MemoryRequest {
+    let mut record = mail_thread_archived().expect("fixture");
+    record.space = space(id);
+    MemoryRequest::Record(record)
+}
+
+#[tokio::test]
+async fn an_app_opens_only_desktop_spaces_the_registry_lists() {
+    let service = service();
+    let refused = ask(&service, &mail_app(), mail_record_in("stranger")).await;
+    assert_eq!(refused, MemoryReply::Refused(Refusal::SpaceUnknown));
+    assert!(
+        service.metas().is_empty(),
+        "an unlisted Space is not provisioned"
+    );
+
+    service.backend().list_space(space("stranger"));
+    let listed = ask(&service, &mail_app(), mail_record_in("stranger")).await;
+    assert!(matches!(listed, MemoryReply::Recorded(_)), "{listed:?}");
+
+    // The registry not answering fails closed for an app; the router is not asked.
+    service.backend().take_registry_down();
+    let down = ask(&service, &mail_app(), mail_record_in("other")).await;
+    assert_eq!(down, MemoryReply::Refused(Refusal::Unavailable));
+    let router = ask(&service, &Caller::Router, mail_record_in("other")).await;
+    assert!(matches!(router, MemoryReply::Recorded(_)), "{router:?}");
+}

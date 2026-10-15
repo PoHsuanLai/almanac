@@ -11,10 +11,12 @@ use crate::forget::{Plan, PlanState};
 use crate::key_refusal::key_refusal;
 use crate::open::{Cx, ErasedNotes, Open};
 use crate::record::Stored;
+use crate::registry::Listing;
 use crate::settings::MemorySettings;
 use almanac_core::{
     AppName, Caller, ChainHealth, Count, ExportOptions, Marks, MemoryReply, MemoryRequest,
-    PlanToken, Record, Refusal, RuleSet, RunState, SpaceId, SpaceMeta, SpaceState, SpaceSummary,
+    PlanToken, Record, Refusal, RuleSet, RunState, SpaceId, SpaceKind, SpaceMeta, SpaceState,
+    SpaceSummary,
 };
 use almanac_seal::{KeyError, KeyStore, Purpose, derive};
 use almanac_store::SearchIndex;
@@ -282,7 +284,22 @@ impl<B: Backend> MemoryService<B> {
         }
     }
 
+    /// An app opens or provisions a desktop-wide Space only if the registry lists it; the
+    /// registry failing is a refusal, never a yes. Anyone else (router, shell) is not asked.
+    async fn require_listed(&self, caller: &Caller, id: &SpaceId) -> Result<(), Refusal> {
+        let asks = matches!(caller, Caller::App(_)) && matches!(id.kind(), SpaceKind::Linked(_));
+        if !asks {
+            return Ok(());
+        }
+        match self.backend.is_listed(id).await {
+            Ok(Listing::Listed) => Ok(()),
+            Ok(Listing::Unlisted) => Err(Refusal::SpaceUnknown),
+            Err(_) => Err(Refusal::Unavailable),
+        }
+    }
+
     async fn open_space(&self, caller: &Caller, id: &SpaceId) -> Result<Open<B>, Refusal> {
+        self.require_listed(caller, id).await?;
         let keys = self.backend.keys();
         let key = match keys.get(id).await {
             Ok(key) => key,

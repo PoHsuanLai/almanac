@@ -2,7 +2,7 @@
 //! documents are already in `index.db`), unless the embedder is another one or the file is gone.
 //! The counting embedder is the proof; SQLCipher, the sealed vault and the files are real.
 
-use crate::support::{SharedKeys, dirs_in, space};
+use crate::support::{SharedKeys, dirs_in, listed_spaces, space};
 use almanac_core::*;
 use almanac_fake::{ScriptedConsolidator, mail_thread_archived};
 use almanac_service::MemoryService;
@@ -58,7 +58,8 @@ fn service(dirs: &Dirs, keys: &SharedKeys, embedder: &Counting) -> MemoryService
             keys.clone(),
             embedder.clone(),
             ScriptedConsolidator::default(),
-        ),
+        )
+        .with_registry(listed_spaces()),
         RuleSet::standard(),
     )
 }

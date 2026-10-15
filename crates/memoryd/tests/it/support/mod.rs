@@ -12,10 +12,15 @@ use almanac_dbus::serve_on;
 use almanac_fake::ScriptedConsolidator;
 use almanac_seal::{KeyError, KeyStore, MemoryKeys, SpaceKey};
 use almanac_service::MemoryService;
-use memoryd::{Daemon, SystemBackend, TablePeers};
+use memoryd::{Daemon, SpaceRegistry, SystemBackend, TablePeers};
 use recall::{EmbedError, EmbedRole, Embedder, EmbedderCard, FakeEmbedder, Urgency, Vector};
 use std::path::Path;
 use std::sync::Arc;
+
+/// A registry that lists the Spaces these tests use, as porter's would after they were made.
+pub fn listed_spaces() -> SpaceRegistry {
+    SpaceRegistry::listing(["work", "home", "old"].map(space))
+}
 
 pub fn space(id: &str) -> SpaceId {
     SpaceId::parse(id).expect("space")
@@ -81,6 +86,7 @@ pub fn backend(dirs: &Dirs, keys: &SharedKeys, consolidator: ScriptedConsolidato
         SlowEmbedder(FakeEmbedder::new()),
         consolidator,
     )
+    .with_registry(listed_spaces())
 }
 
 pub fn service(dirs: &Dirs, keys: &SharedKeys) -> MemoryService<TestBackend> {

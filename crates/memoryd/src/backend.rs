@@ -3,14 +3,16 @@
 
 use crate::clock::SystemClock;
 use crate::infer::{InferdConsolidator, InferdEmbedder};
+use crate::registry::SpaceRegistry;
 use almanac_core::{Dirs, ReplicaId, SpaceId, SpaceMeta, VaultKind};
 use almanac_seal::{DbKey, KeyStore, Oo7Keys, Purpose, SpaceKey, derive};
-use almanac_service::{Backend, BackendError, Consolidator};
+use almanac_service::{Backend, BackendError, Consolidator, Listing, RegistryError};
 use eventlog::SqliteLog;
 use memfiles::{PlainDir, SealedDir, Vault, VaultError, VaultPath};
 use porter_client::AnyTransport;
 use recall::{Embedder, ExactScan, Fts5, Index, IndexError};
 use rusqlite::Connection;
+use std::future::Future;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -68,6 +70,7 @@ pub struct SystemBackend<
     embedder: E,
     consolidator: C,
     clock: SystemClock,
+    registry: SpaceRegistry,
 }
 
 impl SystemBackend {
@@ -91,7 +94,15 @@ impl<K, E, C> SystemBackend<K, E, C> {
             embedder,
             consolidator,
             clock: SystemClock,
+            registry: SpaceRegistry::Closed,
         }
+    }
+
+    /// Where the desktop-wide Spaces are listed (closed until this is called: an app opens no
+    /// desktop-wide Space).
+    pub fn with_registry(mut self, registry: SpaceRegistry) -> Self {
+        self.registry = registry;
+        self
     }
 
     /// The directories.
@@ -197,6 +208,13 @@ impl<K: KeyStore, E: Embedder, C: Consolidator> Backend for SystemBackend<K, E, 
             gone_is_fine(std::fs::remove_dir_all(dir))?;
         }
         Ok(())
+    }
+
+    fn is_listed(
+        &self,
+        space: &SpaceId,
+    ) -> impl Future<Output = Result<Listing, RegistryError>> + Send {
+        self.registry.is_listed(space)
     }
 
     fn open_log(

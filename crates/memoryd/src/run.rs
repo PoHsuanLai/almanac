@@ -5,9 +5,9 @@
 use crate::keysel::{AnyKeys, KEYS_VAR, SANDBOX_VAR, Sandbox, TestKeys, sandbox_choice, select};
 use crate::{
     CallerFileError, Daemon, Enforcement, InferdConsolidator, InferdEmbedder, KeysError,
-    LockChanges, ProcGate, ProcPeers, SHELL_APP, SandboxError, SettingsWatch, SystemBackend,
-    WatchState, XdgError, apply, apply_next, default_card, dirs_from, enforce, inferd_link,
-    load_callers, policy_for, prepare,
+    LockChanges, ProcGate, ProcPeers, SHELL_APP, SandboxError, SettingsWatch, SpaceRegistry,
+    SystemBackend, WatchState, XdgError, apply, apply_next, default_card, dirs_from, enforce,
+    inferd_link, load_callers, policy_for, prepare,
 };
 use almanac_core::{Dirs, RuleSet};
 use almanac_dbus::serve_on;
@@ -127,12 +127,18 @@ async fn run(
     };
     let connection = builder.build().await?;
     let inferd = inferd_link(&connection);
+    let spaces = DbusTransport::over(connection.clone()).spaces().await;
+    let registry = match &spaces {
+        Ok(spaces) => SpaceRegistry::Porter(spaces.clone()),
+        Err(_) => SpaceRegistry::Closed,
+    };
     let backend = SystemBackend::with(
         dirs.clone(),
         keys,
         InferdEmbedder::new(inferd.clone(), default_card()),
         InferdConsolidator::new(inferd),
-    );
+    )
+    .with_registry(registry);
     let service = MemoryService::new(backend, read_rules(&dirs)?);
     // The person's settings (`almanac/settings.toml`) now, and whenever the file changes.
     let mut watched = SettingsWatch::start(
@@ -161,7 +167,6 @@ async fn run(
     if let Ok(shell) = almanac_core::AppName::parse(SHELL_APP) {
         service.set_fallback_owner(shell);
     }
-    let spaces = DbusTransport::over(connection.clone()).spaces().await;
     let daemon = Arc::new(Daemon::new(service, peers, dirs));
     serve_on(&connection, daemon.clone()).await?;
     // The keyring says when it locks or unlocks; no timer asks.

@@ -54,6 +54,7 @@ mod marks;
 mod open;
 mod proposals;
 mod record;
+mod registry;
 mod rehome;
 mod relocate;
 mod relocate_events;
@@ -90,6 +91,7 @@ pub use forget::{
     plan_forget, plan_step, token_for,
 };
 pub use hunks::tidy_is_acceptable;
+pub use registry::{Listing, RegistryError};
 pub use retention::{SourceState, Sweep, header_expired, header_expired_after, sweep_body};
 pub use service::{MemoryService, SpaceRuntime};
 pub use settings::{
