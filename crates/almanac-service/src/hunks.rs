@@ -39,10 +39,26 @@ pub(crate) struct PreImage {
     pub bytes: Option<Vec<u8>>,
 }
 
+/// The bullets and lines in a file that are not facts, as sorted keys: a tidy must leave this
+/// multiset as it was (it may not add a bullet that a later run would stamp as the person's).
+fn loose_blocks(file: &TopicFile) -> Vec<String> {
+    let mut keys: Vec<String> = file
+        .blocks
+        .iter()
+        .filter_map(|b| match b {
+            Block::Unstamped(t) => Some(format!("bullet:{t}")),
+            Block::Verbatim(l) => Some(format!("line:{l}")),
+            Block::Fact(_) => None,
+        })
+        .collect();
+    keys.sort();
+    keys
+}
+
 /// A tidied file is acceptable when it is the same topic with the same facts: every fact keeps its
-/// id, author, label, links and date and only its text may change (a tidy rewords, it neither
-/// adds nor removes knowledge, and it cannot launder a label). Everything else (headings,
-/// verbatim lines, unstamped bullets, the title) is free.
+/// id, author, label, links and date and only its text may change. The unstamped bullets and verbatim lines stay exactly as they were (a tidy adds no
+/// knowledge, and cannot plant a bullet for a later run to stamp). Headings and the title are
+/// free.
 pub(crate) fn tidy_accepts(current: &TopicFile, after: &TopicFile) -> bool {
     let facts = |file: &TopicFile| -> Vec<Fact> {
         file.blocks
@@ -55,6 +71,7 @@ pub(crate) fn tidy_accepts(current: &TopicFile, after: &TopicFile) -> bool {
     };
     let (was, now) = (facts(current), facts(after));
     after.topic == current.topic
+        && loose_blocks(current) == loose_blocks(after)
         && was.len() == now.len()
         && was.iter().all(|old| {
             now.iter().filter(|new| new.id == old.id).any(|new| {
