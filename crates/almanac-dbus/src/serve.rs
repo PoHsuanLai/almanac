@@ -51,7 +51,10 @@ async fn forward<S: Serve>(
         member,
         args,
     };
-    handler.serve(&sender_of(header)?, call, fd).await
+    // Boxed: the handler's future holds every member's state machine, and inline it sits on the
+    // bus worker's stack under zbus's own dispatch frames. A worker has 2 MiB, and the deepest
+    // member (a shell's call through the queues, the service and the store) overflowed it.
+    Box::pin(handler.serve(&sender_of(header)?, call, fd)).await
 }
 
 fn shape() -> MemoryError {
