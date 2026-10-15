@@ -2,7 +2,7 @@
 
 use almanac_core::*;
 use almanac_fake::*;
-use almanac_service::MemoryService;
+use almanac_service::{ByteCap, EventCap, MemoryService, Quota};
 
 fn service() -> MemoryService<FakeBackend> {
     fake_service(ScriptedConsolidator::default())
@@ -262,4 +262,39 @@ async fn an_app_opens_only_desktop_spaces_the_registry_lists() {
     assert_eq!(down, MemoryReply::Refused(Refusal::Unavailable));
     let router = ask(&service, &Caller::Router, mail_record_in("other")).await;
     assert!(matches!(router, MemoryReply::Recorded(_)), "{router:?}");
+}
+
+fn is_refused(reply: &MemoryReply, want: &Refusal) -> bool {
+    matches!(reply, MemoryReply::Refused(got) if got == want)
+}
+
+#[tokio::test]
+async fn a_full_space_refuses_and_an_oversize_record_is_invalid() {
+    let service = service();
+    service.set_quota(Quota {
+        events: EventCap(3),
+        ..Quota::default()
+    });
+    let first = ask(&service, &Caller::Router, mail_record_in("work")).await;
+    assert!(matches!(first, MemoryReply::Recorded(_)), "{first:?}");
+    // The audit entries count too, so the cap is reached within a few records, never passed.
+    let mut refused = None;
+    for _ in 0..4 {
+        let reply = ask(&service, &Caller::Router, mail_record_in("work")).await;
+        if matches!(reply, MemoryReply::Refused(_)) {
+            refused = Some(reply);
+            break;
+        }
+    }
+    let full = refused.expect("the Space fills");
+    assert!(is_refused(&full, &Refusal::SpaceFull), "{full:?}");
+
+    let mut quota = Quota::default();
+    quota.fields.body = ByteCap(10);
+    service.set_quota(quota);
+    let big = ask(&service, &Caller::Router, mail_record_in("home")).await;
+    assert!(
+        matches!(big, MemoryReply::Refused(Refusal::Invalid(_))),
+        "{big:?}"
+    );
 }

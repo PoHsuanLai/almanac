@@ -23,6 +23,7 @@ pub(crate) struct Cx<'a, B: Backend> {
     pub backend: &'a B,
     pub rules: RuleSet,
     pub settings: crate::settings::MemorySettings,
+    pub quota: crate::quota::Quota,
     pub caller: &'a Caller,
 }
 
@@ -77,6 +78,9 @@ pub(crate) struct Open<B: Backend> {
     pub outbox: Vec<crate::events::ServiceEvent>,
     /// The index state the bus was last told of (or found when the Space opened).
     pub announced: almanac_store::IndexState,
+    /// What the Space holds, counted at the first record and kept up to date after it; `None`
+    /// when it must be counted afresh (a sweep erased bodies).
+    pub usage: Option<crate::quota::Usage>,
 }
 
 /// A fact as the files hold it.
@@ -157,6 +161,27 @@ impl<B: Backend> Open<B> {
         let mut out = [0u8; 10];
         out.copy_from_slice(&hasher.finalize().as_bytes()[..10]);
         out
+    }
+
+    /// Whether one more event costing `cost` bytes fits the Space's quota. The cached count is
+    /// trusted only to say yes; before a refusal the Space is counted afresh, so bodies a forget
+    /// or a sweep erased are not held against it.
+    pub(crate) fn admit_quota(
+        &mut self,
+        quota: &crate::quota::Quota,
+        cost: u64,
+    ) -> Result<(), Refusal> {
+        if let Some(usage) = &self.usage
+            && usage.fits(quota, cost)
+        {
+            return Ok(());
+        }
+        let fresh = crate::quota::Usage::of(&self.entries()?);
+        self.usage = Some(fresh);
+        match fresh.fits(quota, cost) {
+            true => Ok(()),
+            false => Err(Refusal::SpaceFull),
+        }
     }
 
     /// Chains `record` into the log with `body` (or as a header only).

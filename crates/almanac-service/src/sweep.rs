@@ -7,49 +7,79 @@ use crate::docs::{indexed_docs, newest_episodes};
 use crate::open::{Cx, Open, log_refusal};
 use crate::retention::{SourceState, Sweep, header_expired_after, sweep_body};
 use almanac_core::{
-    Count, EventBody, FileChange, MemoryOp, Record, Refusal, Retention, Seq, SpaceState,
-    SweepReport, Verb,
+    Count, EventBody, FileChange, MemoryOp, Record, Refusal, Retention, Seq, SpacePath, SpaceState,
+    SweepReport, ThingRef, Verb,
 };
 use almanac_store::{BodyState, Entry, LogWrite};
+use std::collections::HashMap;
 
 fn count(n: usize) -> Count {
     Count(u32::try_from(n).unwrap_or(u32::MAX))
 }
 
-/// Whether what the entry at `at` is about is gone: it says so itself (a deletion) or a later
-/// entry deleted it.
-pub(crate) fn source_state(entries: &[Entry], at: usize) -> SourceState {
-    let (BodyState::Present(body), later) = (&entries[at].body, &entries[at + 1..]) else {
-        return SourceState::Exists;
-    };
-    let says_deleted = matches!(
-        body,
-        EventBody::Thing {
-            verb: Verb::Deleted,
-            ..
-        } | EventBody::File {
-            change: FileChange::Deleted,
-            ..
+/// How many bodies one erase call takes: a big Space is swept in batches, so no single
+/// transaction (and no single index drop) grows with the log.
+pub(crate) const SWEEP_BATCH: usize = 512;
+
+/// The last entry that deleted each file path and each thing, built once per pass so that asking
+/// whether an entry's source is gone costs a lookup, not a scan of the entries after it.
+pub(crate) struct Deletions {
+    files: HashMap<SpacePath, usize>,
+    things: HashMap<ThingRef, usize>,
+}
+
+impl Deletions {
+    /// The deletions in `entries` (oldest first), in one pass.
+    pub(crate) fn of(entries: &[Entry]) -> Self {
+        let mut files = HashMap::new();
+        let mut things = HashMap::new();
+        for (at, entry) in entries.iter().enumerate() {
+            match &entry.body {
+                BodyState::Present(EventBody::File {
+                    change: FileChange::Deleted,
+                    file,
+                    ..
+                }) => {
+                    files.insert(file.path.clone(), at);
+                }
+                BodyState::Present(EventBody::Thing {
+                    verb: Verb::Deleted,
+                    thing,
+                    ..
+                }) => {
+                    things.insert(thing.thing.clone(), at);
+                }
+                _ => {}
+            }
         }
-    );
-    if says_deleted {
-        return SourceState::Gone;
+        Self { files, things }
     }
-    let deleted = |other: &Entry| match (&other.body, body) {
-        (
-            BodyState::Present(EventBody::File { change, file, .. }),
-            EventBody::File { file: mine, .. },
-        ) => *change == FileChange::Deleted && file.path == mine.path,
-        (
-            BodyState::Present(EventBody::Thing { verb, thing, .. }),
-            EventBody::Thing { thing: mine, .. },
-        ) => *verb == Verb::Deleted && thing.thing == mine.thing,
-        _ => false,
-    };
-    if later.iter().any(deleted) {
-        SourceState::Gone
-    } else {
-        SourceState::Exists
+
+    /// Whether what the entry at `at` is about is gone: it says so itself (a deletion) or a
+    /// later entry deleted it.
+    pub(crate) fn source_state(&self, entries: &[Entry], at: usize) -> SourceState {
+        let BodyState::Present(body) = &entries[at].body else {
+            return SourceState::Exists;
+        };
+        let gone = match body {
+            EventBody::Thing {
+                verb: Verb::Deleted,
+                ..
+            }
+            | EventBody::File {
+                change: FileChange::Deleted,
+                ..
+            } => true,
+            EventBody::File { file, .. } => self.files.get(&file.path).is_some_and(|d| *d > at),
+            EventBody::Thing { thing, .. } => {
+                self.things.get(&thing.thing).is_some_and(|d| *d > at)
+            }
+            _ => false,
+        };
+        match gone {
+            true => SourceState::Gone,
+            false => SourceState::Exists,
+        }
     }
 }
 
@@ -95,6 +125,7 @@ impl<B: Backend> Open<B> {
         let now = cx.now();
         self.age_pending(now, cx.settings.pending_ttl)?;
         let entries = self.entries()?;
+        let deletions = Deletions::of(&entries);
         let expired: Vec<(Seq, &Entry)> = entries
             .iter()
             .enumerate()
@@ -104,7 +135,7 @@ impl<B: Backend> Open<B> {
                     retention,
                     e.header.occurred,
                     now,
-                    source_state(&entries, at),
+                    deletions.source_state(&entries, at),
                 ) == Sweep::EraseBody)
                     .then_some((e.header.seq, e))
             })
@@ -112,14 +143,19 @@ impl<B: Backend> Open<B> {
         let seqs: Vec<Seq> = expired.iter().map(|(s, _)| *s).collect();
         if !seqs.is_empty() {
             let newest = newest_episodes(&entries);
-            let ids: Vec<String> = expired
-                .iter()
-                .flat_map(|(_, e)| indexed_docs(self.space(), e, &newest))
-                .map(|d| d.id)
-                .collect();
-            self.index_drop(&ids);
-            self.rt.log.erase_bodies(&seqs).map_err(log_refusal)?;
-            self.notes.expired.extend(seqs.iter().copied());
+            for batch in expired.chunks(SWEEP_BATCH) {
+                let ids: Vec<String> = batch
+                    .iter()
+                    .flat_map(|(_, e)| indexed_docs(self.space(), e, &newest))
+                    .map(|d| d.id)
+                    .collect();
+                let batch_seqs: Vec<Seq> = batch.iter().map(|(s, _)| *s).collect();
+                self.index_drop(&ids);
+                self.rt.log.erase_bodies(&batch_seqs).map_err(log_refusal)?;
+                self.notes.expired.extend(batch_seqs);
+            }
+            // What the Space holds changed: its usage is counted afresh at the next record.
+            self.usage = None;
         }
         let headers =
             self.prune_expired_headers(now, cx.settings.retention.audit_header, &entries, &seqs)?;

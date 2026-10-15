@@ -10,6 +10,7 @@ use crate::events::ServiceEvent;
 use crate::forget::{Plan, PlanState};
 use crate::key_refusal::key_refusal;
 use crate::open::{Cx, ErasedNotes, Open};
+use crate::quota::Quota;
 use crate::record::Stored;
 use crate::registry::Listing;
 use crate::settings::MemorySettings;
@@ -67,6 +68,8 @@ pub struct MemoryService<B: Backend> {
     rules: Mutex<RuleSet>,
     /// The person's settings in force: every request reads them afresh.
     settings: Mutex<MemorySettings>,
+    /// What one Space may hold.
+    quota: Mutex<Quota>,
     spaces: Mutex<BTreeMap<SpaceId, Slot<B>>>,
     metas: Mutex<BTreeMap<SpaceId, SpaceMeta>>,
     buffers: Mutex<BTreeMap<SpaceId, Vec<Record>>>,
@@ -122,6 +125,7 @@ impl<B: Backend> MemoryService<B> {
             backend,
             rules: Mutex::new(rules),
             settings: Mutex::new(MemorySettings::default()),
+            quota: Mutex::new(Quota::default()),
             spaces: Mutex::new(BTreeMap::new()),
             metas: Mutex::new(BTreeMap::new()),
             buffers: Mutex::new(BTreeMap::new()),
@@ -223,6 +227,11 @@ impl<B: Backend> MemoryService<B> {
         *locked(&self.settings) = settings;
     }
 
+    /// Sets what one Space may hold, for the records after this call.
+    pub fn set_quota(&self, quota: Quota) {
+        *locked(&self.quota) = quota;
+    }
+
     /// The rules now (memoryd persists them after a `SetRule` or `RemoveRule`).
     pub fn rules(&self) -> RuleSet {
         locked(&self.rules).clone()
@@ -236,6 +245,7 @@ impl<B: Backend> MemoryService<B> {
             // `rules()` gives (and memoryd persists) stays what `SetRule` made it.
             rules: self.rules().with_retention(&settings.retention),
             settings,
+            quota: *locked(&self.quota),
             caller,
         }
     }
@@ -359,6 +369,7 @@ impl<B: Backend> MemoryService<B> {
             dirty: std::collections::BTreeSet::new(),
             outbox: Vec::new(),
             announced: almanac_store::IndexState::Absent,
+            usage: None,
         };
         let cx = self.cx(caller);
         open.sync_index(&cx).await?;
@@ -392,26 +403,32 @@ impl<B: Backend> MemoryService<B> {
     /// Runs the retention sweep in every Space the service knows (memoryd's timer, daily). A
     /// Space whose key is locked is skipped until the next round.
     pub async fn sweep_all(&self) -> Vec<(SpaceId, Result<almanac_core::SweepReport, Refusal>)> {
-        let caller = Caller::ShellUi;
         let mut out = Vec::new();
         for id in self.all_spaces() {
-            let swept = match self.checkout(&caller, &id).await {
-                Ok(mut lease) => {
-                    let cx = self.cx(&caller);
-                    match lease.open() {
-                        Some(open) => {
-                            let report = open.sweep(&cx);
-                            self.raise_all(open.outbox.drain(..));
-                            report
-                        }
-                        None => Err(Refusal::Busy),
-                    }
-                }
-                Err(e) => Err(e),
-            };
+            let swept = self.sweep_space(&id).await;
             out.push((id, swept));
         }
         out
+    }
+
+    /// Sweeps one Space. A Space the service no longer knows is `SpaceUnknown`: the sweep never
+    /// provisions one. memoryd's timer calls this per Space, holding only that Space's queue.
+    pub async fn sweep_space(&self, id: &SpaceId) -> Result<almanac_core::SweepReport, Refusal> {
+        if !self.known().contains(id) {
+            return Err(Refusal::SpaceUnknown);
+        }
+        let caller = Caller::ShellUi;
+        let mut lease = self.checkout(&caller, id).await?;
+        let cx = self.cx(&caller);
+        let open = lease.open().ok_or(Refusal::Busy)?;
+        let report = open.sweep(&cx);
+        self.raise_all(open.outbox.drain(..));
+        report
+    }
+
+    /// Every Space the service knows.
+    pub fn space_ids(&self) -> Vec<SpaceId> {
+        self.known()
     }
 
     /// Writes the export of `options` as a tar stream into `out`, and returns its manifest.

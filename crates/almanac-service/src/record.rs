@@ -51,6 +51,7 @@ impl<B: Backend> Open<B> {
         if let Some(why) = record_fault(&record) {
             return Err(failed(why));
         }
+        let cost = cx.quota.fields.check(&record.body)?;
         self.tick(cx)?;
         let now = cx.now();
         let (body, header_only) = match admit_with(
@@ -64,7 +65,13 @@ impl<B: Backend> Open<B> {
             Admission::Keep { .. } => (Some(record.body.clone()), false),
             Admission::HeaderOnly { .. } => (None, true),
         };
+        let cost = if header_only { 0 } else { cost };
+        self.admit_quota(&cx.quota, cost)?;
         let entry = self.append(now, &record, body)?;
+        if let Some(usage) = &mut self.usage {
+            usage.events += 1;
+            usage.bytes = usage.bytes.saturating_add(cost);
+        }
         if header_only {
             self.notes.header_only.insert(entry.header.seq);
         } else {

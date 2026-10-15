@@ -134,10 +134,17 @@ impl<B: Backend> Serialised<B> {
             .await
     }
 
-    /// The retention sweep over every Space (the daily timer).
+    /// The retention sweep over every Space (the daily timer): one Space at a time, holding only
+    /// that Space's queue, so requests for the others (and for this one between passes) are not
+    /// kept waiting for the whole round.
     pub async fn sweep_all(&self) -> Vec<(SpaceId, Result<SweepReport, almanac_core::Refusal>)> {
-        self.holding(Claim::Everything, self.service.sweep_all())
-            .await
+        let mut out = Vec::new();
+        for id in self.service.space_ids() {
+            let claim = Claim::Spaces(BTreeSet::from([id.clone()]));
+            let swept = self.holding(claim, self.service.sweep_space(&id)).await;
+            out.push((id, swept));
+        }
+        out
     }
 
     /// The key check over every Space (the keyring's lock signal): a lost key closes its Space, a

@@ -53,6 +53,7 @@ mod key_refusal;
 mod marks;
 mod open;
 mod proposals;
+mod quota;
 mod record;
 mod registry;
 mod rehome;
@@ -91,6 +92,7 @@ pub use forget::{
     plan_forget, plan_step, token_for,
 };
 pub use hunks::tidy_is_acceptable;
+pub use quota::{ByteCap, EventCap, FieldLimits, Quota};
 pub use registry::{Listing, RegistryError};
 pub use retention::{SourceState, Sweep, header_expired, header_expired_after, sweep_body};
 pub use service::{MemoryService, SpaceRuntime};
