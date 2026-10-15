@@ -398,3 +398,15 @@ the fakes.
 - **Physical erasure is a key operation.** Forgetting one item erases bodies and uses SQLite
   `secure_delete`; only destroying a Space's key guarantees the bytes are gone on
   copy-on-write storage, and the UI says so.
+
+## 10. Install
+
+`scripts/install.sh` installs memoryd, `memoryd.service` with its `memoryd.service.d/sandbox.conf`
+drop-in, the D-Bus activation file and interface XML, the settings schema, and
+`dbus/memory-callers.toml` as `/etc/quire/memory-callers.toml`. Flags: `--prefix DIR` (default
+`/usr/local`), `--destdir DIR` (for packages), `--user` (under `~/.local`, no root), `--no-build`,
+`--bin-dir DIR` (programs built elsewhere), `--dry-run` (print every action),
+`--sandbox auto|on|off` and `--distro debian|fedora|arch`. Root steps use `$SUDO`, else sudo, doas
+or pkexec, else they are printed. The sandbox keys that need a mount namespace live only in the
+drop-in; `auto` tests whether `systemd --user` can use them and leaves them out where it cannot
+(Ubuntu 24.04+ by default). memoryd keeps its Landlock policy either way.
