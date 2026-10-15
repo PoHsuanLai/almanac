@@ -141,7 +141,14 @@ const SECRET: &str = "Zebra Corp";
 fn ana_file() -> TopicFile {
     file_of(
         "people/ana",
-        vec![Block::Fact(fact(1, "Ana is the CFO of Zebra Corp."))],
+        vec![Block::Fact(Fact {
+            // A tidy may not reword the person's own (trusted) facts.
+            label: Label {
+                integrity: Integrity::Untrusted,
+                ..trusted_label()
+            },
+            ..fact(1, "Ana is the CFO of Zebra Corp.")
+        })],
     )
 }
 

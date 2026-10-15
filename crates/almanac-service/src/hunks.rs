@@ -8,8 +8,8 @@ use crate::docs::{fact_doc, fact_doc_id};
 use crate::open::{Cx, Open, failed, files_refusal};
 use crate::search::caller_actor;
 use almanac_core::{
-    Caller, Fact, FactId, FactState, FactText, FlagNote, Hunk, Label, MemoryOp, Refusal, RunId,
-    TidyHunk, TopicPath, UnixSeconds, UserText, Validity,
+    Caller, Fact, FactId, FactState, FactText, FlagNote, Hunk, Integrity, Label, MemoryOp, Refusal,
+    RunId, TidyHunk, TopicPath, UnixSeconds, UserText, Validity,
 };
 use almanac_store::{Vault, VaultPath};
 use memfiles::{Block, TopicFile, parse_topic, render_topic};
@@ -56,7 +56,9 @@ fn loose_blocks(file: &TopicFile) -> Vec<String> {
 }
 
 /// A tidied file is acceptable when it is the same topic with the same facts: every fact keeps its
-/// id, author, label, links and date and only its text may change. The unstamped bullets and verbatim lines stay exactly as they were (a tidy adds no
+/// id, author, label, links and date, and only the text of a fact that is not trusted may change
+/// (rewording a trusted fact is the person's to do, so a tidy cannot launder model words into
+/// it). The unstamped bullets and verbatim lines stay exactly as they were (a tidy adds no
 /// knowledge, and cannot plant a bullet for a later run to stamp). Headings and the title are
 /// free.
 pub(crate) fn tidy_accepts(current: &TopicFile, after: &TopicFile) -> bool {
@@ -75,10 +77,13 @@ pub(crate) fn tidy_accepts(current: &TopicFile, after: &TopicFile) -> bool {
         && was.len() == now.len()
         && was.iter().all(|old| {
             now.iter().filter(|new| new.id == old.id).any(|new| {
-                Fact {
-                    text: old.text.clone(),
-                    ..new.clone()
-                } == *old
+                let reworded = new.text != old.text;
+                let may_reword = !matches!(old.label.integrity, Integrity::Trusted);
+                (may_reword || !reworded)
+                    && Fact {
+                        text: old.text.clone(),
+                        ..new.clone()
+                    } == *old
             })
         })
 }

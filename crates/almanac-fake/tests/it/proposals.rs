@@ -39,12 +39,20 @@ fn fact(n: u8, text: &str, links: Vec<Link>) -> Fact {
     }
 }
 
+/// Files a tidy rewords hold facts that are not trusted: a tidy may not reword the person's own.
 fn render_of(name: &str, n: u8, text: &str) -> String {
+    let loose = Fact {
+        label: Label {
+            integrity: Integrity::Untrusted,
+            ..trusted_label()
+        },
+        ..fact(n, text, vec![])
+    };
     render_topic(
         &TopicFile {
             topic: topic(name),
             title: name.to_owned(),
-            blocks: vec![Block::Fact(fact(n, text, vec![]))],
+            blocks: vec![Block::Fact(loose)],
         },
         &TimeZone::UTC,
     )

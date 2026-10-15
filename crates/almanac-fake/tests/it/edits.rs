@@ -269,7 +269,8 @@ async fn a_tidy_proposed_from_the_topic_text_applies_and_is_not_an_edit() {
     let service = fake_service(ScriptedConsolidator::default());
     propose(&service, "people/ana", "Ana is the CFO.").await;
     let before = text_of(&service, "people/ana");
-    let after = before.replace("Ana is the CFO.", "Ana is the chief financial officer.");
+    let after = before.replace("title: ana\n", "title: Ana\n");
+    assert_ne!(before, after);
     answer(
         &service,
         vec![Hunk::Tidy(TidyHunk {
@@ -280,7 +281,6 @@ async fn a_tidy_proposed_from_the_topic_text_applies_and_is_not_an_edit() {
     );
     run(&service).await;
     assert_eq!(text_of(&service, "people/ana"), after);
-    assert!(lexically(&service, "financial").await);
     let view = run(&service).await;
     assert!(
         external_edits(&view).is_empty(),

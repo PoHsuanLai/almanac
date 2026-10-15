@@ -470,7 +470,8 @@ fn tidy_answer(topic: &str, after: &str) -> String {
 
 #[test]
 fn a_tidy_of_a_shown_file_becomes_a_hunk_with_the_text_the_model_saw() {
-    let reworded = topic_text().replace("Ana is the CFO.", "Ana is our CFO.");
+    let reworded = topic_text().replace("title: ana\n", "title: Ana\n");
+    assert_ne!(reworded, topic_text());
     let input = input();
     let draft = parse_draft(&tidy_answer("people/ana", &reworded), &input).expect("draft");
     let [Hunk::Tidy(tidy)] = draft.hunks.as_slice() else {
