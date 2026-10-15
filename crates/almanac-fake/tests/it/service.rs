@@ -323,3 +323,33 @@ async fn an_app_cannot_claim_trusted_or_a_wider_audience() {
         Confidentiality::Private([space("work")].into())
     );
 }
+
+#[tokio::test]
+async fn a_locked_space_buffers_only_what_it_could_store_and_replays_it() {
+    let service = service();
+    service.backend().memory_keys().lock();
+    let kept = ask(&service, &Caller::Router, mail_record_in("work")).await;
+    assert_eq!(kept, MemoryReply::Ok, "buffered while locked");
+
+    let mut tiny = Quota::default();
+    tiny.fields.body = ByteCap(10);
+    service.set_quota(tiny);
+    let oversize = ask(&service, &Caller::Router, mail_record_in("work")).await;
+    assert!(
+        matches!(oversize, MemoryReply::Refused(Refusal::Invalid(_))),
+        "a record that could never be stored is refused now: {oversize:?}"
+    );
+    service.set_quota(Quota::default());
+
+    service.backend().memory_keys().unlock();
+    let page = ask(
+        &service,
+        &Caller::ShellUi,
+        MemoryRequest::Timeline(space("work"), everyone()),
+    )
+    .await;
+    let MemoryReply::Timeline(page) = page else {
+        panic!("{page:?}")
+    };
+    assert_eq!(page.entries.len(), 1, "the buffered record replayed once");
+}

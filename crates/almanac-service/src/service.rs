@@ -378,8 +378,19 @@ impl<B: Backend> MemoryService<B> {
         open.restore_proposal(cx.now());
         open.guard_topics()?;
         let waiting = locked(&self.buffers).remove(id).unwrap_or_default();
-        for record in waiting {
-            open.record(&cx, record).await?;
+        let mut records = waiting.into_iter();
+        while let Some(record) = records.next() {
+            match open.record(&cx, record.clone()).await {
+                Ok(_) => {}
+                // A record that can never be stored is dropped; the ones behind it still are.
+                Err(Refusal::Invalid(_)) => {}
+                // A failure that may pass: this record and the rest wait for the next open.
+                Err(e) => {
+                    let rest: Vec<Record> = std::iter::once(record).chain(records).collect();
+                    locked(&self.buffers).insert(id.clone(), rest);
+                    return Err(e);
+                }
+            }
         }
         Ok(open)
     }
@@ -472,6 +483,11 @@ impl<B: Backend> MemoryService<B> {
 
     fn buffer(&self, id: &SpaceId, record: Record) -> Result<Stored, Refusal> {
         use crate::space::{SpaceEffect, SpaceEvent, step};
+        // What cannot be stored later is refused now, while the writer can still be told.
+        if let Some(why) = crate::docs::record_fault(&record) {
+            return Err(crate::open::failed(why));
+        }
+        locked(&self.quota).fields.check(&record.body)?;
         let mut buffers = locked(&self.buffers);
         let waiting = buffers.entry(id.clone()).or_default();
         let buffered = Count(u32::try_from(waiting.len()).unwrap_or(u32::MAX));
