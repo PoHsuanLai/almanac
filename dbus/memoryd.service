@@ -5,6 +5,11 @@
 # to itself (the same directories, the session bus socket, nothing else), so outside systemd the
 # daemon is confined by the kernel all the same. Paths are `-` prefixed because they do
 # not exist before the first run.
+#
+# Forget (ALM-18) scrubs the live files only. Keep ~/.local/share/quire/memory out of snapshots
+# and backups: make it its own btrfs subvolume (a snapshot of the parent does not descend into
+# it) or list it in the snapshot tool's and the backup tool's excludes. A systemd unit cannot do
+# this; see FINDINGS.md.
 [Unit]
 Description=quire memory (org.quire.Memory1)
 Documentation=man:memoryd(1)

@@ -882,3 +882,17 @@ the base is `review`. Open, needs the owner: the shipped `apply` default is alre
 real fix (a loosening takes effect only with a consent the person gave in the app, stored where the
 agent sandbox cannot write, such as a root- or shell-owned file the daemon can verify) needs that
 store and a decision on whether the default becomes `review`. Not done.
+
+## ALM-18: what forget reaches
+
+Forget removes a plan's events, facts, procedure files and index documents from the live files:
+rows go with `secure_delete`, the write-ahead log is truncated, plain files are unlinked. It does
+not reach: snapshots (the root is btrfs), backups, copy-on-write remnants and old write-ahead-log
+pages of `events.db`, `index.db` and sealed files. Per-Space keys are never rotated, so any such
+copy taken before the forget still opens with the Space's current Secret Service key. Plain
+(readable) vaults are unlinked with no overwrite, so memory does not claim erasure for them. Only
+removing a whole Space destroys its key, and that is best-effort too (ALM-08). Keep
+`~/.local/share/quire/memory` out of snapshots and backups: make it its own btrfs subvolume or add
+it to the snapshot and backup tools' excludes (`dbus/memoryd.service` carries the same note; a
+unit file cannot enforce it). Re-keying a Space after a forget is out of scope here; it needs a
+rewrite of both databases and the sealed files under a fresh key.

@@ -53,6 +53,14 @@ impl<B: Backend> Open<B> {
     /// Applies the plan `token` names, after checking that what it would remove is still
     /// exactly what was previewed: the stored plan against its digest, and the closure now
     /// against the same digest (`plan_step`). Then the steps run in `ApplyStep::ORDER`.
+    ///
+    /// What this reaches (ALM-18): the live files only. Rows are deleted with `secure_delete` and
+    /// the write-ahead log is truncated, and plain files are unlinked, but keys are never
+    /// rotated, so a snapshot, a backup or a copy-on-write remnant of `events.db`, `index.db` or a
+    /// sealed file taken before the forget still opens with the Space's current key and still
+    /// shows what was forgotten. Only removing a whole Space (which destroys its key) is
+    /// cryptographic. Re-keying after a forget is not built; keep the data directory out of
+    /// snapshots and backups (FINDINGS, "ALM-18").
     pub(crate) fn forget(
         &mut self,
         cx: &Cx<'_, B>,
