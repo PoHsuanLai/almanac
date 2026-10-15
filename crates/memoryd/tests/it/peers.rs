@@ -28,6 +28,7 @@ app = "org.quire.Shell"
 unit = "sill.service"
 role = "sheet_host"
 
+# A scope never carries a fixed role: this row makes the shell's old scope a plain app.
 [[caller]]
 app = "org.quire.Shell"
 unit = "sill-shell.scope"
@@ -97,7 +98,8 @@ fn a_process_is_identified_by_its_cgroup() {
         // An app scope named for the router's app is only an app: the unit row gives its role
         // to that unit alone.
         (19, "app-org.quire.Intents-5.scope"),
-        // The shell's transient scope matches its row exactly; near misses are refused.
+        // The shell's old transient scope matches its row exactly, but as a plain app only;
+        // near misses are refused.
         (21, "sill-shell.scope"),
         (22, "sill-shell-2.scope"),
         (23, "xsill-shell.scope"),
@@ -123,7 +125,7 @@ fn a_process_is_identified_by_its_cgroup() {
         (18, None),
         (19, app("org.quire.Intents", Isolation::Unsandboxed)),
         (20, None),
-        (21, Some(Caller::ShellUi)),
+        (21, app("org.quire.Shell", Isolation::Unsandboxed)),
         (22, None),
         (23, None),
         (24, None),
@@ -263,7 +265,7 @@ async fn a_connection_is_resolved_through_its_process_to_its_cgroup() {
 }
 
 #[tokio::test]
-async fn the_shell_in_its_transient_scope_may_forget() {
+async fn the_shell_in_its_old_transient_scope_may_not_forget() {
     let table = table_from_toml(TABLE).expect("table");
     let proc = proc_with_me_in("sill-shell.scope");
     let (_scratch, _bus, _daemon, address) = world(table, proc.path()).await;
@@ -271,8 +273,8 @@ async fn the_shell_in_its_transient_scope_may_forget() {
     let refused = shell
         .forget(PlanToken::parse("p-1").expect("token"))
         .await
-        .expect_err("no such plan");
-    assert!(matches!(refused, ClientError::Refused(Refusal::Invalid(_))));
+        .expect_err("only the shell's service may forget");
+    assert_eq!(refused, ClientError::Refused(Refusal::NotAllowed));
 }
 
 #[tokio::test]
