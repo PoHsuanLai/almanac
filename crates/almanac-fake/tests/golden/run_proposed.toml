@@ -20,7 +20,7 @@ title: people/ana
 ## 2026-09-21
 
 - Ana is the CFO.
-  <!-- fact: 0000000001040g2081040g2081; at: 2026-09-21T14:13:20Z; by: {"kind":"user","v":{"via":"org.quire.Shell"}}; label: {"integrity":"trusted","confidentiality":{"kind":"public"},"classes":[],"sources":[{"kind":"user"}]} -->
+  <!-- fact: 0000000001040g2081040g2081; at: 2026-09-21T14:13:20Z; by: {"kind":"user","v":{"via":"org.quire.Shell"}}; label: {"integrity":"untrusted","confidentiality":{"kind":"public"},"classes":[],"sources":[{"kind":"user"}]} -->
 """
 after = """
 ---
@@ -32,5 +32,5 @@ title: people/ana
 ## 2026-09-21
 
 - Ana is the chief financial officer.
-  <!-- fact: 0000000001040g2081040g2081; at: 2026-09-21T14:13:20Z; by: {"kind":"user","v":{"via":"org.quire.Shell"}}; label: {"integrity":"trusted","confidentiality":{"kind":"public"},"classes":[],"sources":[{"kind":"user"}]} -->
+  <!-- fact: 0000000001040g2081040g2081; at: 2026-09-21T14:13:20Z; by: {"kind":"user","v":{"via":"org.quire.Shell"}}; label: {"integrity":"untrusted","confidentiality":{"kind":"public"},"classes":[],"sources":[{"kind":"user"}]} -->
 """

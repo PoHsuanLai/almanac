@@ -49,6 +49,17 @@ fn ana(text: &str) -> TopicFile {
     }
 }
 
+/// `people/ana` with a fact that is not trusted: a tidy may reword only such facts.
+fn loose_ana(text: &str) -> TopicFile {
+    let mut file = ana(text);
+    for block in &mut file.blocks {
+        if let Block::Fact(f) = block {
+            f.label.integrity = Integrity::Untrusted;
+        }
+    }
+    file
+}
+
 fn path() -> VaultPath {
     VaultPath::topic(&topic("people/ana"))
 }
@@ -131,8 +142,8 @@ fn supersede() -> Hunk {
 #[tokio::test]
 async fn a_run_under_review_stops_at_proposed_and_apply_then_changes_the_files() {
     let (before, after) = (
-        render(&ana("Ana is the CFO.")),
-        render(&ana("Ana is the chief financial officer.")),
+        render(&loose_ana("Ana is the CFO.")),
+        render(&loose_ana("Ana is the chief financial officer.")),
     );
     let service = reviewing(vec![tidy(&before, &after)]);
     put(&service, &before);
@@ -165,8 +176,8 @@ async fn a_run_under_review_stops_at_proposed_and_apply_then_changes_the_files()
 #[tokio::test]
 async fn a_proposed_run_applies_once_and_cannot_be_reverted_before_it_is_applied() {
     let (before, after) = (
-        render(&ana("Ana is the CFO.")),
-        render(&ana("Ana is the chief financial officer.")),
+        render(&loose_ana("Ana is the CFO.")),
+        render(&loose_ana("Ana is the chief financial officer.")),
     );
     let service = reviewing(vec![tidy(&before, &after)]);
     put(&service, &before);
@@ -199,8 +210,8 @@ async fn a_proposed_run_applies_once_and_cannot_be_reverted_before_it_is_applied
 #[tokio::test]
 async fn only_the_shell_applies_a_proposal() {
     let (before, after) = (
-        render(&ana("Ana is the CFO.")),
-        render(&ana("Ana is the chief financial officer.")),
+        render(&loose_ana("Ana is the CFO.")),
+        render(&loose_ana("Ana is the chief financial officer.")),
     );
     let service = reviewing(vec![tidy(&before, &after)]);
     put(&service, &before);
@@ -290,8 +301,8 @@ async fn a_newer_run_replaces_an_unapplied_proposal_and_the_old_one_cannot_apply
 #[tokio::test]
 async fn auto_still_applies_at_once() {
     let (before, after) = (
-        render(&ana("Ana is the CFO.")),
-        render(&ana("Ana is the chief financial officer.")),
+        render(&loose_ana("Ana is the CFO.")),
+        render(&loose_ana("Ana is the chief financial officer.")),
     );
     let service = fake_service(ScriptedConsolidator::answering([
         Ok::<_, ConsolidateError>(Draft {

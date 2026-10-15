@@ -39,20 +39,31 @@ fn fact(n: u8, text: &str, links: Vec<Link>) -> Fact {
     }
 }
 
-/// Files a tidy rewords hold facts that are not trusted: a tidy may not reword the person's own.
+/// A topic file holding one fact of the person's own (trusted).
 fn render_of(name: &str, n: u8, text: &str) -> String {
-    let loose = Fact {
-        label: Label {
-            integrity: Integrity::Untrusted,
-            ..trusted_label()
+    render_with(name, fact(n, text, vec![]))
+}
+
+/// A topic file a tidy may reword: its fact is not trusted (a tidy may not reword the person's).
+fn render_loose(name: &str, n: u8, text: &str) -> String {
+    render_with(
+        name,
+        Fact {
+            label: Label {
+                integrity: Integrity::Untrusted,
+                ..trusted_label()
+            },
+            ..fact(n, text, vec![])
         },
-        ..fact(n, text, vec![])
-    };
+    )
+}
+
+fn render_with(name: &str, fact: Fact) -> String {
     render_topic(
         &TopicFile {
             topic: topic(name),
             title: name.to_owned(),
-            blocks: vec![Block::Fact(loose)],
+            blocks: vec![Block::Fact(fact)],
         },
         &TimeZone::UTC,
     )
@@ -60,6 +71,10 @@ fn render_of(name: &str, n: u8, text: &str) -> String {
 
 fn ana(text: &str) -> String {
     render_of("people/ana", 1, text)
+}
+
+fn loose_ana(text: &str) -> String {
+    render_loose("people/ana", 1, text)
 }
 
 fn put(service: &Service, name: &str, text: &str) {
@@ -174,8 +189,8 @@ fn supersede() -> Hunk {
 /// A service with a tidy of `people/ana` proposed; its before text and after text.
 async fn proposed_tidy() -> (Service, DraftView, String, String) {
     let (before, after) = (
-        ana("Ana is the CFO."),
-        ana("Ana is the chief financial officer."),
+        loose_ana("Ana is the CFO."),
+        loose_ana("Ana is the chief financial officer."),
     );
     let service = reviewing(vec![vec![tidy("people/ana", &before, &after)]]);
     put(&service, "people/ana", &before);
@@ -277,8 +292,8 @@ async fn discard_is_refused_for_every_state_but_proposed_and_for_everyone_but_th
 #[tokio::test]
 async fn a_newer_run_marks_the_older_proposal_superseded() {
     let (before, after) = (
-        ana("Ana is the CFO."),
-        ana("Ana is the chief financial officer."),
+        loose_ana("Ana is the CFO."),
+        loose_ana("Ana is the chief financial officer."),
     );
     let tidy = tidy("people/ana", &before, &after);
     let service = reviewing(vec![vec![tidy.clone()], vec![tidy]]);
@@ -362,8 +377,8 @@ async fn a_torn_write_is_ignored_when_proposals_load() {
 
 #[tokio::test]
 async fn the_applied_view_lists_what_was_applied_and_what_was_skipped() {
-    let ben_before = render_of("people/ben", 3, "Ben is in Lisbon.");
-    let ben_after = render_of("people/ben", 3, "Ben lives in Lisbon.");
+    let ben_before = render_loose("people/ben", 3, "Ben is in Lisbon.");
+    let ben_after = render_loose("people/ben", 3, "Ben lives in Lisbon.");
     let tidy = tidy("people/ben", &ben_before, &ben_after);
     let service = reviewing(vec![vec![tidy.clone(), supersede()]]);
     put(&service, "people/ben", &ben_before);
