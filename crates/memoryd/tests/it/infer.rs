@@ -451,6 +451,32 @@ fn the_prompt_lists_the_facts_and_the_events_and_says_what_to_answer() {
 }
 
 #[test]
+fn the_prompt_fences_its_data_and_leaves_out_what_does_not_fit() {
+    let mut big = input();
+    big.topics.push(InputTopic {
+        topic: TopicPath::parse("people/huge").expect("topic"),
+        text: UserText::new("x".repeat(100_000)),
+    });
+    let prompt = render_prompt(&big);
+    let run = big.run.to_string();
+    for name in ["facts", "topics", "events"] {
+        assert!(
+            prompt.contains(&format!("=====BEGIN DATA {name} {run}")),
+            "{name}"
+        );
+        assert!(
+            prompt.contains(&format!("=====END DATA {name} {run}=====")),
+            "{name}"
+        );
+    }
+    assert!(
+        !prompt.contains("people/huge"),
+        "a file past the budget is left out"
+    );
+    assert!(prompt.len() < 60_000, "{}", prompt.len());
+}
+
+#[test]
 fn the_prompt_shows_the_topic_files_and_how_to_tidy_one() {
     let prompt = render_prompt(&input());
     assert!(prompt.contains("\"kind\":\"tidy\""));
