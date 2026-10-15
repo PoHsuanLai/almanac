@@ -1,7 +1,7 @@
 //! `InferdConsolidator`: a consolidation draft from an inferd task session.
 
 use super::prompt::{parse_draft, render_prompt};
-use super::turn;
+use super::{Deadlines, turn, within};
 use almanac_service::class_of;
 use almanac_service::{ConsolidateError, ConsolidationInput, Consolidator, Draft};
 use porter_client::Transport;
@@ -24,12 +24,22 @@ const CONTEXT: Tokens = Tokens(16_384);
 #[derive(Debug)]
 pub struct InferdConsolidator<T: Transport> {
     transport: Arc<T>,
+    deadlines: Deadlines,
 }
 
 impl<T: Transport> InferdConsolidator<T> {
     /// Drafts over `transport`.
     pub fn new(transport: Arc<T>) -> Self {
-        Self { transport }
+        Self {
+            transport,
+            deadlines: Deadlines::DRAFT,
+        }
+    }
+
+    /// The same consolidator with these deadlines instead of [`Deadlines::DRAFT`].
+    pub fn with_deadlines(mut self, deadlines: Deadlines) -> Self {
+        self.deadlines = deadlines;
+        self
     }
 }
 
@@ -78,18 +88,20 @@ impl<T: Transport> Consolidator for InferdConsolidator<T> {
             .map(|f| &f.label)
             .chain(input.events.iter().map(|e| &e.label));
         let class = class_of(labels);
-        let mut session = self
-            .transport
-            .open(&need(), class, Tier::Balanced)
-            .await
-            .map_err(|_| ConsolidateError::Unavailable)?;
+        let mut session = within(
+            self.deadlines.open,
+            self.transport.open(&need(), class, Tier::Balanced),
+        )
+        .await
+        .map_err(|_| ConsolidateError::Unavailable)?
+        .map_err(|_| ConsolidateError::Unavailable)?;
         let request = InferRequest::Task(TaskRequest::new(
             Task::Extract,
             render_prompt(&input),
             class,
             Usage::Background,
         ));
-        match turn(&mut session, request)
+        match turn(&mut session, request, self.deadlines.turn)
             .await
             .map_err(|_| ConsolidateError::Unavailable)?
         {

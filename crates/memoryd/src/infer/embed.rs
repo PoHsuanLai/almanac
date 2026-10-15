@@ -1,6 +1,6 @@
 //! `InferdEmbedder`: embeddings through an inferd session.
 
-use super::turn;
+use super::{Deadlines, turn, within};
 use almanac_service::class_from_tag;
 use porter_client::{Transport, TransportError};
 use porter_core::capability::Modality;
@@ -39,6 +39,7 @@ pub struct InferdEmbedder<T: Transport> {
     transport: Arc<T>,
     card: EmbedderCard,
     pin: DataClass,
+    deadlines: Deadlines,
 }
 
 impl<T: Transport> InferdEmbedder<T> {
@@ -53,7 +54,14 @@ impl<T: Transport> InferdEmbedder<T> {
             transport,
             card,
             pin,
+            deadlines: Deadlines::EMBED,
         }
+    }
+
+    /// The same embedder with these deadlines instead of [`Deadlines::EMBED`].
+    pub fn with_deadlines(mut self, deadlines: Deadlines) -> Self {
+        self.deadlines = deadlines;
+        self
     }
 
     /// One session of `class`, one request over all of `texts`.
@@ -67,13 +75,16 @@ impl<T: Transport> InferdEmbedder<T> {
         if texts.is_empty() {
             return Ok(Vec::new());
         }
-        let mut session = self
-            .transport
-            .open(&need_for(&self.card), class, Tier::Fast)
-            .await
-            .map_err(transport_failure)?;
+        let mut session = within(
+            self.deadlines.open,
+            self.transport
+                .open(&need_for(&self.card), class, Tier::Fast),
+        )
+        .await
+        .map_err(|_| EmbedError::Unavailable)?
+        .map_err(transport_failure)?;
         let request = request_for(&self.card, class, texts, role, urgency);
-        let reply = turn(&mut session, request)
+        let reply = turn(&mut session, request, self.deadlines.turn)
             .await
             .map_err(|_| EmbedError::Unavailable)?;
         vectors_of(reply, texts.len(), &self.card)

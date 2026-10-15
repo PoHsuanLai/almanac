@@ -16,6 +16,9 @@ use std::future::Future;
 use std::path::PathBuf;
 use std::sync::{Mutex, PoisonError};
 
+/// How long the bus and `/proc` have to say who a connection is.
+const LOOKUP_WAIT: std::time::Duration = std::time::Duration::from_secs(5);
+
 /// Who a bus connection is.
 pub trait Peers: Send + Sync + 'static {
     /// The caller behind the connection `sender` (its unique name), or why it is nobody.
@@ -67,10 +70,10 @@ impl ProcPeers {
 
 impl Peers for ProcPeers {
     async fn caller_of(&self, sender: &str) -> Result<Caller, Refusal> {
-        let caller = self
-            .callers
-            .caller_of(sender)
+        // An identity lookup that does not finish is a refusal, never a wait.
+        let caller = tokio::time::timeout(LOOKUP_WAIT, self.callers.caller_of(sender))
             .await
+            .map_err(|_| Refusal::NotAllowed)?
             .map(caller_for)
             .ok_or(Refusal::NotAllowed)?;
         self.seen

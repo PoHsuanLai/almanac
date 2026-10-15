@@ -29,7 +29,9 @@ pub use callers::{
 };
 pub use clock::SystemClock;
 pub use daemon::Daemon;
-pub use infer::{InferdConsolidator, InferdEmbedder, class_of, parse_draft, render_prompt};
+pub use infer::{
+    Deadlines, InferdConsolidator, InferdEmbedder, class_of, parse_draft, render_prompt,
+};
 pub use keyring::{LockChanges, is_lock_change};
 pub use keysel::KeysError;
 pub use peers::{Peers, ProcPeers, TablePeers};

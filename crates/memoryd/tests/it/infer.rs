@@ -7,7 +7,9 @@ use almanac_service::{
     ConsolidateError, ConsolidationInput, Consolidator, InputEvent, InputTopic, check_draft,
 };
 use memfiles::{Block, TopicFile, render_topic};
-use memoryd::{InferdConsolidator, InferdEmbedder, class_of, parse_draft, render_prompt};
+use memoryd::{
+    Deadlines, InferdConsolidator, InferdEmbedder, class_of, parse_draft, render_prompt,
+};
 use porter_client::{Transport, TransportError};
 use porter_core::capability::{LlmFeature, Modality};
 use porter_core::consent::Usage;
@@ -38,6 +40,8 @@ struct Scripted {
     unreachable: bool,
     /// inferd refuses the caller, with this text.
     denied: Option<String>,
+    /// The session never answers once its events run out.
+    hang: bool,
 }
 
 impl Scripted {
@@ -62,6 +66,13 @@ impl Scripted {
         })
     }
 
+    fn hanging() -> Arc<Self> {
+        Arc::new(Self {
+            hang: true,
+            ..Self::default()
+        })
+    }
+
     fn finishing(reply: InferReply) -> Arc<Self> {
         Self::playing(vec![InferEvent::Finished(reply)])
     }
@@ -77,6 +88,7 @@ impl Scripted {
 
 struct Session {
     events: VecDeque<InferEvent>,
+    hang: bool,
     sent: Arc<Mutex<Vec<ClientFrame>>>,
 }
 
@@ -87,7 +99,11 @@ impl InferSession for Session {
     }
 
     async fn next(&mut self) -> Result<InferEvent, SessionError> {
-        self.events.pop_front().ok_or(SessionError::Closed)
+        match (self.events.pop_front(), self.hang) {
+            (Some(event), _) => Ok(event),
+            (None, true) => std::future::pending().await,
+            (None, false) => Err(SessionError::Closed),
+        }
     }
 }
 
@@ -118,6 +134,7 @@ impl Transport for Scripted {
         });
         Ok(Session {
             events: std::mem::take(&mut *self.events.lock().expect("lock")),
+            hang: self.hang,
             sent: self.sent.clone(),
         })
     }
@@ -831,4 +848,25 @@ fn a_class_tag_is_the_slug_and_every_class_round_trips() {
     }
     assert_eq!(class_from_tag(&recall::ClassTag::default()), None);
     assert_eq!(class_from_tag(&recall::ClassTag("later".into())), None);
+}
+
+#[tokio::test]
+async fn a_session_that_never_answers_is_given_up_at_its_deadline() {
+    let quick = Deadlines {
+        open: std::time::Duration::from_secs(5),
+        turn: std::time::Duration::from_millis(50),
+    };
+    let embedder = InferdEmbedder::new(Scripted::hanging(), card()).with_deadlines(quick);
+    let embedded = embedder
+        .embed(&texts(1), EmbedRole::Document, Urgency::Background)
+        .await;
+    assert_eq!(embedded, Err(EmbedError::Unavailable));
+    let drafted = InferdConsolidator::new(Scripted::hanging())
+        .with_deadlines(quick)
+        .draft(input())
+        .await;
+    assert_eq!(
+        drafted.expect_err("gives up"),
+        ConsolidateError::Unavailable
+    );
 }
