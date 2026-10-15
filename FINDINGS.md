@@ -892,7 +892,21 @@ pages of `events.db`, `index.db` and sealed files. Per-Space keys are never rota
 copy taken before the forget still opens with the Space's current Secret Service key. Plain
 (readable) vaults are unlinked with no overwrite, so memory does not claim erasure for them. Only
 removing a whole Space destroys its key, and that is best-effort too (ALM-08). Keep
-`~/.local/share/quire/memory` out of snapshots and backups: make it its own btrfs subvolume or add
-it to the snapshot and backup tools' excludes (`dbus/memoryd.service` carries the same note; a
+`~/.local/share/quire/memory` out of snapshots and backups: add it to the snapshot and backup tools'
+excludes (works on every file system), or on btrfs make it its own subvolume (`dbus/memoryd.service` carries the same note; a
 unit file cannot enforce it). Re-keying a Space after a forget is out of scope here; it needs a
 rewrite of both databases and the sealed files under a fresh key.
+
+## D21: showing "running without file restrictions" in Settings
+
+`memoryd::sandbox::enforce` already returns `Enforcement { Full, Partial, Unsupported }`, and
+`run.rs` only writes it to standard error (so the journal has "this kernel has no Landlock"). Nothing
+exposes it on the bus yet. To let Settings say "running without file restrictions" (Unsupported) or
+"partly restricted" (Partial): keep the value in the daemon state, add a read-only
+`Confinement` property (`full`, `partial`, `none`) to `org.quire.Memory1` (XML, skeleton, proxy and the
+introspection test move together), and have Settings read it beside `Status`. Whether the unit's own
+protections are on is a second fact: they are on only when `memoryd.service.d/sandbox.conf` is
+installed (`scripts/install.sh` leaves it out where `systemd --user` cannot make namespaces, the
+Ubuntu 24.04+ default), so a "no file restrictions" line is true only when both are off; the unit's
+state can be read from the manager (`systemctl --user show memoryd -p ProtectSystem`). Not done: no
+UI, no property.
