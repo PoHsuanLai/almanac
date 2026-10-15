@@ -298,3 +298,28 @@ async fn a_full_space_refuses_and_an_oversize_record_is_invalid() {
         "{big:?}"
     );
 }
+
+#[tokio::test]
+async fn an_app_cannot_claim_trusted_or_a_wider_audience() {
+    let service = service();
+    let claimed = mail_thread_archived().expect("fixture");
+    assert_eq!(claimed.label.integrity, Integrity::Trusted);
+    assert_eq!(claimed.label.confidentiality, Confidentiality::Public);
+    let reply = ask(&service, &mail_app(), MemoryRequest::Record(claimed)).await;
+    assert!(matches!(reply, MemoryReply::Recorded(_)), "{reply:?}");
+    let page = ask(
+        &service,
+        &Caller::ShellUi,
+        MemoryRequest::Timeline(space("work"), everyone()),
+    )
+    .await;
+    let MemoryReply::Timeline(page) = page else {
+        panic!("{page:?}")
+    };
+    let label = &page.entries[0].label;
+    assert_eq!(label.integrity, Integrity::Untrusted);
+    assert_eq!(
+        label.confidentiality,
+        Confidentiality::Private([space("work")].into())
+    );
+}

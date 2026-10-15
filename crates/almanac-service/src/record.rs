@@ -5,9 +5,9 @@ use crate::docs::{event_doc_id, event_ref, indexed_docs, record_fault};
 use crate::open::{Cx, Open, failed};
 use crate::space::{SpaceEffect, SpaceEvent, step};
 use almanac_core::{
-    Admission, Confidentiality, Count, DataClass, DropReason, EventBody, EventRef, FileChange,
-    FileView, FileWhy, FileWhyClaim, IndexPart, Integrity, KindPattern, Label, MarkKind,
-    MarkRequest, Record, Refusal, Source, Verb, admit_with, withheld,
+    Admission, Caller, Confidentiality, Count, DataClass, DropReason, EventBody, EventRef,
+    FileChange, FileView, FileWhy, FileWhyClaim, IndexPart, Integrity, KindPattern, Label,
+    MarkKind, MarkRequest, Record, Refusal, Source, Verb, admit_with, withheld,
 };
 use almanac_store::{BodyState, LogRead};
 use std::collections::BTreeSet;
@@ -26,6 +26,22 @@ pub(crate) fn land_in_receiver(record: &mut Record) {
     if let EventBody::Message(m) = &record.body {
         record.space = m.to.space.clone();
     }
+}
+
+/// What an app's own claim about a label comes to: an app can lower integrity or raise
+/// confidentiality, never claim `Trusted` or leave its Space. The router, cuad and the shell
+/// stamp their own labels.
+pub(crate) fn floored(caller: &Caller, mut record: Record) -> Record {
+    if let Caller::App(_) = caller {
+        let floor = Label {
+            integrity: Integrity::Untrusted,
+            confidentiality: Confidentiality::Private(BTreeSet::from([record.space.clone()])),
+            classes: BTreeSet::new(),
+            sources: BTreeSet::new(),
+        };
+        record.label = record.label.join(&floor);
+    }
+    record
 }
 
 impl<B: Backend> Open<B> {
@@ -48,6 +64,7 @@ impl<B: Backend> Open<B> {
         cx: &Cx<'_, B>,
         record: Record,
     ) -> Result<Stored, Refusal> {
+        let record = floored(cx.caller, record);
         if let Some(why) = record_fault(&record) {
             return Err(failed(why));
         }
@@ -88,6 +105,7 @@ impl<B: Backend> Open<B> {
         cx: &Cx<'_, B>,
         record: Record,
     ) -> Result<EventRef, Refusal> {
+        let record = floored(cx.caller, record);
         if let Some(why) = record_fault(&record) {
             return Err(failed(why));
         }

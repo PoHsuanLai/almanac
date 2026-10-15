@@ -452,8 +452,11 @@ impl<B: Backend> MemoryService<B> {
     pub(crate) async fn record_one(
         &self,
         caller: &Caller,
-        mut record: Record,
+        record: Record,
     ) -> Result<Stored, Refusal> {
+        // Floored here as well: a record buffered while locked is replayed by whoever opens
+        // the Space next, not by the app that wrote it.
+        let mut record = crate::record::floored(caller, record);
         crate::record::land_in_receiver(&mut record);
         let id = record.space.clone();
         match self.checkout(caller, &id).await {
