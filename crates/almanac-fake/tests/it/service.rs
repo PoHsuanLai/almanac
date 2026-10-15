@@ -353,3 +353,45 @@ async fn a_locked_space_buffers_only_what_it_could_store_and_replays_it() {
     };
     assert_eq!(page.entries.len(), 1, "the buffered record replayed once");
 }
+
+#[tokio::test]
+async fn a_batch_with_a_malformed_record_stores_nothing() {
+    let service = service();
+    let valid = mail_thread_archived().expect("fixture");
+    let mut malformed = valid.clone();
+    malformed.body = EventBody::Message(Box::new(Message {
+        id: MessageId::parse("m-2").expect("id"),
+        thread: ThreadId::parse("m-1").expect("id"),
+        in_reply_to: None,
+        from: Address::new(AgentRef::Companion, space("work")),
+        to: Address::new(AgentRef::User, space("work")),
+        kind: MessageKind::Note,
+        parts: vec![Part::Text(MessageText::new("hello"))],
+        label: almanac_fake::trusted_label(),
+        sent: UnixSeconds(1),
+    }));
+    let mut first = valid;
+    first.space = space("work");
+    malformed.space = space("work");
+    let refused = ask(
+        &service,
+        &Caller::Router,
+        MemoryRequest::RecordBatch(vec![first, malformed]),
+    )
+    .await;
+    assert!(
+        matches!(refused, MemoryReply::Refused(Refusal::Invalid(_))),
+        "{refused:?}"
+    );
+    let page = ask(
+        &service,
+        &Caller::ShellUi,
+        MemoryRequest::Timeline(space("work"), everyone()),
+    )
+    .await;
+    assert!(
+        matches!(&page, MemoryReply::Timeline(p) if p.entries.is_empty())
+            || matches!(&page, MemoryReply::Refused(_)),
+        "the valid record before it was not stored: {page:?}"
+    );
+}

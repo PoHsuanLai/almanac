@@ -51,6 +51,13 @@ impl<B: Backend> MemoryService<B> {
             }),
             R::RecordDurable(record) => self.record_durable(caller, record).await,
             R::RecordBatch(records) => {
+                // Nothing is stored unless every record is well formed, so a malformed one
+                // cannot leave the records before it behind (ALM-24). A failure that may pass
+                // (Busy, a full Space) can still stop the batch partway: the wire reply has no
+                // per-record results yet.
+                if let Some(why) = records.iter().find_map(crate::docs::record_fault) {
+                    return Err(failed(why));
+                }
                 let mut first = None;
                 let mut stored = 0usize;
                 for record in records {
