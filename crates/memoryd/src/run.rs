@@ -19,7 +19,7 @@ use porter_client::DbusTransport;
 use porter_daemon::ProcRoot;
 use porter_dbus::CallerTable;
 use std::ffi::OsString;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -90,6 +90,20 @@ const FIRST_CONSOLIDATION: Duration = Duration::from_secs(60 * 60);
 /// The system's callers file; the user's is next to `memory.toml` and wins.
 const SYSTEM_CALLERS: &str = "/etc/quire/memory-callers.toml";
 
+/// The test-only stand-in for [`SYSTEM_CALLERS`], honoured under the same gate as
+/// [`PROC_ROOT_VAR`]: a harness that fakes `/proc` must also say which units are the system's,
+/// because only the system's table gives a fixed role. A release build ignores it.
+pub const SYSTEM_CALLERS_VAR: &str = "MEMORYD_SYSTEM_CALLERS";
+
+/// The system callers file this build reads: [`SYSTEM_CALLERS`], or the variable's file in a
+/// `test-proc-root` build.
+fn system_callers(gate: ProcGate, env: Env<'_>) -> PathBuf {
+    match (gate, env(SYSTEM_CALLERS_VAR)) {
+        (ProcGate::Honour, Some(file)) if !file.is_empty() => PathBuf::from(file),
+        _ => PathBuf::from(SYSTEM_CALLERS),
+    }
+}
+
 fn user_callers(dirs: &Dirs) -> std::path::PathBuf {
     dirs.memory_toml().with_file_name("memory-callers.toml")
 }
@@ -110,8 +124,8 @@ fn read_rules(dirs: &Dirs) -> Result<RuleSet, StartError> {
     }
 }
 
-fn read_callers(dirs: &Dirs) -> Result<CallerTable, CallerFileError> {
-    load_callers(Path::new(SYSTEM_CALLERS), &user_callers(dirs))
+fn read_callers(system: &Path, dirs: &Dirs) -> Result<CallerTable, CallerFileError> {
+    load_callers(system, &user_callers(dirs))
 }
 
 async fn run(
@@ -119,6 +133,7 @@ async fn run(
     dirs: Dirs,
     keys: AnyKeys,
     proc_root: ProcRoot,
+    system: PathBuf,
 ) -> Result<(), StartError> {
     // The bus is the injected environment's too: a test starts the daemon on a private bus.
     let builder = match env("DBUS_SESSION_BUS_ADDRESS") {
@@ -161,7 +176,7 @@ async fn run(
     }
     let peers = ProcPeers::with_proc_root(
         connection.clone(),
-        read_callers(&dirs)?,
+        read_callers(&system, &dirs)?,
         proc_root.path().to_path_buf(),
     );
     if let Ok(shell) = almanac_core::AppName::parse(SHELL_APP) {
@@ -239,6 +254,14 @@ pub fn start(env: Env<'_>) -> Result<(), StartError> {
     if let Some(dir) = proc_root.fixture() {
         policy.read_files.push(dir.to_path_buf());
     }
+    let system = system_callers(PROC_GATE, env);
+    if system != Path::new(SYSTEM_CALLERS) {
+        eprintln!(
+            "memoryd: TEST BUILD: the system callers file is {}",
+            system.display()
+        );
+        policy.read_files.push(system.clone());
+    }
     // Only a test build's file key store has a directory of its own to write.
     policy.writable.extend(key_dir);
     prepare(&policy).map_err(StartError::Prepare)?;
@@ -263,5 +286,28 @@ pub fn start(env: Env<'_>) -> Result<(), StartError> {
         .enable_all()
         .build()
         .map_err(StartError::Runtime)?
-        .block_on(run(env, dirs, keys, proc_root))
+        .block_on(run(env, dirs, keys, proc_root, system))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Only a `test-proc-root` build reads the variable, and an empty value is no file.
+    #[test]
+    fn the_system_callers_file_moves_only_in_a_test_build() {
+        let set =
+            |name: &str| (name == SYSTEM_CALLERS_VAR).then(|| "/scratch/system.toml".to_owned());
+        let empty = |name: &str| (name == SYSTEM_CALLERS_VAR).then(String::new);
+        let unset = |_: &str| None;
+        let rows: [(ProcGate, Env<'_>, &str); 4] = [
+            (ProcGate::Honour, &set, "/scratch/system.toml"),
+            (ProcGate::Ignore, &set, SYSTEM_CALLERS),
+            (ProcGate::Honour, &empty, SYSTEM_CALLERS),
+            (ProcGate::Honour, &unset, SYSTEM_CALLERS),
+        ];
+        for (gate, env, want) in rows {
+            assert_eq!(system_callers(gate, env), PathBuf::from(want), "{gate:?}");
+        }
+    }
 }
