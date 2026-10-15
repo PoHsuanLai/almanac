@@ -10,7 +10,6 @@ use almanac_service::{Backend, BackendError, Clock, Consolidator, Listing, Regis
 use eventlog::SqliteLog;
 use memfiles::{PlainDir, SealedDir};
 use recall::{Embedder, ExactScan, Index};
-use std::future::Future;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 /// An app's own memory on disk: SQLCipher log and index, sealed or plain files, keys derived from
@@ -199,11 +198,8 @@ impl<Clk: Clock, E: Embedder, C: Consolidator> Backend for LocalBackend<Clk, E, 
 
     /// An app hosting the service itself owns the whole store and has no desktop registry:
     /// every Space is its own.
-    fn is_listed(
-        &self,
-        _space: &SpaceId,
-    ) -> impl Future<Output = Result<Listing, RegistryError>> + Send {
-        async { Ok(Listing::Listed) }
+    async fn is_listed(&self, _space: &SpaceId) -> Result<Listing, RegistryError> {
+        Ok(Listing::Listed)
     }
 
     fn open_index(
