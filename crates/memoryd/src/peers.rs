@@ -20,16 +20,32 @@ use std::sync::{Mutex, PoisonError};
 pub trait Peers: Send + Sync + 'static {
     /// The caller behind the connection `sender` (its unique name), or why it is nobody.
     fn caller_of(&self, sender: &str) -> impl Future<Output = Result<Caller, Refusal>> + Send;
+
+    /// The unique names of the connections that may hear memory's signals: the router's and the
+    /// shell's, as far as they are known. Signals name Spaces and what happened in them, so an
+    /// app never hears them. The default knows nobody.
+    fn listeners(&self) -> Vec<String> {
+        Vec::new()
+    }
+}
+
+/// Whether the signals about memory go to `caller`.
+fn hears_signals(caller: &Caller) -> bool {
+    matches!(caller, Caller::Router | Caller::ShellUi)
 }
 
 /// Peers by process: porter's [`ProcCallers`] over the connection, mapped onto almanac's callers.
 #[derive(Debug)]
-pub struct ProcPeers(ProcCallers);
+pub struct ProcPeers {
+    callers: ProcCallers,
+    /// The connections identified so far, by unique name.
+    seen: Mutex<BTreeMap<String, Caller>>,
+}
 
 impl ProcPeers {
     /// Resolves senders on `connection` through `table`, reading the system's `/proc`.
     pub fn new(connection: zbus::Connection, table: porter_dbus::CallerTable) -> Self {
-        Self(ProcCallers::new(connection, table))
+        Self::over(ProcCallers::new(connection, table))
     }
 
     /// As [`ProcPeers::new`], reading the `/proc` tree at `proc_root` (a test build's fixture).
@@ -38,18 +54,45 @@ impl ProcPeers {
         table: porter_dbus::CallerTable,
         proc_root: PathBuf,
     ) -> Self {
-        Self(ProcCallers::with_proc_root(connection, table, proc_root))
+        Self::over(ProcCallers::with_proc_root(connection, table, proc_root))
+    }
+
+    fn over(callers: ProcCallers) -> Self {
+        Self {
+            callers,
+            seen: Mutex::new(BTreeMap::new()),
+        }
     }
 }
 
 impl Peers for ProcPeers {
     async fn caller_of(&self, sender: &str) -> Result<Caller, Refusal> {
-        self.0
+        let caller = self
+            .callers
             .caller_of(sender)
             .await
             .map(caller_for)
-            .ok_or(Refusal::NotAllowed)
+            .ok_or(Refusal::NotAllowed)?;
+        self.seen
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .insert(sender.to_owned(), caller.clone());
+        Ok(caller)
     }
+
+    fn listeners(&self) -> Vec<String> {
+        names_hearing(&self.seen)
+    }
+}
+
+fn names_hearing(known: &Mutex<BTreeMap<String, Caller>>) -> Vec<String> {
+    known
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .iter()
+        .filter(|(_, caller)| hears_signals(caller))
+        .map(|(name, _)| name.clone())
+        .collect()
 }
 
 /// Peers from a map of unique names, for tests and for hosts that know their clients.
@@ -79,5 +122,9 @@ impl Peers for TablePeers {
             .get(sender)
             .cloned()
             .ok_or(Refusal::NotAllowed)
+    }
+
+    fn listeners(&self) -> Vec<String> {
+        names_hearing(&self.0)
     }
 }

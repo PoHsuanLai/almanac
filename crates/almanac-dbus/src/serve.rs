@@ -662,23 +662,39 @@ pub async fn serve_on<S: Serve>(connection: &Connection, handler: Arc<S>) -> zbu
     connection.request_name(MEMORY_BUS).await
 }
 
-async fn send<B>(connection: &Connection, member: &'static str, body: &B) -> zbus::Result<()>
+async fn send<B>(
+    connection: &Connection,
+    to: Option<zbus::names::BusName<'_>>,
+    member: &'static str,
+    body: &B,
+) -> zbus::Result<()>
 where
     B: serde::Serialize + zbus::zvariant::DynamicType,
 {
     connection
-        .emit_signal(
-            None::<zbus::names::BusName<'_>>,
-            MEMORY_PATH,
-            CONTROL_INTERFACE,
-            member,
-            body,
-        )
+        .emit_signal(to, MEMORY_PATH, CONTROL_INTERFACE, member, body)
         .await
 }
 
-/// Emits `signal` from `MEMORY_PATH`.
+/// Emits `signal` from `MEMORY_PATH` to the one connection `to` (a unique name): the signals
+/// carry Space ids and what happened in them, so they go to the peers entitled to them, never to
+/// the whole bus.
+pub async fn emit_to(connection: &Connection, to: &str, signal: &Signal) -> zbus::Result<()> {
+    let to = zbus::names::BusName::try_from(to)?;
+    emit_signal(connection, Some(to), signal).await
+}
+
+/// Emits `signal` from `MEMORY_PATH` to every connection that listens. Only for a host that has
+/// no peer table (a test); memoryd uses [`emit_to`].
 pub async fn emit(connection: &Connection, signal: &Signal) -> zbus::Result<()> {
+    emit_signal(connection, None, signal).await
+}
+
+async fn emit_signal(
+    connection: &Connection,
+    to: Option<zbus::names::BusName<'_>>,
+    signal: &Signal,
+) -> zbus::Result<()> {
     match signal {
         Signal::Recorded {
             space,
@@ -686,17 +702,24 @@ pub async fn emit(connection: &Connection, signal: &Signal) -> zbus::Result<()> 
             kind,
         } => {
             let body = (space.as_str(), event_ref.as_str(), kind.as_str());
-            send(connection, "Recorded", &body).await
+            send(connection, to, "Recorded", &body).await
         }
         Signal::Forgotten { space, report } => {
-            send(connection, "Forgotten", &(space.as_str(), report.as_str())).await
+            send(
+                connection,
+                to,
+                "Forgotten",
+                &(space.as_str(), report.as_str()),
+            )
+            .await
         }
         Signal::PendingChanged { space, count } => {
-            send(connection, "PendingChanged", &(space.as_str(), *count)).await
+            send(connection, to, "PendingChanged", &(space.as_str(), *count)).await
         }
         Signal::ConsolidationReady { space, run } => {
             send(
                 connection,
+                to,
                 "ConsolidationReady",
                 &(space.as_str(), run.as_str()),
             )
@@ -705,6 +728,7 @@ pub async fn emit(connection: &Connection, signal: &Signal) -> zbus::Result<()> 
         Signal::StatusChanged { space, status } => {
             send(
                 connection,
+                to,
                 "StatusChanged",
                 &(space.as_str(), status.as_str()),
             )

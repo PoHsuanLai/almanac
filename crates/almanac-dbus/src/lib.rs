@@ -28,7 +28,8 @@ pub use names::{
 pub use recall::{RecallProxy, RecallSkeleton};
 pub use record::{RecordProxy, RecordSkeleton};
 pub use serve::{
-    ControlObject, RecallObject, RecordObject, Serve, Signal, emit, serve_on, served_introspection,
+    ControlObject, RecallObject, RecordObject, Serve, Signal, emit, emit_to, serve_on,
+    served_introspection,
 };
 /// The session-bus connection transports and daemons hold.
 pub use zbus::Connection as BusConnection;

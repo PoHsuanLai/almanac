@@ -526,3 +526,33 @@ async fn the_durable_members_refuse_as_the_error_of_their_name() {
         Err(ClientError::Refused(Refusal::NotKept(DropReason::Paused)))
     );
 }
+
+#[tokio::test]
+async fn an_app_hears_no_signals_about_memory() {
+    let rig = rig().await;
+    let listener = rig.world.client(app()).await;
+    let control = ControlProxy::new(&listener).await.expect("proxy");
+    let mut recorded = control.receive_recorded().await.expect("subscribe");
+    let watcher = rig.world.client(Caller::ShellUi).await;
+    let mut heard = ControlProxy::new(&watcher)
+        .await
+        .expect("proxy")
+        .receive_recorded()
+        .await
+        .expect("subscribe");
+
+    let router = rig.memory(Caller::Router).await;
+    router
+        .record(mail_thread_archived().expect("fixture"))
+        .await
+        .expect("record");
+    let wait = Duration::from_secs(10);
+    tokio::time::timeout(wait, next_item(&mut heard))
+        .await
+        .expect("the shell hears Recorded");
+    let nothing = tokio::time::timeout(Duration::from_millis(500), next_item(&mut recorded)).await;
+    assert!(
+        nothing.is_err(),
+        "an app is not told what happened in a Space"
+    );
+}

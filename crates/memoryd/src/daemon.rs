@@ -11,7 +11,7 @@ use crate::signals::{FollowUp, follow_ups};
 use almanac_core::{
     Caller, DesktopSpace, Dirs, MemoryReply, MemoryRequest, PlanToken, Removal, SpaceId, SpaceKind,
 };
-use almanac_dbus::{Call, MemoryError, Serve, Signal, decode_request, emit, encode_reply};
+use almanac_dbus::{Call, MemoryError, Serve, Signal, decode_request, emit_to, encode_reply};
 use almanac_service::{
     Backend, MemoryService, ServiceEvent, SpacesFile, locked_status, rules_to_toml, spaces_to_toml,
     write_private_atomic,
@@ -102,9 +102,13 @@ impl<B: Backend, P: Peers> Daemon<B, P> {
     }
 
     async fn signal(&self, signal: Signal) {
-        if let Some(bus) = self.bus.get() {
-            // A signal nobody hears, or a bus that went away, does not fail the request.
-            drop(emit(bus, &signal).await);
+        let Some(bus) = self.bus.get() else {
+            return;
+        };
+        // Only the router and the shell hear what happened in a Space. A connection that went
+        // away, or a bus that did, does not fail the request.
+        for name in self.peers.listeners() {
+            drop(emit_to(bus, &name, &signal).await);
         }
     }
 
