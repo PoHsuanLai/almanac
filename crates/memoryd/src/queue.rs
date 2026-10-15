@@ -11,7 +11,7 @@
 use almanac_core::{
     Caller, EventBody, ExportOptions, MemoryReply, MemoryRequest, Record, SpaceId, SweepReport,
 };
-use almanac_service::{Backend, MemoryService};
+use almanac_service::{Allowed, Backend, MemoryService, allowed};
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Write;
 use std::sync::{Arc, Mutex, PoisonError};
@@ -55,6 +55,15 @@ pub fn claim_of(request: &MemoryRequest) -> Claim {
         other => other.space().map_or(Claim::Everything, |s| {
             Claim::Spaces(BTreeSet::from([s.clone()]))
         }),
+    }
+}
+
+/// What `request` from `caller` must hold: nothing when the service will refuse it anyway, so a
+/// refused call never waits for, or stalls, the queues (ALM-20). Pure, so it is a table.
+pub fn claim_for(caller: &Caller, request: &MemoryRequest) -> Claim {
+    match allowed(caller, request) {
+        Allowed::Yes => claim_of(request),
+        Allowed::No(_) => Claim::Nothing,
     }
 }
 
@@ -118,7 +127,7 @@ impl<B: Backend> Serialised<B> {
 
     /// Answers `request` from `caller`, after the requests ahead of it on the same Spaces.
     pub async fn handle(&self, caller: &Caller, request: MemoryRequest) -> MemoryReply {
-        let claim = claim_of(&request);
+        let claim = claim_for(caller, &request);
         self.holding(claim, self.service.handle(caller, request))
             .await
     }

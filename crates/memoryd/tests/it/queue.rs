@@ -3,7 +3,7 @@
 use crate::support::{SharedKeys, dirs_in, service, space};
 use almanac_core::*;
 use almanac_fake::mail_thread_archived;
-use memoryd::{Claim, Serialised, claim_of};
+use memoryd::{Claim, Serialised, claim_for, claim_of};
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
@@ -184,5 +184,25 @@ fn what_a_request_holds() {
     ];
     for (request, claim) in table {
         assert_eq!(claim_of(&request), claim, "{request:?}");
+    }
+}
+
+#[test]
+fn a_request_the_service_will_refuse_holds_nothing() {
+    let settle = || MemoryRequest::Settle(FactId::mint(1, [0; 10]), Settlement::Discard);
+    let forget = || MemoryRequest::Forget(PlanToken::parse("p-1").expect("t"));
+    let table = [
+        (Caller::ShellUi, settle(), Claim::Everything),
+        (Caller::Router, settle(), Claim::Nothing),
+        (Caller::Cuad, forget(), Claim::Nothing),
+        (Caller::ShellUi, forget(), Claim::Everything),
+        (Caller::Router, search_in("work"), spaces(&["work"])),
+    ];
+    for (caller, request, claim) in table {
+        assert_eq!(
+            claim_for(&caller, &request),
+            claim,
+            "{caller:?} {request:?}"
+        );
     }
 }

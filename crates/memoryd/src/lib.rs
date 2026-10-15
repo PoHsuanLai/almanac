@@ -36,7 +36,7 @@ pub use keyring::{LockChanges, is_lock_change};
 pub use keysel::KeysError;
 pub use peers::{Peers, ProcPeers, TablePeers};
 pub use porter_daemon::{ProcGate, ProcRoot};
-pub use queue::{Claim, Serialised, claim_of};
+pub use queue::{Claim, Serialised, claim_for, claim_of};
 pub use registry::{REGISTRY_WAIT, SpaceRegistry};
 pub use removals::Removals;
 pub use run::{Env, PROC_GATE, PROC_ROOT_VAR, StartError, start};
