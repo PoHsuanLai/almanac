@@ -77,6 +77,7 @@ impl<B: Backend> Open<B> {
         self.entries()?;
         let graph = self.fact_graph()?;
         let current = plan_forget(self.space(), &plan.scope, &self.rt.log, &graph).digest();
+        let planned = state;
         let (next, effects) = plan_step(state, PlanEvent::Forget { current, now });
         self.rt.plans.insert(token.clone(), (plan.clone(), next));
         if let Some(PlanEffect::Refuse(why)) =
@@ -86,7 +87,14 @@ impl<B: Backend> Open<B> {
         }
         let counts = plan.counts();
         for apply in ApplyStep::ORDER {
-            self.apply_step(now, apply, &plan, &digest, counts)?;
+            let first = matches!(apply, ApplyStep::Index);
+            if let Err(e) = self.apply_step(now, apply, &plan, &digest, counts) {
+                if first {
+                    // Nothing was removed yet: the plan waits as it was, so the person can retry.
+                    self.rt.plans.insert(token.clone(), (plan, planned));
+                }
+                return Err(e);
+            }
         }
         self.rt.plans.remove(token);
         Ok((
@@ -107,7 +115,7 @@ impl<B: Backend> Open<B> {
         counts: almanac_core::ForgetCounts,
     ) -> Result<(), Refusal> {
         match step {
-            ApplyStep::Index => self.index_drop(&plan.index_docs),
+            ApplyStep::Index => self.index_remove(&plan.index_docs)?,
             ApplyStep::Memfiles => {
                 let ids: Vec<FactId> = plan.facts.iter().chain(&plan.pending).cloned().collect();
                 self.rt.store.remove(&ids).map_err(files_refusal)?;

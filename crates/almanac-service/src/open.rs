@@ -285,6 +285,16 @@ impl<B: Backend> Open<B> {
         }
     }
 
+    /// Removes documents by id and says when the index could not: a forget must not go on to
+    /// remove the files while the forgotten text is still searchable.
+    pub(crate) fn index_remove(&mut self, ids: &[String]) -> Result<(), Refusal> {
+        let ids: Vec<DocId> = ids.iter().cloned().map(DocId).collect();
+        if ids.is_empty() {
+            return Ok(());
+        }
+        self.rt.index.remove(&ids).map(drop).map_err(failed)
+    }
+
     /// Everything the index holds, from the files and the log: active facts that nothing
     /// replaced, and the newest event of each episode.
     pub(crate) fn truth_docs(&self) -> Result<Vec<Doc>, Refusal> {

@@ -209,6 +209,7 @@ impl<B: Backend> MemoryService<B> {
         {
             use crate::space::{SpaceEffect, SpaceEvent, step};
             let final_head = open.rt.log.head().map_err(log_refusal)?;
+            let before = open.rt.state;
             let (deleting, _) = step(open.rt.state, SpaceEvent::ForgetConfirmed);
             let (gone, effects) = step(deleting, SpaceEvent::Done);
             open.rt.state = gone;
@@ -218,7 +219,17 @@ impl<B: Backend> MemoryService<B> {
                         self.anchor_final_head(caller, id, final_head).await;
                     }
                     SpaceEffect::DestroyKey => {
-                        let _ = almanac_seal::KeyStore::destroy(self.backend().keys(), id).await;
+                        // A Space with no key (a plain vault) has nothing to destroy; any other
+                        // failure stops the deletion with the Space still there to retry.
+                        match almanac_seal::KeyStore::destroy(self.backend().keys(), id).await {
+                            Ok(()) | Err(almanac_seal::KeyError::Missing) => {}
+                            Err(e) => {
+                                open.rt.state = before;
+                                return Err(failed(format!(
+                                    "the Space's key was not destroyed: {e}"
+                                )));
+                            }
+                        }
                     }
                     _ => {}
                 }
