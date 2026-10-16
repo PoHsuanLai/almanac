@@ -8,7 +8,10 @@
 //! `almanac-core` type in an `s`; outputs are the same, in order. Three outputs are not JSON:
 //! `Primer` is the markdown, `RecordBatch`'s count is a decimal, and a `Record` or `RecordBatch`
 //! that admission dropped answers an empty first output (nothing was kept). One argument is not
-//! JSON either: `ConfirmSettings` takes its setting key to value pairs as an `a{ss}`.
+//! JSON either: `ConfirmSettings` takes its setting key to value pairs as an `a{ss}`. And one
+//! output is typed on the bus but JSON here: `PendingSettings` answers an `a(sss)` (key, waiting
+//! value, shipped value), which the codec carries as the JSON of its `WaitingSetting` list; the
+//! served object and `invoke` convert at the bus edge.
 
 use std::collections::BTreeMap;
 

@@ -66,6 +66,7 @@ fn every_member_is_declared() {
         "<method name=\"RemoveSpace\">",
         "<method name=\"Export\">",
         "<method name=\"ConfirmSettings\">",
+        "<method name=\"PendingSettings\">",
         "<signal name=\"Recorded\">",
         "<signal name=\"Forgotten\">",
         "<signal name=\"PendingChanged\">",
@@ -79,8 +80,8 @@ fn every_member_is_declared() {
     let methods = xml.matches("<method ").count();
     assert_eq!(
         methods,
-        5 + 9 + 23,
-        "memory.md section 3.10 declares 28 methods; the companion amendment adds Inject and Recent, the retention sweep adds Sweep, review-mode consolidation adds ApplyConsolidation and DiscardConsolidation, the durable session log adds RecordDurable and Entries, a removed Space's memories add RemoveSpace, the loosened-settings consent adds ConfirmSettings"
+        5 + 9 + 24,
+        "memory.md section 3.10 declares 28 methods; the companion amendment adds Inject and Recent, the retention sweep adds Sweep, review-mode consolidation adds ApplyConsolidation and DiscardConsolidation, the durable session log adds RecordDurable and Entries, a removed Space's memories add RemoveSpace, the loosened-settings consent adds ConfirmSettings and PendingSettings"
     );
     assert_eq!(xml.matches("<signal ").count(), 5);
     // And the other direction: every member the codec encodes is declared.

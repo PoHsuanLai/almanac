@@ -3,8 +3,11 @@
 
 use crate::support::bus::PrivateBus;
 use crate::support::{SharedKeys, World, dirs_in};
-use almanac_core::{AppId, Caller, DayCount, Isolation, MemoryRequest, Refusal, VaultKind};
-use almanac_dbus::{encode_request, invoke};
+use almanac_core::{
+    AppId, Caller, DayCount, Isolation, MemoryReply, MemoryRequest, Refusal, VaultKind,
+    WaitingSetting,
+};
+use almanac_dbus::{decode_reply, encode_request, invoke};
 use almanac_fake::{ScriptedConsolidator, fake_service, mail};
 use almanac_service::{ConsolidateWhen, Locator, MemorySettings};
 use memoryd::{Consent, SettingsWatch, WatchState, apply, apply_next};
@@ -98,6 +101,18 @@ async fn confirm_over_bus(client: &zbus::Connection, values: &[(&str, &str)]) ->
     }
 }
 
+/// What the Settings app does to show "waits for you to confirm": `PendingSettings` over the bus.
+async fn pending_over_bus(client: &zbus::Connection) -> Result<Vec<WaitingSetting>, Refusal> {
+    let call = encode_request(&MemoryRequest::PendingSettings).expect("encode");
+    let outputs = invoke(client, &call, None)
+        .await
+        .map_err(|error| error.refusal().expect("a refusal, not a bus failure"))?;
+    match decode_reply(&call, &outputs).expect("decode") {
+        MemoryReply::PendingSettings(waiting) => Ok(waiting),
+        other => panic!("not a waiting list: {other:?}"),
+    }
+}
+
 #[tokio::test]
 async fn a_loosened_value_waits_until_the_settings_app_confirms_it_over_the_bus() {
     let scratch = tempfile::tempdir().expect("scratch");
@@ -133,7 +148,7 @@ async fn a_loosened_value_waits_until_the_settings_app_confirms_it_over_the_bus(
         name: mail(),
         isolation: Isolation::Unsandboxed,
     });
-    for caller in [app, Caller::Router, Caller::Cuad, Caller::ShellUi] {
+    for caller in [app.clone(), Caller::Router, Caller::Cuad, Caller::ShellUi] {
         let client = world.client(caller.clone()).await;
         assert_eq!(
             confirm_over_bus(&client, &one).await,
@@ -142,6 +157,23 @@ async fn a_loosened_value_waits_until_the_settings_app_confirms_it_over_the_bus(
         );
     }
     assert!(!dirs.confirmed_settings_toml().exists());
+
+    // The waiting list is read by the Settings app and the shell, and by no one else.
+    for caller in [app, Caller::Router, Caller::Cuad] {
+        let client = world.client(caller.clone()).await;
+        assert_eq!(
+            pending_over_bus(&client).await,
+            Err(Refusal::NotAllowed),
+            "{caller:?}"
+        );
+    }
+    let waiting = vec![WaitingSetting {
+        key: "memory.pending_ttl_days".to_owned(),
+        waiting: "3".to_owned(),
+        shipped: MemorySettings::default().pending_ttl.0.to_string(),
+    }];
+    let shell = world.client(Caller::ShellUi).await;
+    assert_eq!(pending_over_bus(&shell).await, Ok(waiting.clone()));
 
     // From the Settings app, a key that cannot loosen anything and a value the key does not take
     // are refused, and a refused pair keeps the good one beside it out too.
@@ -168,7 +200,9 @@ async fn a_loosened_value_waits_until_the_settings_app_confirms_it_over_the_bus(
     );
 
     // The Settings app confirms: the very next request sees the value, and it is on disk.
+    assert_eq!(pending_over_bus(&settings).await, Ok(waiting));
     assert_eq!(confirm_over_bus(&settings, &one).await, None);
+    assert_eq!(pending_over_bus(&settings).await, Ok(vec![]));
     assert_eq!(service.settings().pending_ttl, DayCount(3));
     assert!(
         std::fs::read_to_string(dirs.confirmed_settings_toml())

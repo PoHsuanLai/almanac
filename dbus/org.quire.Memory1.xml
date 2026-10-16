@@ -158,6 +158,9 @@
    <method name="ConfirmSettings">
      <arg name="values" type="a{ss}" direction="in"/>
    </method>
+   <method name="PendingSettings">
+     <arg type="a(sss)" direction="out"/>
+   </method>
    <signal name="Recorded">
      <arg name="space" type="s"/>
      <arg name="event_ref" type="s"/>

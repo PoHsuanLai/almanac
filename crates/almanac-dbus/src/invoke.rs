@@ -2,8 +2,9 @@
 //! transport is `encode_request`, this, `decode_reply`; a bus error that carries one of memoryd's
 //! error names comes back as the `MemoryError` of that name (`MemoryError::refusal`).
 
-use crate::codec::{Args, Call, Iface};
+use crate::codec::{Args, Call, Iface, json};
 use crate::{ControlProxy, MemoryError, RecallProxy, RecordProxy};
+use almanac_core::WaitingSetting;
 use std::os::fd::OwnedFd;
 use zbus::Connection;
 
@@ -91,6 +92,21 @@ pub async fn invoke(
                     )
                     .await,
                 ),
+                "PendingSettings" => {
+                    let waiting: Vec<WaitingSetting> = p
+                        .pending_settings()
+                        .await?
+                        .into_iter()
+                        .map(|(key, waiting, shipped)| WaitingSetting {
+                            key,
+                            waiting,
+                            shipped,
+                        })
+                        .collect();
+                    Ok(vec![
+                        json(&waiting).map_err(|e| MemoryError::Invalid(e.to_string()))?,
+                    ])
+                }
                 "Export" => {
                     let out = fd.ok_or_else(fd_missing)?;
                     Ok(vec![

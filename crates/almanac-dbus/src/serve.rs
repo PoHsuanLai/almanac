@@ -5,8 +5,9 @@
 //! introspection is the checked-in `dbus/org.quire.Memory1.xml`, the same as the frozen
 //! skeletons' (`tests/it/served.rs`).
 
-use crate::codec::{Call, CallArg, Iface};
+use crate::codec::{Call, CallArg, Iface, parse};
 use crate::{CONTROL_INTERFACE, MEMORY_BUS, MEMORY_PATH, MemoryError};
+use almanac_core::WaitingSetting;
 use std::collections::HashMap;
 use std::future::Future;
 use std::os::fd::OwnedFd;
@@ -579,6 +580,27 @@ impl<S: Serve> ControlObject<S> {
     ) -> Result<(), MemoryError> {
         let args = vec![CallArg::Map(values.into_iter().collect())];
         none(forward(&*self.0, &h, Iface::Control, "ConfirmSettings", args, None).await?)
+    }
+
+    async fn pending_settings(
+        &self,
+        #[zbus(header)] h: Header<'_>,
+    ) -> Result<Vec<(String, String, String)>, MemoryError> {
+        let outputs = forward(
+            &*self.0,
+            &h,
+            Iface::Control,
+            "PendingSettings",
+            vec![],
+            None,
+        )
+        .await?;
+        let waiting: Vec<WaitingSetting> =
+            parse(&first(outputs)?).map_err(|e| MemoryError::Invalid(e.to_string()))?;
+        Ok(waiting
+            .into_iter()
+            .map(|w| (w.key, w.waiting, w.shipped))
+            .collect())
     }
 
     #[zbus(signal)]

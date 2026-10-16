@@ -5,7 +5,7 @@
 //! its own data directory, which the agent sandbox and the apps cannot write, then reads the
 //! settings again so the confirmed value applies at once.
 
-use almanac_core::Refusal;
+use almanac_core::{Refusal, WaitingSetting};
 use almanac_service::{ConfirmError, Loaded, Locator, MemorySettings};
 use std::collections::BTreeMap;
 use std::sync::{Mutex, PoisonError};
@@ -36,6 +36,14 @@ impl Consent {
             locator,
             writing: Mutex::new(()),
         }
+    }
+
+    /// The loose values the settings file holds that the person has not confirmed, with the
+    /// shipped value in force, in key order. Computed from the files as they are now, so it is
+    /// the gated read the settings watch last published, and it also sees a confirmation made
+    /// since (the watch looks at `settings.toml` alone).
+    pub fn waiting(&self) -> Vec<WaitingSetting> {
+        self.locator.waiting()
     }
 
     /// Records `values` (setting key to value) and reads the settings again. Nothing is recorded

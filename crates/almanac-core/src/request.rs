@@ -134,6 +134,10 @@ pub enum MemoryRequest {
     /// takes effect only once memoryd has it here. The Settings app's alone, and memoryd's daemon
     /// applies it (the service keeps no settings file), so the service itself refuses it.
     ConfirmSettings(BTreeMap<String, String>),
+    /// The loose settings the file holds that wait for the person's confirmation (the shipped
+    /// value is in force), so the Settings app can offer to confirm one typed in by hand. The
+    /// Settings app's and the shell's; memoryd's daemon answers it, like `ConfirmSettings`.
+    PendingSettings,
 }
 
 impl MemoryRequest {
@@ -175,6 +179,7 @@ impl MemoryRequest {
             | MemoryRequest::SetRule(_)
             | MemoryRequest::RemoveRule(_)
             | MemoryRequest::ConfirmSettings(_)
+            | MemoryRequest::PendingSettings
             | MemoryRequest::Export(_) => None,
         }
     }

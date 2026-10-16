@@ -12,8 +12,9 @@
 
 use super::MemorySettings;
 use super::keys::{Rule, table};
-use super::loosen::{loose, loosenable};
+use super::loosen::{loose, loosenable, shipped_text};
 use super::read::{Fallback, Loaded, Why};
+use almanac_core::WaitingSetting;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -127,4 +128,23 @@ pub fn gate(loaded: Loaded, confirmed: &Confirmations) -> Loaded {
         fallbacks,
         unknown: loaded.unknown,
     }
+}
+
+/// The values of `gated` (a read already put through [`gate`]) that wait for the person's
+/// confirmation, each with the shipped value in force meanwhile, in key order.
+pub fn waiting(gated: &Loaded) -> Vec<WaitingSetting> {
+    let mut waiting: Vec<WaitingSetting> = gated
+        .fallbacks
+        .iter()
+        .filter_map(|f| match &f.why {
+            Why::NotConfirmed { value } => Some(WaitingSetting {
+                key: f.key.clone(),
+                waiting: value.clone(),
+                shipped: shipped_text(&f.key)?,
+            }),
+            _ => None,
+        })
+        .collect();
+    waiting.sort_by(|a, b| a.key.cmp(&b.key));
+    waiting
 }

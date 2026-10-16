@@ -1,9 +1,10 @@
 //! Where the settings file is: `$XDG_CONFIG_HOME/almanac/settings.toml`, then each of
 //! `$XDG_CONFIG_DIRS` (design/22 section 2). The first file that reads wins.
 
-use super::confirm::{ConfirmError, Confirmations, gate};
+use super::confirm::{ConfirmError, Confirmations, gate, waiting};
 use super::read::{Fallback, Loaded, Why, read};
 use super::{MemorySettings, SETTINGS_FILE};
+use almanac_core::WaitingSetting;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
@@ -95,6 +96,12 @@ impl Locator {
         let mut gated = gate(loaded, &confirmed);
         gated.fallbacks.extend(unreadable);
         gated
+    }
+
+    /// The loose values the file holds now that the person has not confirmed, each with the
+    /// shipped value in force, in key order: exactly the keys [`Locator::read`] puts back.
+    pub fn waiting(&self) -> Vec<WaitingSetting> {
+        waiting(&self.read(MemorySettings::default()))
     }
 
     /// Records that the person confirmed `values` (key to value): all of them are checked first,

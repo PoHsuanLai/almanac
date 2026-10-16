@@ -114,6 +114,18 @@ pub enum Refusal {
     Invalid(String),
 }
 
+/// One loose memory setting the settings file holds that the person has not confirmed, so the
+/// shipped value is in force (`Memory1.Control.PendingSettings`).
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct WaitingSetting {
+    /// The dotted setting key, like `memory.retention.search_days`.
+    pub key: String,
+    /// The value the file holds, as `ConfirmSettings` names it (`7`, `plain`).
+    pub waiting: String,
+    /// The shipped value that is in force meanwhile, in the same form.
+    pub shipped: String,
+}
+
 /// What memoryd answers.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "v", rename_all = "snake_case")]
@@ -169,4 +181,6 @@ pub enum MemoryReply {
     Swept(SweepReport),
     /// A removed Space's memories were settled.
     Relocated(Relocation),
+    /// The loose settings that wait for the person's confirmation, in key order.
+    PendingSettings(Vec<WaitingSetting>),
 }

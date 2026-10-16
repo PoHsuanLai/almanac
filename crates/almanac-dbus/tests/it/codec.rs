@@ -72,6 +72,7 @@ fn the_member_table() {
         (Control, "Sweep", 1),
         (Control, "RemoveSpace", 2),
         (Control, "ConfirmSettings", 1),
+        (Control, "PendingSettings", 0),
     ] {
         assert!(
             table.contains(&expected),
@@ -165,6 +166,10 @@ fn replies_round_trip_through_their_members() {
         (
             "RemoveSpace",
             reply_where(|r| matches!(r, MemoryReply::Relocated(_))),
+        ),
+        (
+            "PendingSettings",
+            reply_where(|r| matches!(r, MemoryReply::PendingSettings(_))),
         ),
     ];
     for (member, reply) in pairs {

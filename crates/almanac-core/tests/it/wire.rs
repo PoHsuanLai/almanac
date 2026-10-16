@@ -43,6 +43,7 @@ fn request_index(r: &MemoryRequest) -> usize {
         MemoryRequest::Entries(..) => 34,
         MemoryRequest::RemoveSpace(..) => 35,
         MemoryRequest::ConfirmSettings(_) => 36,
+        MemoryRequest::PendingSettings => 37,
         // The enum is non_exhaustive, so this match cannot be exhaustive from outside the crate.
         // A new variant that has a sample lands here and fails the coverage assert below.
         _ => usize::MAX,
@@ -56,7 +57,7 @@ fn wire_round_trip_every_request() {
     let covered: std::collections::BTreeSet<usize> = all.iter().map(request_index).collect();
     assert_eq!(
         covered,
-        (0..=36).collect(),
+        (0..=37).collect(),
         "a request variant has no sample"
     );
 }
@@ -88,6 +89,7 @@ fn reply_index(r: &MemoryReply) -> usize {
         MemoryReply::Durable(_) => 22,
         MemoryReply::Entries(_) => 23,
         MemoryReply::Relocated(_) => 24,
+        MemoryReply::PendingSettings(_) => 25,
         // See `request_index`: a new variant with a sample breaks the coverage assert.
         _ => usize::MAX,
     }
@@ -98,7 +100,7 @@ fn wire_round_trip_every_reply() {
     let all = replies();
     round_trips(&all);
     let covered: std::collections::BTreeSet<usize> = all.iter().map(reply_index).collect();
-    assert_eq!(covered, (0..=24).collect(), "a reply variant has no sample");
+    assert_eq!(covered, (0..=25).collect(), "a reply variant has no sample");
 }
 
 #[test]
@@ -107,7 +109,7 @@ fn requests_name_their_space() {
         let named = request.space().is_some();
         let by_index = !matches!(
             request_index(&request),
-            1 | 10 | 14 | 16 | 19 | 20 | 21 | 22 | 27 | 31 | 32 | 36
+            1 | 10 | 14 | 16 | 19 | 20 | 21 | 22 | 27 | 31 | 32 | 36 | 37
         );
         assert_eq!(named, by_index, "{request:?}");
     }

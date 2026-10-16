@@ -60,6 +60,10 @@ pub trait Control {
     /// The person confirmed these loosened memory settings in the Settings app (setting key to
     /// value). The Settings app's alone: until then a value looser than the shipped default waits.
     fn confirm_settings(&self, values: HashMap<String, String>) -> zbus::Result<()>;
+    /// The loose memory settings the file holds that wait for confirmation: each one's key, the
+    /// value waiting and the shipped value in force, in key order. The Settings app's and the
+    /// shell's.
+    fn pending_settings(&self) -> zbus::Result<Vec<(String, String, String)>>;
     /// A record was stored.
     #[zbus(signal)]
     fn recorded(&self, space: &str, event_ref: &str, kind: &str) -> zbus::Result<()>;
@@ -196,6 +200,10 @@ impl ControlSkeleton {
 
     fn confirm_settings(&self, values: HashMap<String, String>) -> fdo::Result<()> {
         let _ = values;
+        Err(crate::introspect::frozen())
+    }
+
+    fn pending_settings(&self) -> fdo::Result<Vec<(String, String, String)>> {
         Err(crate::introspect::frozen())
     }
 

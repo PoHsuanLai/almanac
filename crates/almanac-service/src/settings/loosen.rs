@@ -105,6 +105,26 @@ pub(crate) fn loose(value: &MemorySettings) -> Vec<Loose> {
     out
 }
 
+/// The shipped value of `key` as a confirmation names it (a number in decimal, or the word), for
+/// a key that can loosen a default.
+pub(crate) fn shipped_text(key: &str) -> Option<String> {
+    let shipped = MemorySettings::default();
+    let text = match key {
+        AT_REST => match shipped.at_rest {
+            VaultKind::Plain => "plain".to_owned(),
+            _ => "sealed".to_owned(),
+        },
+        APPLY => match shipped.apply {
+            ConsolidateApply::Auto => "auto".to_owned(),
+            ConsolidateApply::Review => "review".to_owned(),
+        },
+        day => (DAY_KEYS.iter().find(|d| d.key == day)?.of)(&shipped)
+            .0
+            .to_string(),
+    };
+    Some(text)
+}
+
 /// Whether `key` is one that can loosen a shipped default, so one a confirmation may name.
 pub(crate) fn loosenable(key: &str) -> bool {
     key == AT_REST || key == APPLY || DAY_KEYS.iter().any(|d| d.key == key)

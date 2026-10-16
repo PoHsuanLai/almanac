@@ -7,7 +7,8 @@
 //! | Search, Facts, Related, Provenance, Primer, Inject, Recent, Entries, Spaces | no | yes (audited as `Memory.Read`) | no | yes | no |
 //! | Propose, PlanForget | no | yes | no | yes | no |
 //! | everything else (with `RemoveSpace`) | no | no | no | yes | no |
-//! | ConfirmSettings | no | no | no | no | yes |  (the Settings app's alone)
+//! | ConfirmSettings | no | no | no | no | yes |
+//! | PendingSettings | no | no | no | yes | yes |
 //!
 //! `Settings` is the System Settings app, not an app with memory: it reaches the two settings
 //! members and nothing else.
@@ -171,6 +172,8 @@ fn by_class(caller: &Caller, request: &MemoryRequest) -> Allowed {
         | R::RemoveSpace(..) => yes_if(matches!(caller, Caller::ShellUi)),
         // The person's confirmation comes from the Settings app that took it, never the shell.
         R::ConfirmSettings(_) => yes_if(matches!(caller, Caller::Settings)),
+        // What waits for that confirmation may be read by the app that confirms and by the shell.
+        R::PendingSettings => yes_if(matches!(caller, Caller::Settings | Caller::ShellUi)),
         // A request kind this build does not know is not allowed to anyone.
         _ => NO,
     }

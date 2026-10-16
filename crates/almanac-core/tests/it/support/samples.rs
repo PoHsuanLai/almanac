@@ -193,6 +193,7 @@ pub fn requests() -> Vec<MemoryRequest> {
         MemoryRequest::ConfirmSettings(
             [("memory.pending_ttl_days".to_owned(), "3".to_owned())].into(),
         ),
+        MemoryRequest::PendingSettings,
         MemoryRequest::ApplyConsolidation(RunId::parse("run-1").expect("run")),
         MemoryRequest::DiscardConsolidation(RunId::parse("run-1").expect("run")),
         MemoryRequest::RecordDurable(record(archived_body(), user())),
@@ -382,5 +383,10 @@ pub fn replies() -> Vec<MemoryReply> {
             events_moved: Count(5),
             events_deleted: Count(2),
         }),
+        MemoryReply::PendingSettings(vec![WaitingSetting {
+            key: "memory.retention.search_days".into(),
+            waiting: "7".into(),
+            shipped: "30".into(),
+        }]),
     ]
 }

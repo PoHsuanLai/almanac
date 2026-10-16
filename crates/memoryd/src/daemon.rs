@@ -85,6 +85,17 @@ impl<B: Backend, P: Peers> Daemon<B, P> {
         self
     }
 
+    /// `PendingSettings`: what waits for the person's confirmation (`allowed` decides who asks).
+    fn pending_settings(&self, caller: &Caller, request: &MemoryRequest) -> MemoryReply {
+        if let Allowed::No(refusal) = allowed(caller, request) {
+            return MemoryReply::Refused(refusal);
+        }
+        match &self.consent {
+            Some(consent) => MemoryReply::PendingSettings(consent.waiting()),
+            None => MemoryReply::Refused(Refusal::Unavailable),
+        }
+    }
+
     /// `ConfirmSettings`: the Settings app's alone (`allowed` decides, as for every member). The
     /// confirmations are recorded, then the settings are read again and put in force.
     fn confirm_settings(&self, caller: &Caller, request: &MemoryRequest) -> MemoryReply {
@@ -288,6 +299,7 @@ impl<B: Backend, P: Peers> Daemon<B, P> {
                 self.settle(space, *removal).await
             }
             (MemoryRequest::ConfirmSettings(_), _) => self.confirm_settings(caller, &request),
+            (MemoryRequest::PendingSettings, _) => self.pending_settings(caller, &request),
             _ => self.queue.handle(caller, request.clone()).await,
         };
         self.persist();

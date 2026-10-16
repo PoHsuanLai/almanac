@@ -76,6 +76,7 @@ pub fn encode_request(request: &MemoryRequest) -> Result<Call, CodecError> {
             "ConfirmSettings",
             vec![CallArg::Map(values.clone())],
         ),
+        R::PendingSettings => call(Control, "PendingSettings", vec![]),
         // A request kind this build has no member for.
         _ => return Err(CodecError::Unsupported),
     })
@@ -221,6 +222,7 @@ pub fn decode_request(call: &Call) -> Result<MemoryRequest, CodecError> {
             args.end()?;
             Ok(R::ConfirmSettings(values))
         }
+        (Control, "PendingSettings") => args.end().map(|()| R::PendingSettings),
         (_, member) => Err(CodecError::Json(format!("no member {member}"))),
     }
 }

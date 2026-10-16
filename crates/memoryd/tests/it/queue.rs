@@ -185,6 +185,7 @@ fn what_a_request_holds() {
             MemoryRequest::ConfirmSettings(Default::default()),
             Claim::Everything,
         ),
+        (MemoryRequest::PendingSettings, Claim::Nothing),
     ];
     for (request, claim) in table {
         assert_eq!(claim_of(&request), claim, "{request:?}");

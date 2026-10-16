@@ -255,6 +255,21 @@ fn confirming_a_setting_is_the_settings_apps_alone() {
 }
 
 #[test]
+fn the_waiting_settings_are_read_by_the_settings_app_and_the_shell_only() {
+    for (who, caller) in callers() {
+        assert_eq!(
+            yes(allowed(&caller, &MemoryRequest::PendingSettings)),
+            who == "shell",
+            "{who}"
+        );
+    }
+    assert!(yes(allowed(
+        &Caller::Settings,
+        &MemoryRequest::PendingSettings
+    )));
+}
+
+#[test]
 fn the_settings_app_is_refused_every_request_of_the_others() {
     let w = space("work");
     let others = [

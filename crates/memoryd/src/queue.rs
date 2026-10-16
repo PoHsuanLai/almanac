@@ -20,7 +20,8 @@ use tokio::sync::{Mutex as AsyncMutex, RwLock};
 /// What a request needs exclusive use of.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Claim {
-    /// Nothing: it only reads the service's lists (`Spaces`, `Rules`).
+    /// Nothing: it only reads the service's lists (`Spaces`, `Rules`) or the settings
+    /// (`PendingSettings`).
     Nothing,
     /// These Spaces' queues.
     Spaces(BTreeSet<SpaceId>),
@@ -40,7 +41,7 @@ fn landing(record: &Record) -> SpaceId {
 pub fn claim_of(request: &MemoryRequest) -> Claim {
     use MemoryRequest as R;
     match request {
-        R::Spaces | R::Rules => Claim::Nothing,
+        R::Spaces | R::Rules | R::PendingSettings => Claim::Nothing,
         R::Record(r) => Claim::Spaces(BTreeSet::from([landing(r)])),
         R::RecordBatch(rs) => Claim::Spaces(rs.iter().map(landing).collect()),
         R::Forget(_)

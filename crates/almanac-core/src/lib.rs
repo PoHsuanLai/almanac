@@ -66,7 +66,9 @@ pub use query::{
 };
 pub use recallable::Recallable;
 pub use relocate::{HistoryFate, MemoryFate, Relocation, Removal};
-pub use reply::{ForgetReport, MemoryReply, RecallHit, RecallWhy, Refusal, SweepReport};
+pub use reply::{
+    ForgetReport, MemoryReply, RecallHit, RecallWhy, Refusal, SweepReport, WaitingSetting,
+};
 pub use request::{ForgetScope, MemoryRequest};
 pub use rules::{
     ActorClass, Admission, DropReason, FALLBACK_DAYS, HEADER_DAYS, KindRetention, Marks,

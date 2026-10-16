@@ -476,6 +476,46 @@ fn a_loosened_value_applies_only_once_the_person_confirmed_exactly_it() {
 }
 
 #[test]
+fn the_waiting_list_is_the_unconfirmed_loose_values_in_key_order() {
+    let dir = tempfile::tempdir().unwrap();
+    let file = "[memory]\npending_ttl_days = 3\n[memory.files]\nat_rest = \"plain\"\n";
+    let locator = locator_with(dir.path(), file);
+    let waiting = |key: &str, waiting: &str, shipped: &str| almanac_core::WaitingSetting {
+        key: key.to_owned(),
+        waiting: waiting.to_owned(),
+        shipped: shipped.to_owned(),
+    };
+    assert_eq!(
+        locator.waiting(),
+        [
+            waiting("memory.files.at_rest", "plain", "sealed"),
+            waiting("memory.pending_ttl_days", "3", "14"),
+        ]
+    );
+
+    // A confirmed value no longer waits; the other still does.
+    locator
+        .confirm(&pairs(&[("memory.files.at_rest", "plain")]))
+        .unwrap();
+    assert_eq!(
+        locator.waiting(),
+        [waiting("memory.pending_ttl_days", "3", "14")]
+    );
+    locator
+        .confirm(&pairs(&[("memory.pending_ttl_days", "3")]))
+        .unwrap();
+    assert_eq!(locator.waiting(), vec![]);
+
+    // A value that is not looser, or not valid, never waits.
+    std::fs::write(
+        dir.path().join(SETTINGS_FILE),
+        "[memory]\npending_ttl_days = 20\n[memory.retention]\nsearch_days = 0\n",
+    )
+    .unwrap();
+    assert_eq!(locator.waiting(), vec![]);
+}
+
+#[test]
 fn a_confirmation_names_a_loosenable_key_and_a_value_it_takes_or_none_is_kept() {
     let dir = tempfile::tempdir().unwrap();
     let locator = locator_with(dir.path(), "");
