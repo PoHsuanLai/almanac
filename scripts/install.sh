@@ -260,32 +260,6 @@ check_build_tools() {
   report_missing
 }
 
-# ---- the linker the repo's .cargo/config.toml asks for (clang with mold) ----
-# A clean machine has neither. Without both, link with the system's cc and keep the rest of the
-# repo's rustflags. The file is read, never edited.
-relax_linker() {
-  have clang && have mold && return 0
-  local cfg="$ROOT/.cargo/config.toml" line raw=() words=() kept=() w next i=0
-  [ -f "$cfg" ] || return 0
-  grep -qE 'mold|^linker *= *"clang"' "$cfg" || return 0
-  line="$(sed -n '/^\[target\.x86_64-unknown-linux-gnu\]/,/^\[/{s/^rustflags *= *\[\(.*\)\].*/\1/p}' "$cfg")"
-  IFS=, read -r -a raw <<<"$line"
-  for w in "${raw[@]}"; do w="${w//\"/}"; w="${w// /}"; [ -z "$w" ] || words+=("$w"); done
-  while [ "$i" -lt "${#words[@]}" ]; do
-    w="${words[$i]}"
-    case "$w" in
-      -C)
-        next="${words[$((i + 1))]:-}"
-        case "$next" in link-arg=-fuse-ld=*|linker=*) i=$((i + 2)); continue ;; esac ;;
-      -Clink-arg=-fuse-ld=*|-Clinker=*) i=$((i + 1)); continue ;;
-    esac
-    kept+=("$w"); i=$((i + 1))
-  done
-  export CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=cc
-  export RUSTFLAGS="${RUSTFLAGS-${kept[*]}}"
-  say "clang and mold are not both installed, so this build uses the system linker (a little slower to link)."
-}
-
 # ---- build ----
 bin_source() { echo "${BIN_FROM:-${CARGO_TARGET_DIR:-$ROOT/target}/release}/$1"; }
 cargo_packages() { # -p NAME for each package of BINARIES, once
@@ -298,16 +272,27 @@ cargo_packages() { # -p NAME for each package of BINARIES, once
   done
 }
 build_all() {
-  local args=()
+  local args=() toolchain
   if [ -n "$BIN_FROM" ]; then say "Using the programs already built in $BIN_FROM."; return 0; fi
   [ "$BUILD" = 1 ] || return 0
   mapfile -t args < <(cargo_packages)
   [ "${#args[@]}" -gt 0 ] || return 0
-  if [ "$DRY" = 1 ]; then act "cargo build --release --locked ${args[*]} (in $ROOT)"; return 0; fi
+  if [ "$DRY" = 1 ]; then act "cargo build --release --locked --manifest-path $ROOT/Cargo.toml --config net.git-fetch-with-cli=true ${args[*]} (run from /, linked by this system's own linker)"; return 0; fi
   check_build_tools
-  relax_linker
   say "Building (this takes a while the first time)..."
-  (cd "$ROOT" && cargo build --release --locked "${args[@]}")
+  # Linked by this system's own linker. The source tree's .cargo/config.toml links with clang and
+  # mold, which is how this code is worked on, not something an install may ask the person to
+  # have. Cargo reads that file (and rustup the toolchain file) from the directory it runs in, so
+  # the build runs from / with the manifest named and the pinned toolchain passed on.
+  toolchain="$(sed -n 's/^channel *= *"\(.*\)"/\1/p' "$ROOT/rust-toolchain.toml" 2>/dev/null)" || true
+  (
+    cd / &&
+      if [ -n "$toolchain" ] && command -v rustup >/dev/null 2>&1; then
+        RUSTUP_TOOLCHAIN="$toolchain"
+        export RUSTUP_TOOLCHAIN
+      fi &&
+      cargo build --release --locked --manifest-path "$ROOT/Cargo.toml" --config net.git-fetch-with-cli=true "${args[@]}"
+  )
 }
 preflight() {
   local entry name missing=0
