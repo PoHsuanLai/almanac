@@ -875,13 +875,44 @@ Mapping: default `Remove` sends `{"memories":"move_to_apps","history":"keep"}`; 
 ## ALM-16: the settings file is not authenticated
 
 `settings.toml` is writable by any process of the same user, and nothing here can tell the Settings
-app's write from another process's. Done: every read (at start and on each reload) logs each value
-looser than the shipped default by name (`almanac_service::loosenings`, through `Loaded::lines`):
-retention or pending-fact days below the shipped ones, `at_rest = "plain"`, `apply = "auto"` when
-the base is `review`. Open, needs the owner: the shipped `apply` default is already `auto`, and a
-real fix (a loosening takes effect only with a consent the person gave in the app, stored where the
-agent sandbox cannot write, such as a root- or shell-owned file the daemon can verify) needs that
-store and a decision on whether the default becomes `review`. Not done.
+app's write from another process's. Done (owner decision 2026-10-16): a value looser than the
+shipped default takes effect only after the person confirmed exactly that value, and the
+confirmation is kept where the agent sandbox and the apps cannot write.
+
+- What counts as looser is unchanged (`almanac_service::loosenings`): retention or pending-fact
+  days below the shipped ones, `at_rest = "plain"`, `apply = "auto"` when the shipped value is
+  `review`. A value that is not looser needs nothing.
+- The store is `confirmed-settings.toml` in memoryd's own data directory (`Dirs::memory()`, the
+  directory its unit's `ReadWritePaths` and Landlock policy let it write and the agent sandbox does
+  not): key to value pairs under `[confirmed]`, written atomically (temp file, synced, renamed,
+  `write_private_atomic`). Only memoryd writes it.
+- Every read (at start, on each file change and after each confirmation) goes through
+  `Locator::read`, which puts back the shipped value of each looser value the store does not hold
+  as exactly that value, and reports it as `Why::NotConfirmed` with a line such as
+  "memory.consolidation.apply: auto waits for you to confirm it in Settings". A confirmed value
+  applies and is still logged as loosened. A file that later changes the value falls back again
+  (the old confirmation names the old value); a confirmation the file no longer uses stays in the
+  store, unused. A store that does not read counts as nothing confirmed and is reported.
+- `Memory1.Control.ConfirmSettings(a{ss} values)` records confirmations. Only the shell may call
+  it (porter role `sheet_host` and app `org.quire.Shell`, mapped to `Caller::ShellUi`; `allowed`
+  refuses every other caller with `NotAllowed`). Each key must be a key that can loosen a shipped
+  default and each value one the key's schema takes; otherwise the whole call is refused as
+  `Invalid` and nothing is written. On success memoryd reads the settings again, so the value
+  applies to the next request.
+- The shipped default of `memory.consolidation.apply` stays `auto` (the owner did not change it).
+  `auto` is the shipped value, so it is never a loosening today; the gate matters for the
+  retention and pending days and `at_rest`, and for `apply` if the shipped value ever becomes
+  `review`.
+- Not done: nothing removes a confirmation (a person who sets the value back and later loosens it
+  again to the same number is not asked again); `Locator::read` is the only gated path, the bare
+  reader `read_settings` is not.
+
+Interface note for the shell team: after the Settings app writes a looser-than-shipped value to
+`almanac/settings.toml`, it calls `org.quire.Memory1.Control.ConfirmSettings` with that key and
+value (`a{ss}`, for example `{"memory.retention.search_days": "7"}`; numbers in decimal, words as
+the file has them), once the person has agreed. Until it does, the value waits and the shipped
+value is in force. The call returns nothing and, once it has, the value is in force.
+There is no way yet to read which values are waiting; add a property if Settings needs to show it.
 
 ## ALM-18: what forget reaches
 
