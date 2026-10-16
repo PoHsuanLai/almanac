@@ -42,7 +42,9 @@ pub use queue::{Claim, Serialised, claim_for, claim_of};
 pub use registry::{REGISTRY_WAIT, SpaceRegistry};
 pub use removals::Removals;
 pub use run::{Env, PROC_GATE, PROC_ROOT_VAR, SYSTEM_CALLERS_VAR, StartError, start};
-pub use sandbox::{Enforcement, Policy, SandboxError, bus_socket, enforce, policy_for, prepare};
+pub use sandbox::{
+    Enforcement, Policy, SandboxError, bus_socket, confinement_of, enforce, policy_for, prepare,
+};
 pub use settings_watch::{DEBOUNCE, SettingsWatch, WatchState, apply, apply_next};
 pub use signals::{FollowUp, follow_ups};
 pub use xdg::{XdgError, dirs_from, dirs_from_env};

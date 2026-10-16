@@ -3,7 +3,7 @@
 //! reaches for what it may and may not have. A kernel without Landlock skips the second half.
 
 use almanac_core::Dirs;
-use memoryd::{Enforcement, Policy, bus_socket, enforce, policy_for, prepare};
+use memoryd::{Enforcement, Policy, bus_socket, confinement_of, enforce, policy_for, prepare};
 use std::io::{ErrorKind, Write};
 use std::net::{TcpListener, TcpStream};
 use std::os::unix::net::{UnixListener, UnixStream};
@@ -209,4 +209,22 @@ fn the_sandbox_confines_the_thread_that_applies_it() {
     }
     // This thread was never restricted.
     assert!(std::fs::read(root.join("elsewhere/secret")).is_ok());
+}
+
+#[test]
+fn the_confinement_word_follows_what_the_kernel_enforced() {
+    let rows = [
+        (Some(Enforcement::Full), "confined"),
+        (Some(Enforcement::Partial), "partial"),
+        (Some(Enforcement::Unsupported), "not-available"),
+        // A test build with the sandbox switched off is not "confined".
+        (None, "off"),
+    ];
+    for (enforcement, word) in rows {
+        assert_eq!(
+            confinement_of(enforcement).as_word(),
+            word,
+            "{enforcement:?}"
+        );
+    }
 }

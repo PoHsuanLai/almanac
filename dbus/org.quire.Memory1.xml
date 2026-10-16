@@ -182,6 +182,7 @@
      <arg name="space" type="s"/>
      <arg name="status" type="s"/>
    </signal>
+   <property name="Confinement" type="s" access="read"/>
    <property name="Version" type="u" access="read"/>
  </interface>
 </node>

@@ -10,6 +10,7 @@
 //! ([`policy_for`]) so it is a table test; [`enforce`] is the only effect.
 
 use almanac_core::Dirs;
+use almanac_dbus::Confinement;
 use landlock::{
     ABI, Access, AccessFs, AccessNet, Ruleset, RulesetAttr, RulesetCreatedAttr, RulesetError,
     RulesetStatus, path_beneath_rules,
@@ -48,6 +49,17 @@ pub enum Enforcement {
     Partial,
     /// This kernel has no Landlock (or it is not enabled): nothing is restricted.
     Unsupported,
+}
+
+/// The word the bus carries for how the daemon started: `enforcement` is what `enforce` said,
+/// or `None` when a test build switched the sandbox off (never `Full`: nothing was applied).
+pub fn confinement_of(enforcement: Option<Enforcement>) -> Confinement {
+    match enforcement {
+        Some(Enforcement::Full) => Confinement::Confined,
+        Some(Enforcement::Partial) => Confinement::Partial,
+        Some(Enforcement::Unsupported) => Confinement::NotAvailable,
+        None => Confinement::Off,
+    }
 }
 
 /// Why the sandbox could not be applied.

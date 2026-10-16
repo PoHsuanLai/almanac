@@ -8,7 +8,7 @@ pub mod bus;
 pub mod inferd;
 
 use almanac_core::{Caller, Dirs, SpaceId};
-use almanac_dbus::serve_on;
+use almanac_dbus::{Confinement, serve_on};
 use almanac_fake::ScriptedConsolidator;
 use almanac_seal::{KeyError, KeyStore, MemoryKeys, SpaceKey};
 use almanac_service::MemoryService;
@@ -118,12 +118,34 @@ impl World {
         keys: &SharedKeys,
         consent: Option<Consent>,
     ) -> World {
-        let server = connect(&bus.address).await;
         let daemon = Daemon::new(service(dirs, keys), TablePeers::new(), dirs.clone());
-        let daemon = Arc::new(match consent {
+        let daemon = match consent {
             Some(consent) => daemon.with_consent(consent),
             None => daemon,
-        });
+        };
+        Self::serving(bus, dirs, keys, daemon).await
+    }
+
+    /// The daemon, told it started `confinement` (what `start` computes from the sandbox).
+    pub async fn start_confined(
+        bus: &bus::PrivateBus,
+        dirs: &Dirs,
+        keys: &SharedKeys,
+        confinement: Confinement,
+    ) -> World {
+        let daemon = Daemon::new(service(dirs, keys), TablePeers::new(), dirs.clone())
+            .with_confinement(confinement);
+        Self::serving(bus, dirs, keys, daemon).await
+    }
+
+    async fn serving(
+        bus: &bus::PrivateBus,
+        dirs: &Dirs,
+        keys: &SharedKeys,
+        daemon: Daemon<TestBackend, TablePeers>,
+    ) -> World {
+        let server = connect(&bus.address).await;
+        let daemon = Arc::new(daemon);
         serve_on(&server, daemon.clone()).await.expect("serve");
         daemon.attach(server.clone());
         World {

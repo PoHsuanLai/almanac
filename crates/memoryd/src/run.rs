@@ -6,11 +6,11 @@ use crate::keysel::{AnyKeys, KEYS_VAR, SANDBOX_VAR, Sandbox, TestKeys, sandbox_c
 use crate::{
     CallerFileError, Consent, Daemon, Enforcement, InferdConsolidator, InferdEmbedder, KeysError,
     LockChanges, ProcGate, ProcPeers, SHELL_APP, SandboxError, SettingsWatch, SpaceRegistry,
-    SystemBackend, WatchState, XdgError, apply, apply_next, default_card, dirs_from, enforce,
-    inferd_link, load_callers, policy_for, prepare,
+    SystemBackend, WatchState, XdgError, apply, apply_next, confinement_of, default_card,
+    dirs_from, enforce, inferd_link, load_callers, policy_for, prepare,
 };
 use almanac_core::{Dirs, RuleSet};
-use almanac_dbus::serve_on;
+use almanac_dbus::{Confinement, serve_on};
 use almanac_service::{
     ConfigError, ConsolidateWhen, Locator, MemoryService, MemorySettings, read_config,
     rules_from_toml, spaces_from_toml,
@@ -134,6 +134,7 @@ async fn run(
     keys: AnyKeys,
     proc_root: ProcRoot,
     system: PathBuf,
+    confinement: Confinement,
 ) -> Result<(), StartError> {
     // The bus is the injected environment's too: a test starts the daemon on a private bus.
     let builder = match env("DBUS_SESSION_BUS_ADDRESS") {
@@ -182,7 +183,11 @@ async fn run(
     if let Ok(shell) = almanac_core::AppName::parse(SHELL_APP) {
         service.set_fallback_owner(shell);
     }
-    let daemon = Arc::new(Daemon::new(service, peers, dirs).with_consent(Consent::new(locator)));
+    let daemon = Arc::new(
+        Daemon::new(service, peers, dirs)
+            .with_consent(Consent::new(locator))
+            .with_confinement(confinement),
+    );
     serve_on(&connection, daemon.clone()).await?;
     // The keyring says when it locks or unlocks; no timer asks.
     let changes = LockChanges::on(&connection).await?;
@@ -267,26 +272,27 @@ pub fn start(env: Env<'_>) -> Result<(), StartError> {
     prepare(&policy).map_err(StartError::Prepare)?;
     let sandbox = sandbox_choice(env(SANDBOX_VAR).as_deref(), TestKeys::THIS_BUILD);
     let enforcement = match sandbox {
-        Sandbox::On => enforce(&policy)?,
+        Sandbox::On => Some(enforce(&policy)?),
         Sandbox::Off => {
             eprintln!("memoryd: TEST BUILD: the Landlock sandbox is off");
-            Enforcement::Full
+            None
         }
     };
     match enforcement {
-        Enforcement::Full => {}
-        Enforcement::Partial => eprintln!(
+        Some(Enforcement::Full) | None => {}
+        Some(Enforcement::Partial) => eprintln!(
             "memoryd: this kernel's Landlock is older than the policy; part of it is enforced"
         ),
-        Enforcement::Unsupported => eprintln!(
+        Some(Enforcement::Unsupported) => eprintln!(
             "memoryd: this kernel has no Landlock; the unit file's restrictions are all there is"
         ),
     }
+    let confinement = confinement_of(enforcement);
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
         .map_err(StartError::Runtime)?
-        .block_on(run(env, dirs, keys, proc_root, system))
+        .block_on(run(env, dirs, keys, proc_root, system, confinement))
 }
 
 #[cfg(test)]

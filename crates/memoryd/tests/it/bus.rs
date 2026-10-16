@@ -556,3 +556,28 @@ async fn an_app_hears_no_signals_about_memory() {
         "an app is not told what happened in a Space"
     );
 }
+
+#[tokio::test]
+async fn the_confinement_property_reads_what_the_daemon_started_with() {
+    use almanac_dbus::Confinement;
+    let rows = [
+        (Confinement::Confined, "confined"),
+        (Confinement::Partial, "partial"),
+        (Confinement::NotAvailable, "not-available"),
+        (Confinement::Off, "off"),
+    ];
+    for (confinement, word) in rows {
+        let scratch = tempfile::tempdir().expect("scratch");
+        let bus = PrivateBus::start(scratch.path());
+        let dirs = dirs_in(&scratch.path().join("home"));
+        let world = World::start_confined(&bus, &dirs, &SharedKeys::default(), confinement).await;
+        let client = world.client(Caller::ShellUi).await;
+        let control = ControlProxy::new(&client).await.expect("proxy");
+        assert_eq!(control.confinement().await.expect("property"), word);
+    }
+    // A daemon nobody told (a test host) says it applied no sandbox.
+    let rig = rig().await;
+    let client = rig.world.client(Caller::ShellUi).await;
+    let control = ControlProxy::new(&client).await.expect("proxy");
+    assert_eq!(control.confinement().await.expect("property"), "off");
+}

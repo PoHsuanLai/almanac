@@ -6,6 +6,7 @@
 //! `NotSupported`; the served objects (`serve`) are the live ones, over a `Serve` handler.
 
 mod codec;
+mod confinement;
 mod control;
 mod error;
 mod introspect;
@@ -18,6 +19,7 @@ mod serve;
 pub use codec::{
     Call, CallArg, CodecError, Iface, decode_reply, decode_request, encode_reply, encode_request,
 };
+pub use confinement::Confinement;
 pub use control::{ControlProxy, ControlSkeleton};
 pub use error::{Failure, MemoryError};
 pub use introspect::{INTROSPECTION_FILE, introspection};

@@ -14,7 +14,9 @@ use almanac_core::{
     Caller, DesktopSpace, Dirs, MemoryReply, MemoryRequest, PlanToken, Refusal, Removal, SpaceId,
     SpaceKind,
 };
-use almanac_dbus::{Call, MemoryError, Serve, Signal, decode_request, emit_to, encode_reply};
+use almanac_dbus::{
+    Call, Confinement, MemoryError, Serve, Signal, decode_request, emit_to, encode_reply,
+};
 use almanac_service::{
     Allowed, Backend, MemoryService, ServiceEvent, SpacesFile, allowed, locked_status,
     rules_to_toml, spaces_to_toml, write_private_atomic,
@@ -36,6 +38,7 @@ pub struct Daemon<B: Backend, P: Peers> {
     saved_rules: Mutex<String>,
     removals: Removals,
     consent: Option<Consent>,
+    confinement: Confinement,
 }
 
 impl<B: Backend, P: Peers> std::fmt::Debug for Daemon<B, P> {
@@ -74,7 +77,16 @@ impl<B: Backend, P: Peers> Daemon<B, P> {
             saved_spaces: Mutex::new(String::new()),
             saved_rules: Mutex::new(String::new()),
             consent: None,
+            confinement: Confinement::Off,
         }
+    }
+
+    /// This daemon told how far its process confines itself (the `Confinement` property).
+    /// Without it the property says `off`, as in a test.
+    #[must_use]
+    pub fn with_confinement(mut self, confinement: Confinement) -> Self {
+        self.confinement = confinement;
+        self
     }
 
     /// This daemon with a place to keep the person's confirmations of loosened settings
@@ -321,6 +333,10 @@ impl<B: Backend + 'static, P: Peers> Serve for Daemon<B, P> {
             .await
             .map_err(|refusal| MemoryError::from(&refusal))?;
         self.serve_as(&caller, call, fd).await
+    }
+
+    fn confinement(&self) -> Confinement {
+        self.confinement
     }
 }
 

@@ -72,6 +72,7 @@ fn every_member_is_declared() {
         "<signal name=\"PendingChanged\">",
         "<signal name=\"ConsolidationReady\">",
         "<signal name=\"StatusChanged\">",
+        "<property name=\"Confinement\" type=\"s\" access=\"read\"/>",
         "<property name=\"Version\" type=\"u\" access=\"read\"/>",
     ];
     for member in members {
@@ -153,5 +154,18 @@ fn names_are_the_documented_ones() {
     assert!(zbus::zvariant::ObjectPath::try_from(MEMORY_PATH).is_ok());
     for interface in [RECORD_INTERFACE, RECALL_INTERFACE, CONTROL_INTERFACE] {
         assert!(interface.starts_with(MEMORY_BUS));
+    }
+}
+
+#[test]
+fn the_confinement_words_are_a_public_contract() {
+    let rows = [
+        (Confinement::Confined, "confined"),
+        (Confinement::Partial, "partial"),
+        (Confinement::NotAvailable, "not-available"),
+        (Confinement::Off, "off"),
+    ];
+    for (confinement, word) in rows {
+        assert_eq!(confinement.as_word(), word, "{confinement:?}");
     }
 }

@@ -79,6 +79,10 @@ pub trait Control {
     /// A Space's status changed (`SpaceStatus` JSON).
     #[zbus(signal)]
     fn status_changed(&self, space: &str, status: &str) -> zbus::Result<()>;
+    /// Whether the daemon keeps itself to its own folders: `confined`, `partial`,
+    /// `not-available` or (in a test build only) `off`.
+    #[zbus(property)]
+    fn confinement(&self) -> zbus::Result<String>;
     /// The wire version.
     #[zbus(property)]
     fn version(&self) -> zbus::Result<u32>;
@@ -238,6 +242,11 @@ impl ControlSkeleton {
         space: &str,
         status: &str,
     ) -> zbus::Result<()>;
+
+    #[zbus(property)]
+    fn confinement(&self) -> String {
+        crate::Confinement::Off.as_word().to_owned()
+    }
 
     #[zbus(property)]
     fn version(&self) -> u32 {

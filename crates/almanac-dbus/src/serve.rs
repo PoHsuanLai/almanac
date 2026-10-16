@@ -6,6 +6,7 @@
 //! skeletons' (`tests/it/served.rs`).
 
 use crate::codec::{Call, CallArg, Iface, parse};
+use crate::confinement::Confinement;
 use crate::{CONTROL_INTERFACE, MEMORY_BUS, MEMORY_PATH, MemoryError};
 use almanac_core::WaitingSetting;
 use std::collections::HashMap;
@@ -27,6 +28,12 @@ pub trait Serve: Send + Sync + 'static {
         call: Call,
         fd: Option<OwnedFd>,
     ) -> impl Future<Output = Result<Vec<String>, MemoryError>> + Send;
+
+    /// How far the handler's process confines itself (the `Confinement` property). A host that
+    /// applies no sandbox (a test) is `Off`.
+    fn confinement(&self) -> Confinement {
+        Confinement::Off
+    }
 }
 
 fn sender_of(header: &Header<'_>) -> Result<String, MemoryError> {
@@ -634,6 +641,11 @@ impl<S: Serve> ControlObject<S> {
         space: &str,
         status: &str,
     ) -> zbus::Result<()>;
+
+    #[zbus(property)]
+    fn confinement(&self) -> String {
+        self.0.confinement().as_word().to_owned()
+    }
 
     #[zbus(property)]
     fn version(&self) -> u32 {
