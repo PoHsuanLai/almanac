@@ -948,16 +948,30 @@ excludes (works on every file system), or on btrfs make it its own subvolume (`d
 unit file cannot enforce it). Re-keying a Space after a forget is out of scope here; it needs a
 rewrite of both databases and the sealed files under a fresh key.
 
-## D21: showing "running without file restrictions" in Settings
+## D21: showing whether memory confines itself, in Settings (done)
 
-`memoryd::sandbox::enforce` already returns `Enforcement { Full, Partial, Unsupported }`, and
-`run.rs` only writes it to standard error (so the journal has "this kernel has no Landlock"). Nothing
-exposes it on the bus yet. To let Settings say "running without file restrictions" (Unsupported) or
-"partly restricted" (Partial): keep the value in the daemon state, add a read-only
-`Confinement` property (`full`, `partial`, `none`) to `org.quire.Memory1` (XML, skeleton, proxy and the
-introspection test move together), and have Settings read it beside `Status`. Whether the unit's own
-protections are on is a second fact: they are on only when `memoryd.service.d/sandbox.conf` is
-installed (`scripts/install.sh` leaves it out where `systemd --user` cannot make namespaces, the
-Ubuntu 24.04+ default), so a "no file restrictions" line is true only when both are off; the unit's
-state can be read from the manager (`systemctl --user show memoryd -p ProtectSystem`). Not done: no
-UI, no property.
+`memoryd::sandbox::enforce` returns `Enforcement { Full, Partial, Unsupported }`; `run.rs` still
+writes it to standard error (the journal keeps "this kernel has no Landlock"), and now also keeps
+it: `memoryd::confinement_of` turns it into `almanac_dbus::Confinement`, which `start` hands to
+`Daemon::with_confinement`; the served `Control` object asks its handler (`Serve::confinement`)
+and returns the word. The read-only property is `org.quire.Memory1.Control.Confinement`, type `s`,
+next to `Version`. Its words are a public contract (`Confinement::as_word`, pinned by a test):
+
+- `confined`: every restriction of the policy is in force (`Enforcement::Full`);
+- `partial`: the kernel's Landlock is older than the policy (`Enforcement::Partial`);
+- `not-available`: the kernel has no Landlock (`Enforcement::Unsupported`);
+- `off`: a test build ran with `MEMORYD_SANDBOX=off`. Only test builds; before, that case wrongly
+  counted as `Full`. A host that serves without telling the daemon (a test) also says `off`.
+
+`dbus/org.quire.Memory1.xml`, the skeleton, the `ControlProxy::confinement()` getter and the
+introspection test move together. Whether the unit's own protections are on is a separate fact: they
+are on only when `memoryd.service.d/sandbox.conf` is installed (`scripts/install.sh` leaves it out
+where `systemd --user` cannot make namespaces, the Ubuntu 24.04+ default), and can be read from the
+manager (`systemctl --user show memoryd -p ProtectSystem`). `Confinement` says nothing about it.
+
+Interface note for the Settings app (detent): read `org.quire.Memory1.Control.Confinement` (a
+string property; read it beside `Status`; it does not change while the daemon runs) and show one
+plain line: `confined` as "Memory keeps itself to its own folders"; `partial` as "Memory keeps
+itself to its own folders, though this computer's system can only enforce part of that";
+`not-available` as "This computer can't confine memory to its folders". `off` occurs only in test
+builds; show nothing for it (or treat any unknown word the same way). Not done: the Settings UI.

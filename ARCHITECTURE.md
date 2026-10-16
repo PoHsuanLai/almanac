@@ -276,7 +276,9 @@ pending/**.md` plain, `rules.toml`. Never the index, never the keys. Golden:
 `crates/almanac-service/tests/golden/events.jsonl` and the layout test.
 
 **D-Bus** `org.quire.Memory1` at `/org/quire/Memory1`: interfaces `.Record`, `.Recall`,
-`.Control` (28 methods, 5 signals, property `Version u = 1`); bodies are the serde JSON of
+`.Control` (28 methods, 5 signals, properties `Version u = 1` and `Confinement s`, one of `confined`,
+`partial`, `not-available` or, in a test build only, `off`: how far memoryd's Landlock sandbox is in
+force); bodies are the serde JSON of
 `almanac-core` types in `s` arguments; errors `org.quire.Memory1.Error.<Refusal variant>`.
 `dbus/org.quire.Memory1.xml` is checked against the skeletons by `almanac-dbus`'s
 introspection test; the failure prints the new text.
