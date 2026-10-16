@@ -5,7 +5,9 @@
 #                                        the steps that need root use $SUDO, else sudo, else doas,
 #                                        else pkexec, else they are printed for you to run
 #   scripts/install.sh --user            install for you alone under ~/.local, no root
-#   --prefix DIR                         install under DIR (default /usr/local; with --user ~/.local)
+#   --prefix DIR                         install under DIR (default /usr/local; with --user ~/.local).
+#                                        With --user it moves the programs only: settings, units and
+#                                        shared files go to your own standard folders (~/.config, ~/.local/share)
 #   --destdir DIR                        put everything under DIR, for a package; nothing asks for root
 #   --no-build                           install what is already in target/release
 #   --bin-dir DIR                        install programs already built in DIR instead of building
@@ -16,26 +18,36 @@
 #   --distro debian|fedora|arch          the family of Linux, for package names (default: read from
 #                                        /etc/os-release; ubuntu counts as debian)
 #
-# What goes where (system install; --user puts the same under ~/.local and ~/.config):
+# What goes where (system install; --user puts the same in your own folders, see --prefix):
 #   PREFIX/libexec/quire/memoryd         the daemon
-#   PREFIX/lib/systemd/user/             memoryd.service, ExecStart pointed at the prefix, and
+#   PREFIX/lib/systemd/user/             memoryd.service, pointed at the prefix, and
 #                                        memoryd.service.d/sandbox.conf, its protections
 #   PREFIX/share/dbus-1/services/        the activation file; interfaces/ has the interface XML
 #   PREFIX/share/quire/settings/         the Settings schema
-#   /etc/quire/memory-callers.toml       which units may call memoryd (needs root; memoryd reads it at
-#                                        start, as MEMORYD_SYSTEM_CALLERS in a test build)
+#   /etc/quire/memory-callers.toml       which units may call memoryd. It is the machine's security
+#                                        table: always replaced, reset on every install. Needs root;
+#                                        memoryd reads it at start, so restart it after
 set -euo pipefail
 
 REPO_NAME="almanac"
-SANDBOX_NOTE="memoryd still limits itself to its own folders with the kernel's own file restrictions (Landlock), unit or not."
+NEEDS_GIT=1
+FIRST_SERVICE="memoryd"
+CARGO_EXTRA=(--config net.git-fetch-with-cli=true)
+# Landlock, in code terms: memoryd confines itself to its own folders with or without the unit.
+SANDBOX_NOTE="memoryd still keeps itself to its own folders, with or without the private views."
 # name|cargo package|libexec or bin
 BINARIES=("memoryd|memoryd|libexec")
 
 extra_arg() { return 1; }
 
-# SQLCipher is built from source, with its own OpenSSL: that needs perl and make.
+# SQLCipher is built from source, with its own OpenSSL: that needs perl (with the FindBin and
+# IPC::Cmd modules, which Fedora packages apart from perl itself) and make.
 extra_build_tools() {
-  need perl perl-core perl perl
+  need perl "perl-interpreter perl-FindBin perl-IPC-Cmd" perl perl
+  if have perl && ! perl -MFindBin -MIPC::Cmd -e1 >/dev/null 2>&1; then
+    MISSING_CMDS+=("the perl modules FindBin and IPC::Cmd")
+    if [ "$FAMILY" = fedora ]; then MISSING_PKGS+=("perl-FindBin perl-IPC-Cmd"); fi
+  fi
   need make make build-essential base-devel
 }
 
@@ -102,6 +114,12 @@ done
 
 case "$SANDBOX" in auto|on|off) ;; *) die "--sandbox is auto, on or off" ;; esac
 
+# A relative target folder would point somewhere else once the build runs from /.
+if [ -n "${CARGO_TARGET_DIR:-}" ]; then
+  case "$CARGO_TARGET_DIR" in /*) ;; *) CARGO_TARGET_DIR="$PWD/$CARGO_TARGET_DIR" ;; esac
+  export CARGO_TARGET_DIR
+fi
+
 # ---- which family of Linux this is: debian (Ubuntu too), fedora or arch ----
 detect_family() {
   local id like word
@@ -162,6 +180,7 @@ under_home() { case "$PREFIX" in "$HOME"|"$HOME"/*) return 0 ;; *) return 1 ;; e
 ESC=()
 find_escalator() {
   [ "$MODE" = system ] || return 0
+  [ -z "$DESTDIR" ] || return 0   # a package root is never written as administrator
   if [ -n "${SUDO:-}" ]; then read -r -a ESC <<<"$SUDO"
   elif have sudo; then ESC=(sudo)
   elif have doas; then ESC=(doas)
@@ -187,6 +206,7 @@ priv() {
   local target="$1"; shift
   LAST=ran
   if can_write "$target"; then "$@"
+  elif [ -n "$DESTDIR" ]; then die "Cannot write to $target. --destdir never asks for the password; pick a folder you own."
   elif [ "${#ESC[@]}" -gt 0 ]; then "${ESC[@]}" "$@"
   else MANUAL+=("$(printf '%q ' "$@")"); LAST=queued
   fi
@@ -200,7 +220,8 @@ render() { # kind source -> text on stdout
   case "$1" in
     unit) rewrite_exec <"$2" ;;
     # A program under the home folder could not start if its unit hid the home folder.
-    sandbox) if under_home; then sed -E 's|^ProtectHome=yes$|ProtectHome=read-only|' "$2"; else cat "$2"; fi ;;
+    # ProtectHome=yes and =tmpfs both hide the home folder, and the program under it.
+    sandbox) if under_home; then sed -E -e 's|^ProtectHome=yes$|ProtectHome=read-only|' -e 's|^ProtectHome=tmpfs$|ProtectHome=read-only|' "$2"; else cat "$2"; fi ;;
     *) cat "$2" ;;
   esac
 }
@@ -215,9 +236,17 @@ put() {
   priv "$dest" install -D -m "$mode" "$tmp" "$dest"
   if [ "$LAST" = ran ]; then act "installed: $dest"; else act "needs you to run it as root: $dest"; fi
 }
+# drop DEST: remove a file an earlier install left (the same privileged path as a write).
+drop() {
+  local dest="$DESTDIR$1"
+  if [ ! -e "$dest" ] && [ ! -L "$dest" ]; then return 0; fi
+  if [ "$DRY" = 1 ]; then act "would remove (an earlier install left it): $dest"; return 0; fi
+  priv "$(dirname "$dest")" rm -f "$dest"
+  if [ "$LAST" = ran ]; then act "removed (an earlier install left it): $dest"; else act "needs you to run it as root: remove $dest"; fi
+}
 put_tree() { # MODE SOURCE_DIR DEST_DIR: every file under a directory
   local mode="$1" src="$2" dest="$3" file
-  [ -d "$src" ] || return 0
+  if [ ! -d "$src" ]; then say "warning: files expected in $src are missing, so they were not installed" >&2; return 0; fi
   while IFS= read -r file; do put "$mode" "$src/$file" "$dest/$file" copy; done \
     < <(cd "$src" && find . -type f | sed 's|^\./||' | sort)
 }
@@ -246,7 +275,7 @@ report_missing() {
       if [ "$FAMILY" = debian ]; then
         say "Rust: install rustup from https://rustup.rs. The Rust that Ubuntu packages is too old for this project."
       else
-        say "Rust: install rustup (from https://rustup.rs if your system does not package it). It fetches the exact Rust version this project asks for, so it needs the network."
+        say "Rust: install rustup (from https://rustup.rs if your system does not package it). This installer then has rustup fetch the Rust version this project asks for, so it needs the internet."
       fi ;;
   esac
   say "Or install without building: put programs you built elsewhere in a folder and pass --bin-dir FOLDER."
@@ -256,6 +285,8 @@ check_build_tools() {
   need cargo rustup "" rustup
   need cc gcc build-essential base-devel
   need pkg-config pkgconf-pkg-config pkg-config pkgconf
+  # Some libraries are fetched from git when the first build runs.
+  [ "${NEEDS_GIT:-0}" = 0 ] || need git git git git
   extra_build_tools
   report_missing
 }
@@ -271,27 +302,42 @@ cargo_packages() { # -p NAME for each package of BINARIES, once
     printf '%s\n' "-p" "$pkg"
   done
 }
+# The pinned toolchain may not be installed: rustup 1.28 and later does not fetch it by itself.
+ensure_toolchain() { # NAME (may be empty)
+  local toolchain="$1"
+  if [ -z "$toolchain" ] || ! have rustup; then return 0; fi
+  if rustup run "$toolchain" true >/dev/null 2>&1; then return 0; fi
+  if [ "$DRY" = 1 ]; then act "would install the Rust version $toolchain with rustup (needs the internet)"; return 0; fi
+  say "Installing the Rust version $toolchain with rustup (needs the internet)..."
+  rustup toolchain install "$toolchain" --profile minimal
+}
 build_all() {
   local args=() toolchain
   if [ -n "$BIN_FROM" ]; then say "Using the programs already built in $BIN_FROM."; return 0; fi
   [ "$BUILD" = 1 ] || return 0
   mapfile -t args < <(cargo_packages)
   [ "${#args[@]}" -gt 0 ] || return 0
-  if [ "$DRY" = 1 ]; then act "cargo build --release --locked --manifest-path $ROOT/Cargo.toml --config net.git-fetch-with-cli=true ${args[*]} (run from /, linked by this system's own linker)"; return 0; fi
+  toolchain="$(sed -n 's/^channel *= *"\(.*\)"/\1/p' "$ROOT/rust-toolchain.toml" 2>/dev/null)" || true
+  if [ "$DRY" = 1 ]; then
+    act "cargo build --release --locked --manifest-path $ROOT/Cargo.toml ${CARGO_EXTRA[*]:-} ${args[*]} (run from /, linked by this system's own linker)"
+    ensure_toolchain "$toolchain"
+    return 0
+  fi
+  [ "$(id -u)" -ne 0 ] || die "Run this as yourself, not as root. It asks for the password only for the steps that need it."
   check_build_tools
-  say "Building (this takes a while the first time)..."
+  say "Building. The first build downloads code, so it needs the internet, and it takes a while..."
+  ensure_toolchain "$toolchain"
   # Linked by this system's own linker. The source tree's .cargo/config.toml links with clang and
   # mold, which is how this code is worked on, not something an install may ask the person to
   # have. Cargo reads that file (and rustup the toolchain file) from the directory it runs in, so
   # the build runs from / with the manifest named and the pinned toolchain passed on.
-  toolchain="$(sed -n 's/^channel *= *"\(.*\)"/\1/p' "$ROOT/rust-toolchain.toml" 2>/dev/null)" || true
   (
     cd / &&
-      if [ -n "$toolchain" ] && command -v rustup >/dev/null 2>&1; then
+      if [ -n "$toolchain" ] && have rustup; then
         RUSTUP_TOOLCHAIN="$toolchain"
         export RUSTUP_TOOLCHAIN
       fi &&
-      cargo build --release --locked --manifest-path "$ROOT/Cargo.toml" --config net.git-fetch-with-cli=true "${args[@]}"
+      cargo build --release --locked --manifest-path "$ROOT/Cargo.toml" ${CARGO_EXTRA[@]+"${CARGO_EXTRA[@]}"} "${args[@]}"
   )
 }
 preflight() {
@@ -309,40 +355,49 @@ preflight() {
 # ---- do the user units' private-view protections work here? ----
 USE_SANDBOX=on
 SANDBOX_WHY=""
+# probe_sandbox: 0 this computer allows them, 1 it refuses, 2 it cannot be asked from here.
 probe_sandbox() {
-  have systemd-run || return 0                                   # no systemd to ask: assume yes
-  systemctl --user show-environment >/dev/null 2>&1 || return 0   # no user manager to ask: assume yes
+  have systemd-run || return 2                                   # no systemd to ask
+  systemctl --user show-environment >/dev/null 2>&1 || return 2   # no user manager to ask (ssh, su)
   if have timeout; then
     timeout 30 systemd-run --user --quiet --collect -p PrivateTmp=yes -p ProtectSystem=strict --wait true >/dev/null 2>&1
   else
     systemd-run --user --quiet --collect -p PrivateTmp=yes -p ProtectSystem=strict --wait true >/dev/null 2>&1
-  fi
+  fi || return 1
 }
 decide_sandbox() {
+  local rc=0
   if [ "${NO_UNITS:-0}" = 1 ]; then USE_SANDBOX=off; return 0; fi
   case "$SANDBOX" in
     on|off) USE_SANDBOX="$SANDBOX"; return 0 ;;
   esac
-  if [ -n "$DESTDIR" ]; then USE_SANDBOX=on   # building a package: it cannot be tested here
-  elif probe_sandbox; then USE_SANDBOX=on
-  else USE_SANDBOX=off; SANDBOX_WHY=probe
-  fi
+  if [ -n "$DESTDIR" ]; then USE_SANDBOX=on; return 0; fi   # building a package: it cannot be tested here
+  if [ "$DRY" = 1 ]; then say "Would test whether this computer allows the services' private views."; return 0; fi
+  probe_sandbox || rc=$?
+  case "$rc" in
+    0) USE_SANDBOX=on ;;
+    1) USE_SANDBOX=off; SANDBOX_WHY=probe ;;
+    *) USE_SANDBOX=off; SANDBOX_WHY=untested
+       say "The services' private views are left out: this session cannot test whether this computer allows them. To turn them on later, run this again from a desktop terminal with --sandbox on." ;;
+  esac
 }
+# Why it fails, for the code reader: Ubuntu 24.04 and later set
+# kernel.apparmor_restrict_unprivileged_userns=1, which refuses user namespaces to programs
+# without an AppArmor profile, and a user unit with PrivateTmp or ProtectSystem needs one. The
+# fixes are that sysctl set to 0, or a profile for /usr/lib/systemd/systemd; both are the
+# administrator's to choose, so the text only says that.
 sandbox_remedy() {
   cat <<EOT
 
-The protections for the background programs were left out.
-This computer does not let your background programs run in a private view of the system (their
-own temporary files, a read-only system, no sight of your home folder), so units with those
-settings would not start. The programs install and run without that extra layer.
-$SANDBOX_NOTE
-Ubuntu 24.04 and later block it for programs that have no AppArmor profile. To turn the
-protections on, either allow it for the whole machine:
-  sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-(to keep that after a restart, write "kernel.apparmor_restrict_unprivileged_userns = 0" to a
-file in /etc/sysctl.d), or add an AppArmor profile that lets /usr/lib/systemd/systemd create
-user namespaces. Then run this installer again. Leave it as it is if you prefer.
+The services' private views were left out.
+This computer's security settings stop background services from running in a private view of the
+system (their own temporary files, a read-only system, no sight of your home folder), so services
+that ask for one would not start. The programs install and run without that extra layer.
+To turn it on, ask whoever looks after this computer to allow it in the security settings (newer
+Ubuntu releases refuse it to programs they have no profile for), then run this installer again.
+Leave it as it is if you prefer.
 EOT
+  if [ -n "$SANDBOX_NOTE" ]; then printf '\n%s\n' "$SANDBOX_NOTE"; fi
 }
 
 # ---- one unit: the unit, and its protections as a drop-in ----
@@ -352,6 +407,8 @@ put_unit() { # UNIT-FILE (a path in the repo)
   put 644 "$unit" "$UNIT_DIR/$name" unit
   if [ "$USE_SANDBOX" = on ] && [ -f "$unit.d/sandbox.conf" ]; then
     put 644 "$unit.d/sandbox.conf" "$UNIT_DIR/$name.d/sandbox.conf" sandbox
+  else
+    drop "$UNIT_DIR/$name.d/sandbox.conf"   # one an earlier install left would keep the unit from starting
   fi
 }
 
@@ -372,16 +429,25 @@ install_callers() { # SOURCE NAME: the system's table, read by the daemon at sta
 finish() {
   if [ "${#MANUAL[@]}" -gt 0 ]; then
     say ""
-    if [ "$MODE" = user ]; then say "These steps change the whole machine, so --user leaves them to you:"
+    if [ "$MODE" = user ] && [ "${NO_UNITS:-0}" = 0 ]; then
+      say "IMPORTANT: one more step, or the services refuse every caller. These steps change the"
+      say "whole machine, so --user leaves them to you; run them as an administrator:"
+    elif [ "$MODE" = user ]; then say "These steps change the whole machine, so --user leaves them to you:"
     else say "No sudo, doas or pkexec was found. Run these steps as an administrator:"; fi
     printf '  %s\n' "${MANUAL[@]}"
     say "(the files they copy are kept in $STAGE)"
   fi
   if [ "$DRY" = 1 ]; then say ""; say "This was a dry run: nothing was built or written."; return 0; fi
   if [ "$USE_SANDBOX" = off ] && [ "$SANDBOX_WHY" = probe ]; then sandbox_remedy; fi
-  if [ -z "$DESTDIR" ]; then
+  if [ -z "$DESTDIR" ] && [ "${NO_UNITS:-0}" = 0 ]; then
     say ""
-    say "Done. To start the new units:  systemctl --user daemon-reload"
+    say "Done. To load the new units:  systemctl --user daemon-reload"
+    say "If this replaced an earlier install, restart the services that are running (stop them and"
+    say "start them again) so they use the new programs and tables."
+    say "To start the first service:  systemctl --user start $FIRST_SERVICE"
+  elif [ -z "$DESTDIR" ]; then
+    say ""
+    say "Done."
   fi
 }
 
@@ -396,6 +462,9 @@ common_checks() {
 
 main() {
   find_escalator
+  if [ -n "$DESTDIR" ] && [ "$DRY" = 0 ]; then
+    can_write "$DESTDIR" || die "Cannot write to $DESTDIR. --destdir never asks for the password; pick a folder you own."
+  fi
   say "Installing $REPO_NAME: $MODE install under $PREFIX, units in $UNIT_DIR"
   build_all
   preflight
