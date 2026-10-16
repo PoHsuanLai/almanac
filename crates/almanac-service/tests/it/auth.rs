@@ -281,6 +281,9 @@ fn control_is_the_shells_alone() {
         MemoryRequest::DiscardConsolidation(RunId::parse("run-1").expect("r")),
         MemoryRequest::Rules,
         MemoryRequest::RemoveRule(RuleId::parse("r-1").expect("r")),
+        MemoryRequest::ConfirmSettings(
+            [("memory.pending_ttl_days".to_owned(), "3".to_owned())].into(),
+        ),
         MemoryRequest::Pause(w.clone(), NOW),
         MemoryRequest::Resume(w.clone()),
         MemoryRequest::Verify(w.clone()),

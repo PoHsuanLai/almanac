@@ -7,7 +7,10 @@
 //! Conventions: a Space is its plain id; every other typed argument is the serde JSON of its
 //! `almanac-core` type in an `s`; outputs are the same, in order. Three outputs are not JSON:
 //! `Primer` is the markdown, `RecordBatch`'s count is a decimal, and a `Record` or `RecordBatch`
-//! that admission dropped answers an empty first output (nothing was kept).
+//! that admission dropped answers an empty first output (nothing was kept). One argument is not
+//! JSON either: `ConfirmSettings` takes its setting key to value pairs as an `a{ss}`.
+
+use std::collections::BTreeMap;
 
 mod reply;
 mod request;
@@ -33,6 +36,8 @@ pub enum CallArg {
     Text(String),
     /// A `t`: seconds since the epoch.
     Seconds(u64),
+    /// An `a{ss}`: text to text pairs, in key order.
+    Map(BTreeMap<String, String>),
 }
 
 /// A bus call: interface, member and arguments in order. `Export`'s fd travels beside it.
@@ -92,6 +97,13 @@ impl<'a> Args<'a> {
     pub(crate) fn seconds(&mut self) -> Result<u64, CodecError> {
         match self.0.next() {
             Some(CallArg::Seconds(s)) => Ok(*s),
+            _ => Err(CodecError::Shape),
+        }
+    }
+
+    pub(crate) fn map(&mut self) -> Result<&'a BTreeMap<String, String>, CodecError> {
+        match self.0.next() {
+            Some(CallArg::Map(m)) => Ok(m),
             _ => Err(CodecError::Shape),
         }
     }

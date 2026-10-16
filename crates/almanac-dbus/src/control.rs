@@ -1,6 +1,7 @@
 //! `org.quire.Memory1.Control`: the person's controls (the shell UI only), the signals, and
 //! the wire `Version`.
 
+use std::collections::HashMap;
 use zbus::fdo;
 use zbus::object_server::SignalEmitter;
 use zbus::zvariant::OwnedFd;
@@ -56,6 +57,9 @@ pub trait Control {
     fn remove_space(&self, space: &str, removal: &str) -> zbus::Result<String>;
     /// Writes a tar export to `out` (`ExportOptions` JSON; answers `ExportManifest` JSON).
     fn export(&self, options: &str, out: zbus::zvariant::Fd<'_>) -> zbus::Result<String>;
+    /// The person confirmed these loosened memory settings in the Settings app (setting key to
+    /// value). The shell's alone: until then a value looser than the shipped default waits.
+    fn confirm_settings(&self, values: HashMap<String, String>) -> zbus::Result<()>;
     /// A record was stored.
     #[zbus(signal)]
     fn recorded(&self, space: &str, event_ref: &str, kind: &str) -> zbus::Result<()>;
@@ -187,6 +191,11 @@ impl ControlSkeleton {
 
     fn export(&self, options: String, out: OwnedFd) -> fdo::Result<String> {
         let _ = (options, out);
+        Err(crate::introspect::frozen())
+    }
+
+    fn confirm_settings(&self, values: HashMap<String, String>) -> fdo::Result<()> {
+        let _ = values;
         Err(crate::introspect::frozen())
     }
 

@@ -14,6 +14,7 @@ use crate::timeline::TimelineQuery;
 use porter_core::{AppName, SpaceId, UnixSeconds};
 use prov::RunId;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 /// What a forget covers.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -128,6 +129,11 @@ pub enum MemoryRequest {
     /// Space is gone and no one asked; a `Delete` is the person's explicit choice and is never
     /// the default. Safe to repeat.
     RemoveSpace(SpaceId, Removal),
+    /// The person confirmed these loosened memory settings in the Settings app (setting key to
+    /// value, like `memory.retention.search_days` to `7`): a value looser than the shipped default
+    /// takes effect only once memoryd has it here. The shell's alone, and memoryd's daemon
+    /// applies it (the service keeps no settings file), so the service itself refuses it.
+    ConfirmSettings(BTreeMap<String, String>),
 }
 
 impl MemoryRequest {
@@ -168,6 +174,7 @@ impl MemoryRequest {
             | MemoryRequest::Rules
             | MemoryRequest::SetRule(_)
             | MemoryRequest::RemoveRule(_)
+            | MemoryRequest::ConfirmSettings(_)
             | MemoryRequest::Export(_) => None,
         }
     }

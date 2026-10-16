@@ -42,6 +42,7 @@ fn request_index(r: &MemoryRequest) -> usize {
         MemoryRequest::RecordDurable(_) => 33,
         MemoryRequest::Entries(..) => 34,
         MemoryRequest::RemoveSpace(..) => 35,
+        MemoryRequest::ConfirmSettings(_) => 36,
         // The enum is non_exhaustive, so this match cannot be exhaustive from outside the crate.
         // A new variant that has a sample lands here and fails the coverage assert below.
         _ => usize::MAX,
@@ -55,7 +56,7 @@ fn wire_round_trip_every_request() {
     let covered: std::collections::BTreeSet<usize> = all.iter().map(request_index).collect();
     assert_eq!(
         covered,
-        (0..=35).collect(),
+        (0..=36).collect(),
         "a request variant has no sample"
     );
 }
@@ -106,7 +107,7 @@ fn requests_name_their_space() {
         let named = request.space().is_some();
         let by_index = !matches!(
             request_index(&request),
-            1 | 10 | 14 | 16 | 19 | 20 | 21 | 22 | 27 | 31 | 32
+            1 | 10 | 14 | 16 | 19 | 20 | 21 | 22 | 27 | 31 | 32 | 36
         );
         assert_eq!(named, by_index, "{request:?}");
     }

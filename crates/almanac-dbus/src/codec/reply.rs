@@ -48,6 +48,7 @@ pub fn decode_reply(call: &Call, outputs: &[String]) -> Result<MemoryReply, Code
         | "ApplyConsolidation"
         | "DiscardConsolidation"
         | "RemoveRule"
+        | "ConfirmSettings"
         | "Pause"
         | "Resume"
         | "Rebuild" => outputs.is_empty().then_some(R::Ok).ok_or(CodecError::Shape),
@@ -100,8 +101,8 @@ pub fn encode_reply(call: &Call, reply: &MemoryReply) -> Result<Vec<String>, Mem
             Ok(vec![json(first).map_err(invalid)?, count.0.to_string()])
         }
         (
-            "ExplainFile" | "Mark" | "Settle" | "Revert" | "SetRule" | "RemoveRule" | "Pause"
-            | "Resume" | "Rebuild",
+            "ExplainFile" | "Mark" | "Settle" | "Revert" | "SetRule" | "RemoveRule"
+            | "ConfirmSettings" | "Pause" | "Resume" | "Rebuild",
             R::Ok,
         ) => nothing,
         // The draft of a run is read with `Consolidation`; the member itself returns nothing.

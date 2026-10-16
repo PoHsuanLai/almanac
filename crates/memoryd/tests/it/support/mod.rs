@@ -12,7 +12,7 @@ use almanac_dbus::serve_on;
 use almanac_fake::ScriptedConsolidator;
 use almanac_seal::{KeyError, KeyStore, MemoryKeys, SpaceKey};
 use almanac_service::MemoryService;
-use memoryd::{Daemon, SpaceRegistry, SystemBackend, TablePeers};
+use memoryd::{Consent, Daemon, SpaceRegistry, SystemBackend, TablePeers};
 use recall::{EmbedError, EmbedRole, Embedder, EmbedderCard, FakeEmbedder, Urgency, Vector};
 use std::path::Path;
 use std::sync::Arc;
@@ -108,12 +108,22 @@ pub struct World {
 impl World {
     /// The daemon, serving on `bus`'s address.
     pub async fn start(bus: &bus::PrivateBus, dirs: &Dirs, keys: &SharedKeys) -> World {
+        Self::start_with(bus, dirs, keys, None).await
+    }
+
+    /// The daemon, with `consent` as the place the person's confirmations of loosened settings go.
+    pub async fn start_with(
+        bus: &bus::PrivateBus,
+        dirs: &Dirs,
+        keys: &SharedKeys,
+        consent: Option<Consent>,
+    ) -> World {
         let server = connect(&bus.address).await;
-        let daemon = Arc::new(Daemon::new(
-            service(dirs, keys),
-            TablePeers::new(),
-            dirs.clone(),
-        ));
+        let daemon = Daemon::new(service(dirs, keys), TablePeers::new(), dirs.clone());
+        let daemon = Arc::new(match consent {
+            Some(consent) => daemon.with_consent(consent),
+            None => daemon,
+        });
         serve_on(&server, daemon.clone()).await.expect("serve");
         daemon.attach(server.clone());
         World {

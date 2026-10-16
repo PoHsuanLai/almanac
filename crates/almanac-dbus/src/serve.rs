@@ -7,6 +7,7 @@
 
 use crate::codec::{Call, CallArg, Iface};
 use crate::{CONTROL_INTERFACE, MEMORY_BUS, MEMORY_PATH, MemoryError};
+use std::collections::HashMap;
 use std::future::Future;
 use std::os::fd::OwnedFd;
 use std::sync::Arc;
@@ -569,6 +570,15 @@ impl<S: Serve> ControlObject<S> {
             )
             .await?,
         )
+    }
+
+    async fn confirm_settings(
+        &self,
+        #[zbus(header)] h: Header<'_>,
+        values: HashMap<String, String>,
+    ) -> Result<(), MemoryError> {
+        let args = vec![CallArg::Map(values.into_iter().collect())];
+        none(forward(&*self.0, &h, Iface::Control, "ConfirmSettings", args, None).await?)
     }
 
     #[zbus(signal)]

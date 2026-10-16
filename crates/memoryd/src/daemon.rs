@@ -4,17 +4,20 @@
 //! (`encode_reply`). After each request the daemon persists the files only it writes
 //! (`spaces.toml`, `memory.toml`) and tells the bus what changed.
 
+use crate::consent::Consent;
 use crate::peers::Peers;
 use crate::queue::Serialised;
 use crate::removals::Removals;
+use crate::settings_watch::apply;
 use crate::signals::{FollowUp, follow_ups};
 use almanac_core::{
-    Caller, DesktopSpace, Dirs, MemoryReply, MemoryRequest, PlanToken, Removal, SpaceId, SpaceKind,
+    Caller, DesktopSpace, Dirs, MemoryReply, MemoryRequest, PlanToken, Refusal, Removal, SpaceId,
+    SpaceKind,
 };
 use almanac_dbus::{Call, MemoryError, Serve, Signal, decode_request, emit_to, encode_reply};
 use almanac_service::{
-    Backend, MemoryService, ServiceEvent, SpacesFile, locked_status, rules_to_toml, spaces_to_toml,
-    write_private_atomic,
+    Allowed, Backend, MemoryService, ServiceEvent, SpacesFile, allowed, locked_status,
+    rules_to_toml, spaces_to_toml, write_private_atomic,
 };
 use porter_core::SpaceChange;
 use std::collections::{BTreeMap, BTreeSet};
@@ -32,6 +35,7 @@ pub struct Daemon<B: Backend, P: Peers> {
     saved_spaces: Mutex<String>,
     saved_rules: Mutex<String>,
     removals: Removals,
+    consent: Option<Consent>,
 }
 
 impl<B: Backend, P: Peers> std::fmt::Debug for Daemon<B, P> {
@@ -69,6 +73,34 @@ impl<B: Backend, P: Peers> Daemon<B, P> {
             plans: Mutex::new(BTreeMap::new()),
             saved_spaces: Mutex::new(String::new()),
             saved_rules: Mutex::new(String::new()),
+            consent: None,
+        }
+    }
+
+    /// This daemon with a place to keep the person's confirmations of loosened settings
+    /// (`ConfirmSettings`). Without one the method is refused as unavailable.
+    #[must_use]
+    pub fn with_consent(mut self, consent: Consent) -> Self {
+        self.consent = Some(consent);
+        self
+    }
+
+    /// `ConfirmSettings`: the shell's alone (the same check every shell-only member has). The
+    /// confirmations are recorded, then the settings are read again and put in force.
+    fn confirm_settings(&self, caller: &Caller, request: &MemoryRequest) -> MemoryReply {
+        if let Allowed::No(refusal) = allowed(caller, request) {
+            return MemoryReply::Refused(refusal);
+        }
+        let (MemoryRequest::ConfirmSettings(values), Some(consent)) = (request, &self.consent)
+        else {
+            return MemoryReply::Refused(Refusal::Unavailable);
+        };
+        match consent.confirm(values) {
+            Ok(loaded) => {
+                apply(self.queue.service(), &loaded);
+                MemoryReply::Ok
+            }
+            Err(refusal) => MemoryReply::Refused(refusal),
         }
     }
 
@@ -255,6 +287,7 @@ impl<B: Backend, P: Peers> Daemon<B, P> {
             {
                 self.settle(space, *removal).await
             }
+            (MemoryRequest::ConfirmSettings(_), _) => self.confirm_settings(caller, &request),
             _ => self.queue.handle(caller, request.clone()).await,
         };
         self.persist();

@@ -155,6 +155,9 @@
      <arg name="out" type="h" direction="in"/>
      <arg type="s" direction="out"/>
    </method>
+   <method name="ConfirmSettings">
+     <arg name="values" type="a{ss}" direction="in"/>
+   </method>
    <signal name="Recorded">
      <arg name="space" type="s"/>
      <arg name="event_ref" type="s"/>

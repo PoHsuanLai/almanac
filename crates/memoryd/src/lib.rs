@@ -7,6 +7,7 @@
 mod backend;
 mod callers;
 mod clock;
+mod consent;
 mod daemon;
 mod infer;
 mod keyring;
@@ -28,6 +29,7 @@ pub use callers::{
     table_from_toml,
 };
 pub use clock::SystemClock;
+pub use consent::Consent;
 pub use daemon::Daemon;
 pub use infer::{
     Deadlines, InferdConsolidator, InferdEmbedder, class_of, parse_draft, render_prompt,

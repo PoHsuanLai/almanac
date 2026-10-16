@@ -190,6 +190,9 @@ pub fn requests() -> Vec<MemoryRequest> {
                 history: HistoryFate::Keep,
             },
         ),
+        MemoryRequest::ConfirmSettings(
+            [("memory.pending_ttl_days".to_owned(), "3".to_owned())].into(),
+        ),
         MemoryRequest::ApplyConsolidation(RunId::parse("run-1").expect("run")),
         MemoryRequest::DiscardConsolidation(RunId::parse("run-1").expect("run")),
         MemoryRequest::RecordDurable(record(archived_body(), user())),

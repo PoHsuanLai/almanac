@@ -4,7 +4,7 @@
 
 use crate::keysel::{AnyKeys, KEYS_VAR, SANDBOX_VAR, Sandbox, TestKeys, sandbox_choice, select};
 use crate::{
-    CallerFileError, Daemon, Enforcement, InferdConsolidator, InferdEmbedder, KeysError,
+    CallerFileError, Consent, Daemon, Enforcement, InferdConsolidator, InferdEmbedder, KeysError,
     LockChanges, ProcGate, ProcPeers, SHELL_APP, SandboxError, SettingsWatch, SpaceRegistry,
     SystemBackend, WatchState, XdgError, apply, apply_next, default_card, dirs_from, enforce,
     inferd_link, load_callers, policy_for, prepare,
@@ -156,10 +156,10 @@ async fn run(
     .with_registry(registry);
     let service = MemoryService::new(backend, read_rules(&dirs)?);
     // The person's settings (`almanac/settings.toml`) now, and whenever the file changes.
-    let mut watched = SettingsWatch::start(
-        Locator::from_env(&|key| env(key)),
-        MemorySettings::default(),
-    );
+    // A value looser than the shipped default waits for the person's confirmation, kept in our
+    // own data directory (ALM-16).
+    let locator = Locator::from_env(&|key| env(key)).confirming(dirs.confirmed_settings_toml());
+    let mut watched = SettingsWatch::start(locator.clone(), MemorySettings::default());
     if let WatchState::Blind { reason } = watched.state() {
         eprintln!("memoryd: settings are read once, not watched: {reason}");
     }
@@ -182,7 +182,7 @@ async fn run(
     if let Ok(shell) = almanac_core::AppName::parse(SHELL_APP) {
         service.set_fallback_owner(shell);
     }
-    let daemon = Arc::new(Daemon::new(service, peers, dirs));
+    let daemon = Arc::new(Daemon::new(service, peers, dirs).with_consent(Consent::new(locator)));
     serve_on(&connection, daemon.clone()).await?;
     // The keyring says when it locks or unlocks; no timer asks.
     let changes = LockChanges::on(&connection).await?;

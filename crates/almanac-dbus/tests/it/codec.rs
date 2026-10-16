@@ -71,6 +71,7 @@ fn the_member_table() {
         (Control, "Export", 1),
         (Control, "Sweep", 1),
         (Control, "RemoveSpace", 2),
+        (Control, "ConfirmSettings", 1),
     ] {
         assert!(
             table.contains(&expected),
@@ -95,6 +96,7 @@ fn replies_round_trip_through_their_members() {
         ("DiscardConsolidation", MemoryReply::Ok),
         ("SetRule", MemoryReply::Ok),
         ("RemoveRule", MemoryReply::Ok),
+        ("ConfirmSettings", MemoryReply::Ok),
         ("Pause", MemoryReply::Ok),
         ("Resume", MemoryReply::Ok),
         ("Rebuild", MemoryReply::Ok),

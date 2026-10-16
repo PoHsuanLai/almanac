@@ -181,6 +181,10 @@ fn what_a_request_holds() {
             MemoryRequest::RemoveRule(RuleId::parse("r-1").expect("r")),
             Claim::Everything,
         ),
+        (
+            MemoryRequest::ConfirmSettings(Default::default()),
+            Claim::Everything,
+        ),
     ];
     for (request, claim) in table {
         assert_eq!(claim_of(&request), claim, "{request:?}");

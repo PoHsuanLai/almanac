@@ -413,11 +413,15 @@ fn a_loosened_value_applies_only_once_the_person_confirmed_exactly_it() {
         [
             Fallback {
                 key: "memory.pending_ttl_days".to_owned(),
-                why: Why::NotConfirmed { value: "3".to_owned() },
+                why: Why::NotConfirmed {
+                    value: "3".to_owned()
+                },
             },
             Fallback {
                 key: "memory.files.at_rest".to_owned(),
-                why: Why::NotConfirmed { value: "plain".to_owned() },
+                why: Why::NotConfirmed {
+                    value: "plain".to_owned()
+                },
             },
         ]
     );
@@ -448,11 +452,19 @@ fn a_loosened_value_applies_only_once_the_person_confirmed_exactly_it() {
     );
 
     // The file changes to another loose value: the old confirmation does not carry over.
-    std::fs::write(dir.path().join(SETTINGS_FILE), "[memory]\npending_ttl_days = 2\n").unwrap();
+    std::fs::write(
+        dir.path().join(SETTINGS_FILE),
+        "[memory]\npending_ttl_days = 2\n",
+    )
+    .unwrap();
     assert_eq!(locator.read(shipped).value, shipped);
 
     // A value that is not looser needs nothing, and a confirmation the file no longer uses is kept.
-    std::fs::write(dir.path().join(SETTINGS_FILE), "[memory]\npending_ttl_days = 20\n").unwrap();
+    std::fs::write(
+        dir.path().join(SETTINGS_FILE),
+        "[memory]\npending_ttl_days = 20\n",
+    )
+    .unwrap();
     let loaded = locator.read(shipped);
     assert_eq!(loaded.value.pending_ttl, DayCount(20));
     assert_eq!(loaded.fallbacks, vec![]);
@@ -474,7 +486,10 @@ fn a_confirmation_names_a_loosenable_key_and_a_value_it_takes_or_none_is_kept() 
         (&[("memory.nonsense", "1")], false),
         (&[("memory.pending_ttl_days", "0")], false),
         (
-            &[("memory.files.at_rest", "plain"), ("memory.retention.search_days", "many")],
+            &[
+                ("memory.files.at_rest", "plain"),
+                ("memory.retention.search_days", "many"),
+            ],
             false,
         ),
     ];
@@ -488,7 +503,9 @@ fn a_confirmation_names_a_loosenable_key_and_a_value_it_takes_or_none_is_kept() 
         }
     }
     let nowhere = Locator::from_env(&|_: &str| None::<String>);
-    assert!(nowhere
-        .confirm(&pairs(&[("memory.pending_ttl_days", "3")]))
-        .is_err());
+    assert!(
+        nowhere
+            .confirm(&pairs(&[("memory.pending_ttl_days", "3")]))
+            .is_err()
+    );
 }

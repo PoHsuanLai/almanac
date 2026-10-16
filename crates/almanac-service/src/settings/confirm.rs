@@ -10,10 +10,10 @@
 //!
 //! [`Locator`]: super::Locator
 
+use super::MemorySettings;
 use super::keys::{Rule, table};
 use super::loosen::{loose, loosenable};
 use super::read::{Fallback, Loaded, Why};
-use super::MemorySettings;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -35,7 +35,7 @@ pub enum ConfirmError {
         why: Why,
     },
     /// The store could not be read as a table or written.
-    #[error("{CONFIRMED_FILE}: {0}")]
+    #[error("confirmed-settings.toml: {0}")]
     Store(String),
 }
 

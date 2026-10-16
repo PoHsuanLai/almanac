@@ -82,6 +82,15 @@ pub async fn invoke(
                 "Rebuild" => done(p.rebuild(a.text()?).await),
                 "Sweep" => Ok(vec![p.sweep(a.text()?).await?]),
                 "RemoveSpace" => Ok(vec![p.remove_space(a.text()?, a.text()?).await?]),
+                "ConfirmSettings" => done(
+                    p.confirm_settings(
+                        a.map()?
+                            .iter()
+                            .map(|(k, v)| (k.clone(), v.clone()))
+                            .collect(),
+                    )
+                    .await,
+                ),
                 "Export" => {
                     let out = fd.ok_or_else(fd_missing)?;
                     Ok(vec![

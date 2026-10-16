@@ -71,6 +71,11 @@ pub fn encode_request(request: &MemoryRequest) -> Result<Call, CodecError> {
         R::Export(options) => call(Control, "Export", vec![body(options)?]),
         R::Sweep(s) => call(Control, "Sweep", vec![space(s)]),
         R::RemoveSpace(s, removal) => call(Control, "RemoveSpace", vec![space(s), body(removal)?]),
+        R::ConfirmSettings(values) => call(
+            Control,
+            "ConfirmSettings",
+            vec![CallArg::Map(values.clone())],
+        ),
         // A request kind this build has no member for.
         _ => return Err(CodecError::Unsupported),
     })
@@ -210,6 +215,11 @@ pub fn decode_request(call: &Call) -> Result<MemoryRequest, CodecError> {
             let removal = args.json()?;
             args.end()?;
             Ok(R::RemoveSpace(id, removal))
+        }
+        (Control, "ConfirmSettings") => {
+            let values = args.map()?.clone();
+            args.end()?;
+            Ok(R::ConfirmSettings(values))
         }
         (_, member) => Err(CodecError::Json(format!("no member {member}"))),
     }

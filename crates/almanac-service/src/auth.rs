@@ -164,6 +164,7 @@ fn by_class(caller: &Caller, request: &MemoryRequest) -> Allowed {
         | R::Rebuild(_)
         | R::Sweep(_)
         | R::Export(_)
+        | R::ConfirmSettings(_)
         | R::RemoveSpace(..) => yes_if(matches!(caller, Caller::ShellUi)),
         // A request kind this build does not know is not allowed to anyone.
         _ => NO,

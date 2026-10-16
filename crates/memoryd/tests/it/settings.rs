@@ -1,11 +1,21 @@
 //! The person's settings file reaches a running service: a change in the file applies to the next
 //! request without a restart. The wait is the watch's own event, never a sleep.
 
-use almanac_core::{DayCount, VaultKind};
-use almanac_fake::{ScriptedConsolidator, fake_service};
+use crate::support::bus::PrivateBus;
+use crate::support::{SharedKeys, World, dirs_in};
+use almanac_core::{AppId, Caller, DayCount, Isolation, MemoryRequest, Refusal, VaultKind};
+use almanac_dbus::{encode_request, invoke};
+use almanac_fake::{ScriptedConsolidator, fake_service, mail};
 use almanac_service::{ConsolidateWhen, Locator, MemorySettings};
-use memoryd::{SettingsWatch, WatchState, apply, apply_next};
+use memoryd::{Consent, SettingsWatch, WatchState, apply, apply_next};
+use std::collections::BTreeMap;
 use std::path::Path;
+
+fn pairs(of: &[(&str, &str)]) -> BTreeMap<String, String> {
+    of.iter()
+        .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+        .collect()
+}
 
 /// What the Settings app does: a temp file, then a rename over the settings file.
 fn write_atomically(home: &Path, text: &str) {
@@ -26,7 +36,17 @@ async fn a_change_in_the_file_applies_to_the_service_without_a_restart() {
         _ => None,
     };
     let service = fake_service(ScriptedConsolidator::default());
-    let mut watch = SettingsWatch::start(Locator::from_env(&env), MemorySettings::default());
+    // The values the file is about to hold are looser than the shipped ones: the person has
+    // confirmed exactly them.
+    let store = tempfile::tempdir().unwrap();
+    let locator = Locator::from_env(&env).confirming(store.path().join("confirmed-settings.toml"));
+    locator
+        .confirm(&pairs(&[
+            ("memory.files.at_rest", "plain"),
+            ("memory.pending_ttl_days", "3"),
+        ]))
+        .unwrap();
+    let mut watch = SettingsWatch::start(locator, MemorySettings::default());
     assert_eq!(*watch.state(), WatchState::Live);
     apply(&service, &watch.current());
     assert_eq!(service.settings(), MemorySettings::default());
@@ -65,5 +85,94 @@ async fn a_change_in_the_file_applies_to_the_service_without_a_restart() {
         now.at_rest,
         VaultKind::Sealed,
         "a key the file no longer sets is the base again"
+    );
+}
+
+/// What the Settings app does after the person confirms: `ConfirmSettings` over the bus. The
+/// answer is the refusal, or `None` for an accepted call.
+async fn confirm_over_bus(client: &zbus::Connection, values: &[(&str, &str)]) -> Option<Refusal> {
+    let call = encode_request(&MemoryRequest::ConfirmSettings(pairs(values))).expect("encode");
+    match invoke(client, &call, None).await {
+        Ok(_) => None,
+        Err(error) => Some(error.refusal().expect("a refusal, not a bus failure")),
+    }
+}
+
+#[tokio::test]
+async fn a_loosened_value_waits_until_the_shell_confirms_it_over_the_bus() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let bus = PrivateBus::start(scratch.path());
+    let dirs = dirs_in(&scratch.path().join("home"));
+    let config = scratch.path().join("config");
+    write_atomically(&config, "[memory]\npending_ttl_days = 3\n");
+    let nothing = scratch.path().join("no-xdg-dirs");
+    let env = |key: &str| match key {
+        "XDG_CONFIG_HOME" => Some(config.display().to_string()),
+        "XDG_CONFIG_DIRS" => Some(nothing.display().to_string()),
+        _ => None,
+    };
+    let locator = Locator::from_env(&env).confirming(dirs.confirmed_settings_toml());
+    let world = World::start_with(
+        &bus,
+        &dirs,
+        &SharedKeys::default(),
+        Some(Consent::new(locator.clone())),
+    )
+    .await;
+    let service = world.daemon.queue().service();
+    apply(service, &locator.read(MemorySettings::default()));
+    assert_eq!(
+        service.settings().pending_ttl,
+        MemorySettings::default().pending_ttl,
+        "unconfirmed, the shipped wait stays"
+    );
+
+    // Nobody but the shell may confirm: not an app, not the router.
+    let one = [("memory.pending_ttl_days", "3")];
+    let app = Caller::App(AppId {
+        name: mail(),
+        isolation: Isolation::Unsandboxed,
+    });
+    for caller in [app, Caller::Router, Caller::Cuad] {
+        let client = world.client(caller.clone()).await;
+        assert_eq!(
+            confirm_over_bus(&client, &one).await,
+            Some(Refusal::NotAllowed),
+            "{caller:?}"
+        );
+    }
+    assert!(!dirs.confirmed_settings_toml().exists());
+
+    // From the shell, a key that cannot loosen anything and a value the key does not take are
+    // refused, and a refused pair keeps the good one beside it out too.
+    let shell = world.client(Caller::ShellUi).await;
+    for bad in [
+        vec![("memory.nonsense", "1")],
+        vec![("memory.consolidation.when", "never")],
+        vec![("memory.pending_ttl_days", "0")],
+        vec![
+            ("memory.pending_ttl_days", "3"),
+            ("memory.files.at_rest", "open"),
+        ],
+    ] {
+        let refused = confirm_over_bus(&shell, &bad).await;
+        assert!(
+            matches!(refused, Some(Refusal::Invalid(_))),
+            "{bad:?}: {refused:?}"
+        );
+    }
+    assert!(!dirs.confirmed_settings_toml().exists());
+    assert_eq!(
+        service.settings().pending_ttl,
+        MemorySettings::default().pending_ttl
+    );
+
+    // The shell confirms: the very next request sees the value, and it is on disk.
+    assert_eq!(confirm_over_bus(&shell, &one).await, None);
+    assert_eq!(service.settings().pending_ttl, DayCount(3));
+    assert!(
+        std::fs::read_to_string(dirs.confirmed_settings_toml())
+            .expect("the store")
+            .contains("memory.pending_ttl_days")
     );
 }
