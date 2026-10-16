@@ -1102,7 +1102,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -2761,7 +2761,7 @@ dependencies = [
 [[package]]
 name = "porter-client"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=08df72f1d2dcbb64aff76f3aa43d66443e88f3cd#08df72f1d2dcbb64aff76f3aa43d66443e88f3cd"
+source = "git+https://github.com/PoHsuanLai/porter?rev=3beb7a1dd67226a998c3a0bd817bba5c1b3a963e#3beb7a1dd67226a998c3a0bd817bba5c1b3a963e"
 dependencies = [
  "porter-core",
  "porter-dbus",
@@ -2781,7 +2781,7 @@ dependencies = [
 [[package]]
 name = "porter-core"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=08df72f1d2dcbb64aff76f3aa43d66443e88f3cd#08df72f1d2dcbb64aff76f3aa43d66443e88f3cd"
+source = "git+https://github.com/PoHsuanLai/porter?rev=3beb7a1dd67226a998c3a0bd817bba5c1b3a963e#3beb7a1dd67226a998c3a0bd817bba5c1b3a963e"
 dependencies = [
  "serde",
  "serde_json",
@@ -2792,7 +2792,7 @@ dependencies = [
 [[package]]
 name = "porter-daemon"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=08df72f1d2dcbb64aff76f3aa43d66443e88f3cd#08df72f1d2dcbb64aff76f3aa43d66443e88f3cd"
+source = "git+https://github.com/PoHsuanLai/porter?rev=3beb7a1dd67226a998c3a0bd817bba5c1b3a963e#3beb7a1dd67226a998c3a0bd817bba5c1b3a963e"
 dependencies = [
  "notify",
  "thiserror",
@@ -2801,7 +2801,7 @@ dependencies = [
 [[package]]
 name = "porter-dbus"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=08df72f1d2dcbb64aff76f3aa43d66443e88f3cd#08df72f1d2dcbb64aff76f3aa43d66443e88f3cd"
+source = "git+https://github.com/PoHsuanLai/porter?rev=3beb7a1dd67226a998c3a0bd817bba5c1b3a963e#3beb7a1dd67226a998c3a0bd817bba5c1b3a963e"
 dependencies = [
  "porter-core",
  "porter-daemon",
@@ -2815,12 +2815,12 @@ dependencies = [
 [[package]]
 name = "porter-fs"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=08df72f1d2dcbb64aff76f3aa43d66443e88f3cd#08df72f1d2dcbb64aff76f3aa43d66443e88f3cd"
+source = "git+https://github.com/PoHsuanLai/porter?rev=3beb7a1dd67226a998c3a0bd817bba5c1b3a963e#3beb7a1dd67226a998c3a0bd817bba5c1b3a963e"
 
 [[package]]
 name = "porter-infer"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=08df72f1d2dcbb64aff76f3aa43d66443e88f3cd#08df72f1d2dcbb64aff76f3aa43d66443e88f3cd"
+source = "git+https://github.com/PoHsuanLai/porter?rev=3beb7a1dd67226a998c3a0bd817bba5c1b3a963e#3beb7a1dd67226a998c3a0bd817bba5c1b3a963e"
 dependencies = [
  "base64 0.22.1",
  "cua-action",
@@ -2833,7 +2833,7 @@ dependencies = [
 [[package]]
 name = "porter-provider"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=08df72f1d2dcbb64aff76f3aa43d66443e88f3cd#08df72f1d2dcbb64aff76f3aa43d66443e88f3cd"
+source = "git+https://github.com/PoHsuanLai/porter?rev=3beb7a1dd67226a998c3a0bd817bba5c1b3a963e#3beb7a1dd67226a998c3a0bd817bba5c1b3a963e"
 dependencies = [
  "porter-core",
  "serde",
@@ -2844,7 +2844,7 @@ dependencies = [
 [[package]]
 name = "porter-secrets"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=08df72f1d2dcbb64aff76f3aa43d66443e88f3cd#08df72f1d2dcbb64aff76f3aa43d66443e88f3cd"
+source = "git+https://github.com/PoHsuanLai/porter?rev=3beb7a1dd67226a998c3a0bd817bba5c1b3a963e#3beb7a1dd67226a998c3a0bd817bba5c1b3a963e"
 dependencies = [
  "porter-core",
  "porter-fs",
@@ -2856,7 +2856,7 @@ dependencies = [
 [[package]]
 name = "porter-service"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=08df72f1d2dcbb64aff76f3aa43d66443e88f3cd#08df72f1d2dcbb64aff76f3aa43d66443e88f3cd"
+source = "git+https://github.com/PoHsuanLai/porter?rev=3beb7a1dd67226a998c3a0bd817bba5c1b3a963e#3beb7a1dd67226a998c3a0bd817bba5c1b3a963e"
 dependencies = [
  "porter-core",
  "porter-provider",
@@ -2947,7 +2947,7 @@ dependencies = [
 [[package]]
 name = "prov"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=08df72f1d2dcbb64aff76f3aa43d66443e88f3cd#08df72f1d2dcbb64aff76f3aa43d66443e88f3cd"
+source = "git+https://github.com/PoHsuanLai/porter?rev=3beb7a1dd67226a998c3a0bd817bba5c1b3a963e#3beb7a1dd67226a998c3a0bd817bba5c1b3a963e"
 dependencies = [
  "porter-core",
  "serde",
@@ -3332,7 +3332,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -3749,10 +3749,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.4.3",
+ "getrandom 0.3.4",
  "once_cell",
  "rustix",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -4413,7 +4413,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
