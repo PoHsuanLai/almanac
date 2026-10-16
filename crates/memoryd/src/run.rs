@@ -175,11 +175,14 @@ async fn run(
             .into_iter()
             .for_each(|meta| service.register(meta));
     }
-    let peers = ProcPeers::with_proc_root(
-        connection.clone(),
-        read_callers(&system, &dirs)?,
-        proc_root.path().to_path_buf(),
-    );
+    // porter reads a fixture tree only in a test build; everywhere else it asks /proc and the
+    // user manager, which a fixture tree has no stand-in for.
+    let table = read_callers(&system, &dirs)?;
+    let peers = match proc_root.fixture() {
+        #[cfg(feature = "test-proc-root")]
+        Some(dir) => ProcPeers::with_proc_root(connection.clone(), table, dir.to_path_buf()),
+        _ => ProcPeers::new(connection.clone(), table),
+    };
     if let Ok(shell) = almanac_core::AppName::parse(SHELL_APP) {
         service.set_fallback_owner(shell);
     }

@@ -17,7 +17,7 @@ test-keys = ["almanac-seal/test-keys"]
 # `/proc/<pid>/cgroup`, so an acceptance run can present its test processes as units. TEST ONLY:
 # off by default, never in a release or dist build (check-boundary.sh fails if a default build
 # has it); without it the variable is ignored.
-test-proc-root = []
+test-proc-root = ["porter-dbus/test-proc-root"]
 
 [dependencies]
 almanac-core = { workspace = true }
@@ -46,6 +46,8 @@ serde_json = { workspace = true }
 blake3 = { workspace = true }
 
 [dev-dependencies]
+# The tests present their processes as a fixture tree, which porter reads only in a test build.
+memoryd = { path = ".", features = ["test-proc-root"] }
 jiff = { workspace = true }
 almanac-client = { workspace = true, features = ["dbus"] }
 almanac-fake = { workspace = true }

@@ -27,17 +27,20 @@ role = "cua"
 app = "org.quire.Shell"
 unit = "sill.service"
 role = "sheet_host"
+exe = ["/usr/bin/sill", "/usr/local/bin/sill", "/opt/quire/releases/*/bin/sill"]
 
 [[caller]]
 app = "org.quire.Settings"
 unit = "org.quire.Settings.service"
 role = "settings"
+exe = ["/usr/bin/detent", "/usr/local/bin/detent", "/opt/quire/releases/*/bin/detent"]
 
 # A scope never carries a fixed role: this row makes the shell's old scope a plain app.
 [[caller]]
 app = "org.quire.Shell"
 unit = "sill-shell.scope"
 role = "sheet_host"
+exe = ["/usr/bin/sill", "/usr/local/bin/sill", "/opt/quire/releases/*/bin/sill"]
 
 [[caller]]
 app = "org.quire.Companion"
@@ -70,6 +73,13 @@ fn put_member(root: &Path, pid: u32, leaf: &str) {
     std::fs::create_dir_all(&dir).expect("pid dir");
     let path = format!("0::/user.slice/user-1000.slice/user@1000.service/app.slice/{leaf}\n");
     std::fs::write(dir.join("cgroup"), path).expect("cgroup");
+}
+
+/// Links `<root>/<pid>/exe` to `image`: the program process `pid` runs.
+fn put_image(root: &Path, pid: u32, image: &str) {
+    let dir = root.join(pid.to_string());
+    std::fs::create_dir_all(&dir).expect("pid dir");
+    std::os::unix::fs::symlink(image, dir.join("exe")).expect("exe link");
 }
 
 /// Writes the Flatpak sandbox metadata of process `pid` (`<pid>/root/.flatpak-info`).
@@ -120,6 +130,8 @@ fn a_process_is_identified_by_its_cgroup() {
     put_member(root, 24, "app-flatpak-org.example.Mail-4243.scope");
     // Another process in the router's unit is not the router: only the main process is.
     put_member(root, 25, "intentd.service");
+    // A scope has no main process: the shell's old scope is matched by the program it runs.
+    put_image(root, 21, "/usr/bin/sill");
     let flatpak = app("org.example.Mail", Isolation::Flatpak);
     for (pid, expected) in [
         (10, Some(Caller::Router)),

@@ -13,7 +13,7 @@ use almanac_core::{Caller, Refusal};
 use porter_dbus::{Callers, ProcCallers};
 use std::collections::BTreeMap;
 use std::future::Future;
-use std::path::PathBuf;
+
 use std::sync::{Mutex, PoisonError};
 
 /// How long the bus and `/proc` have to say who a connection is.
@@ -51,11 +51,13 @@ impl ProcPeers {
         Self::over(ProcCallers::new(connection, table))
     }
 
-    /// As [`ProcPeers::new`], reading the `/proc` tree at `proc_root` (a test build's fixture).
+    /// As [`ProcPeers::new`], reading the fixture tree at `proc_root` instead of `/proc` and the
+    /// user manager. Only in a test build (feature `test-proc-root`).
+    #[cfg(feature = "test-proc-root")]
     pub fn with_proc_root(
         connection: zbus::Connection,
         table: porter_dbus::CallerTable,
-        proc_root: PathBuf,
+        proc_root: std::path::PathBuf,
     ) -> Self {
         Self::over(ProcCallers::with_proc_root(connection, table, proc_root))
     }

@@ -31,11 +31,13 @@ role = "cua"
 app = "org.quire.Shell"
 unit = "sill.service"
 role = "sheet_host"
+exe = ["/usr/bin/sill", "/usr/local/bin/sill", "/opt/quire/releases/*/bin/sill"]
 
 [[caller]]
 app = "org.quire.Settings"
 unit = "org.quire.Settings.service"
 role = "settings"
+exe = ["/usr/bin/detent", "/usr/local/bin/detent", "/opt/quire/releases/*/bin/detent"]
 
 [[caller]]
 app = "org.quire.Companion"
