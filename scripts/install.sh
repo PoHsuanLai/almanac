@@ -452,6 +452,12 @@ finish() {
     say "If this replaced an earlier install, restart the services that are running (stop them and"
     say "start them again) so they use the new programs and tables."
     say "To start the first service:  systemctl --user start $FIRST_SERVICE"
+    if [ "$MODE" = user ]; then
+      say ""
+      say "Installed for you only. This is for development: the desktop's own services run with an"
+      say "app's permissions, because any program of yours could change units kept in your home folder."
+      say "For everyday use, install system-wide:  scripts/install.sh  (without --user)"
+    fi
   elif [ -z "$DESTDIR" ]; then
     say ""
     say "Done."
