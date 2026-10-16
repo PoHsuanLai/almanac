@@ -4,8 +4,8 @@
 //! cgroup names the unit or the app scope). What is memoryd's own is the file and the mapping:
 //! `/etc/quire/memory-callers.toml` with the user's `<config>/quire/memory-callers.toml` laid
 //! over it, in porter's `[[caller]]` shape, and [`caller_for`] that turns a porter role into one
-//! of almanac's callers. The router, the shell and cuad are the three fixed callers; every other
-//! identified process is an app.
+//! of almanac's callers. The router, the shell, cuad and the Settings app are the four fixed
+//! callers; every other identified process is an app.
 
 use almanac_core::Caller;
 use porter_dbus::{CallerRole, CallerTable};
@@ -16,6 +16,8 @@ use std::path::{Path, PathBuf};
 pub const ROUTER_APP: &str = "org.quire.Intents";
 /// The app that is the shell, sill (its row has the `sheet_host` role).
 pub const SHELL_APP: &str = "org.quire.Shell";
+/// The app that is the System Settings app, detent (its row has the `settings` role).
+pub const SETTINGS_APP: &str = "org.quire.Settings";
 
 /// A table file that exists and cannot be used.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -56,7 +58,8 @@ pub fn load_callers(system: &Path, user: &Path) -> Result<CallerTable, CallerFil
 }
 
 /// almanac's caller for the process porter identified: cuad is the `cua` role, the shell the
-/// `sheet_host` role of [`SHELL_APP`], the router the `agent` role of [`ROUTER_APP`]; any other
+/// `sheet_host` role of [`SHELL_APP`], the router the `agent` role of [`ROUTER_APP`], the Settings
+/// app the `settings` role of [`SETTINGS_APP`]; any other
 /// row, or an app scope or Flatpak scope the table does not name, is that app. The fixed callers
 /// need the role as well as the app, so a row cannot make an app the router by naming it.
 pub fn caller_for(found: porter_dbus::Caller) -> Caller {
@@ -65,6 +68,7 @@ pub fn caller_for(found: porter_dbus::Caller) -> Caller {
         CallerRole::Cua => Caller::Cuad,
         CallerRole::SheetHost if name == SHELL_APP => Caller::ShellUi,
         CallerRole::Agent if name == ROUTER_APP => Caller::Router,
+        CallerRole::Settings if name == SETTINGS_APP => Caller::Settings,
         // A terminal (temor) is no app and no fixed caller, but this file maps every identified
         // process that is not a fixed caller to an app, as porter's lane did for `Terminal`; it
         // gets no shell or router standing, only its own app's access.

@@ -1,12 +1,16 @@
 //! Who may ask what: the authorisation matrix as a pure function.
 //!
-//! | Request | App | Router | Cuad | ShellUi |
-//! |---|---|---|---|---|
-//! | Record, RecordBatch | own things; actor `User{via: self}` or `App{self}` | any actor, never `Memory` bodies | `Area(Cua)` bodies with a `Cua` run actor; `Message` bodies sent by that same run | no |
-//! | ExplainFile, Mark | own | yes | no | yes |
-//! | Search, Facts, Related, Provenance, Primer, Inject, Recent, Entries, Spaces | no | yes (audited as `Memory.Read`) | no | yes |
-//! | Propose, PlanForget | no | yes | no | yes |
-//! | everything else (with `RemoveSpace`) | no | no | no | yes |
+//! | Request | App | Router | Cuad | ShellUi | Settings |
+//! |---|---|---|---|---|---|
+//! | Record, RecordBatch | own things; actor `User{via: self}` or `App{self}` | any actor, never `Memory` bodies | `Area(Cua)` bodies with a `Cua` run actor; `Message` bodies sent by that same run | no | no |
+//! | ExplainFile, Mark | own | yes | no | yes | no |
+//! | Search, Facts, Related, Provenance, Primer, Inject, Recent, Entries, Spaces | no | yes (audited as `Memory.Read`) | no | yes | no |
+//! | Propose, PlanForget | no | yes | no | yes | no |
+//! | everything else (with `RemoveSpace`) | no | no | no | yes | no |
+//! | ConfirmSettings | no | no | no | no | yes |
+//!
+//! `Settings` is the System Settings app, not an app with memory: it reaches the two settings
+//! members and nothing else.
 //!
 //! An app also reaches only Spaces open to it (`SpaceId::owner`): another app's own Space is
 //! `OutsideSpace` whatever the request.
@@ -98,7 +102,7 @@ fn may_record(caller: &Caller, record: &Record) -> bool {
         Caller::App(id) => app_may_record(&id.name, record),
         Caller::Router => router_may_record(record),
         Caller::Cuad => cuad_may_record(record),
-        Caller::ShellUi => false,
+        Caller::ShellUi | Caller::Settings => false,
     }
 }
 
@@ -127,12 +131,12 @@ fn by_class(caller: &Caller, request: &MemoryRequest) -> Allowed {
         R::ExplainFile(claim) => match caller {
             Caller::App(id) => yes_if(app_may_explain(&id.name, claim)),
             Caller::Router | Caller::ShellUi => Allowed::Yes,
-            Caller::Cuad => NO,
+            Caller::Cuad | Caller::Settings => NO,
         },
         R::Mark(mark) => match caller {
             Caller::App(id) => yes_if(mark.thing.app == id.name),
             Caller::Router | Caller::ShellUi => Allowed::Yes,
-            Caller::Cuad => NO,
+            Caller::Cuad | Caller::Settings => NO,
         },
         R::Search(_)
         | R::Facts(_)
@@ -181,7 +185,8 @@ fn spaces_of(request: &MemoryRequest) -> Vec<&SpaceId> {
 
 /// An app reaches only Spaces open to it: its own App Spaces, the desktop and the desktop-wide
 /// Spaces (porter's `SpaceScope::open_to`). The name is the caller's, never read from the id.
-/// Router, cuad and the shell are not apps and act across Spaces.
+/// Router, cuad, the shell and the Settings app are not apps and act across Spaces (the Settings
+/// app's two members name none, and every other request of it is refused by class).
 fn space_is_open(caller: &Caller, request: &MemoryRequest) -> Allowed {
     match caller {
         Caller::App(id) => {
@@ -193,6 +198,6 @@ fn space_is_open(caller: &Caller, request: &MemoryRequest) -> Allowed {
                 false => Allowed::No(Refusal::OutsideSpace),
             }
         }
-        Caller::Router | Caller::Cuad | Caller::ShellUi => Allowed::Yes,
+        Caller::Router | Caller::Cuad | Caller::ShellUi | Caller::Settings => Allowed::Yes,
     }
 }

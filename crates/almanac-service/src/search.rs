@@ -42,6 +42,9 @@ pub(crate) fn caller_actor(caller: &Caller) -> Actor {
         },
         Caller::ShellUi => almanac_core::AppName::parse("org.quire.Shell")
             .map_or(Actor::Unknown, |via| Actor::User { via }),
+        // The Settings app records and reads nothing, so no audit entry names it; unknown is the
+        // actor that claims nothing.
+        Caller::Settings => Actor::Unknown,
     }
 }
 
@@ -259,7 +262,7 @@ impl<B: Backend> Open<B> {
                     },
                 )
                 .map(drop),
-            Caller::App(_) | Caller::Cuad | Caller::ShellUi => Ok(()),
+            Caller::App(_) | Caller::Cuad | Caller::ShellUi | Caller::Settings => Ok(()),
         }
     }
 

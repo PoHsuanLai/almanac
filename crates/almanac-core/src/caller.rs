@@ -4,7 +4,8 @@ use porter_core::AppId;
 use serde::{Deserialize, Serialize};
 
 /// A caller class. The D-Bus sender is mapped to its `AppId` (porter R12: unsandboxed callers
-/// are advisory); `Router`, `Cuad` and `ShellUi` are fixed `AppName`s configured in memoryd.
+/// are advisory); `Router`, `Cuad`, `ShellUi` and `Settings` are fixed `AppName`s configured in
+/// memoryd.
 ///
 /// The companion has no class of its own: it reads and proposes through the action router
 /// (`org.quire.Memory` is a built-in provider of intentd), which calls as `Router` acting for
@@ -20,4 +21,7 @@ pub enum Caller {
     Cuad,
     /// The shell's own UI (sill): the person.
     ShellUi,
+    /// The System Settings app (detent): the person, saving a setting. Not an app with memory: it
+    /// may only confirm a loosened memory setting and read the ones that wait for it.
+    Settings,
 }

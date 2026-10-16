@@ -53,7 +53,9 @@ pub(crate) fn lands_for(label: &Label) -> almanac_core::Lands {
 fn proposal_label(caller: &Caller, space: &SpaceId, cited: &[Label]) -> Label {
     let base = match caller {
         Caller::ShellUi => Label::trusted_user(),
-        Caller::App(_) | Caller::Router | Caller::Cuad => Label {
+        // The Settings app cannot propose (auth refuses it); were it ever to get here, its text is
+        // untrusted like any model's.
+        Caller::App(_) | Caller::Router | Caller::Cuad | Caller::Settings => Label {
             integrity: Integrity::Untrusted,
             confidentiality: Confidentiality::Private(BTreeSet::from([space.clone()])),
             classes: BTreeSet::new(),

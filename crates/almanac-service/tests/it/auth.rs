@@ -164,9 +164,11 @@ fn explaining_files_and_marking_things() {
     )));
     assert!(yes(allowed(&Caller::ShellUi, &claim(MAIL, user(MAIL)))));
     assert!(!yes(allowed(&Caller::Cuad, &claim(MAIL, user(MAIL)))));
+    assert!(!yes(allowed(&Caller::Settings, &claim(MAIL, user(MAIL)))));
     assert!(yes(allowed(&mail, &mark(MAIL))));
     assert!(!yes(allowed(&mail, &mark("org.quire.Files"))));
     assert!(!yes(allowed(&Caller::Cuad, &mark(MAIL))));
+    assert!(!yes(allowed(&Caller::Settings, &mark(MAIL))));
     assert!(yes(allowed(&Caller::ShellUi, &mark("org.quire.Files"))));
 }
 
@@ -240,6 +242,23 @@ fn reading_proposing_and_planning_belong_to_the_router_and_the_shell() {
     }
 }
 
+#[test]
+fn the_settings_app_is_refused_every_request_of_the_others() {
+    let w = space("work");
+    let others = [
+        MemoryRequest::Spaces,
+        MemoryRequest::Primer(w.clone()),
+        MemoryRequest::Record(record(thing_body(MAIL, "k"), user(MAIL))),
+        MemoryRequest::RecordBatch(vec![record(thing_body(MAIL, "k"), user(MAIL))]),
+    ];
+    for request in control_requests().iter().chain(&others) {
+        assert!(
+            !yes(allowed(&Caller::Settings, request)),
+            "{request:?} by settings"
+        );
+    }
+}
+
 /// docket lists the Spaces to name the one a task works in; it is the router's call as well.
 #[test]
 fn listing_the_spaces_is_the_routers_and_the_shells() {
@@ -252,10 +271,10 @@ fn listing_the_spaces_is_the_routers_and_the_shells() {
     }
 }
 
-#[test]
-fn control_is_the_shells_alone() {
+/// Every request only the shell may send (the settings members are the Settings app's).
+fn control_requests() -> Vec<MemoryRequest> {
     let w = space("work");
-    let control: Vec<MemoryRequest> = vec![
+    vec![
         MemoryRequest::Status(w.clone()),
         MemoryRequest::Timeline(
             w.clone(),
@@ -293,8 +312,12 @@ fn control_is_the_shells_alone() {
             spaces: vec![],
             verification_key: VerificationKey::Omit,
         }),
-    ];
-    for request in &control {
+    ]
+}
+
+#[test]
+fn control_is_the_shells_alone() {
+    for request in &control_requests() {
         for (who, caller) in callers() {
             assert_eq!(
                 yes(allowed(&caller, request)),

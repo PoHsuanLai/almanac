@@ -81,7 +81,12 @@ fn stored_forms_round_trip() {
         vault: VaultKind::Plain,
         format: 1,
     }]);
-    round_trips(&[Caller::Router, Caller::Cuad, Caller::ShellUi]);
+    round_trips(&[
+        Caller::Router,
+        Caller::Cuad,
+        Caller::ShellUi,
+        Caller::Settings,
+    ]);
 }
 
 #[test]

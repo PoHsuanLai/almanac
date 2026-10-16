@@ -28,6 +28,11 @@ app = "org.quire.Shell"
 unit = "sill.service"
 role = "sheet_host"
 
+[[caller]]
+app = "org.quire.Settings"
+unit = "org.quire.Settings.service"
+role = "settings"
+
 # A scope never carries a fixed role: this row makes the shell's old scope a plain app.
 [[caller]]
 app = "org.quire.Shell"
@@ -103,6 +108,9 @@ fn a_process_is_identified_by_its_cgroup() {
         (21, "sill-shell.scope"),
         (22, "sill-shell-2.scope"),
         (23, "xsill-shell.scope"),
+        // The Settings app is a unit row; its app scope is only an app.
+        (26, "org.quire.Settings.service"),
+        (27, "app-org.quire.Settings-3.scope"),
     ] {
         put_cgroup(root, pid, leaf);
     }
@@ -130,6 +138,8 @@ fn a_process_is_identified_by_its_cgroup() {
         (23, None),
         (24, None),
         (25, None),
+        (26, Some(Caller::Settings)),
+        (27, app("org.quire.Settings", Isolation::Unsandboxed)),
     ] {
         assert_eq!(identify(root, pid, &table), expected, "pid {pid}");
     }
@@ -155,6 +165,7 @@ fn the_roles_map_onto_almanacs_callers() {
     assert_eq!(named("intentd.service"), Some(Caller::Router));
     assert_eq!(named("sill.service"), Some(Caller::ShellUi));
     assert_eq!(named("cuad.service"), Some(Caller::Cuad));
+    assert_eq!(named("org.quire.Settings.service"), Some(Caller::Settings));
     // The same shell app with the `app` role is an app: the role decides, not the name alone.
     let demoted = table_from_toml(
         "[[caller]]\napp = \"org.quire.Shell\"\nunit = \"sill.service\"\nrole = \"app\"\n",
@@ -163,6 +174,15 @@ fn the_roles_map_onto_almanacs_callers() {
     assert_eq!(
         demoted.resolve_unit("sill.service").map(caller_for),
         app("org.quire.Shell", Isolation::Unsandboxed)
+    );
+    // The `settings` role of any other app is that app, not the Settings app.
+    let other = table_from_toml(
+        "[[caller]]\napp = \"org.example.Other\"\nunit = \"other.service\"\nrole = \"settings\"\n",
+    )
+    .expect("table");
+    assert_eq!(
+        other.resolve_unit("other.service").map(caller_for),
+        app("org.example.Other", Isolation::Unsandboxed)
     );
 }
 

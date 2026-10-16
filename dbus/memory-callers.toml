@@ -3,16 +3,18 @@
 # app scope (app-<id>-<n>.scope) or Flatpak scope is an app without a row here; any process in
 # neither (a terminal's child, an unlisted unit) is refused.
 #
-# The shell runs as sill.service. A scope never carries a fixed role (porter's caller table
-# gives a scope row a plain app's standing), so the shell has no scope row.
+# The shell runs as sill.service and the System Settings app as org.quire.Settings.service. A scope
+# never carries a fixed role (porter's caller table gives a scope row a plain app's standing), so
+# neither has a scope row.
 #
 # Install as /etc/quire/memory-callers.toml; the user's ~/.config/quire/memory-callers.toml is
 # laid over it (a user row replaces the system row for the same unit).
 #
-# The three fixed callers are told apart by role and app together:
+# The four fixed callers are told apart by role and app together:
 #   role "agent"      + app org.quire.Intents -> the router (intentd)
 #   role "cua"                                -> cuad
 #   role "sheet_host" + app org.quire.Shell   -> the shell (sill)
+#   role "settings"   + app org.quire.Settings -> the Settings app (detent)
 # Every other row is an app with that identity.
 
 [[caller]]
@@ -29,6 +31,11 @@ role = "cua"
 app = "org.quire.Shell"
 unit = "sill.service"
 role = "sheet_host"
+
+[[caller]]
+app = "org.quire.Settings"
+unit = "org.quire.Settings.service"
+role = "settings"
 
 [[caller]]
 app = "org.quire.Companion"
