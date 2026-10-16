@@ -151,7 +151,8 @@ Nothing below is built; the interfaces it will use are.
 
 - **Spec conflicts and their resolutions** (SPEC.md wins over memory.md; items below are where the two
   left room or disagreed):
-  - `Caller` is `App | Router | Cuad | ShellUi` (SPEC 3.4); the `Companion` column of memory.md 3.9
+  - `Caller` is `App | Router | Cuad | ShellUi` (SPEC 3.4; `Settings` was added for ALM-16, see
+    there: the Settings app may use only the two settings members); the `Companion` column of memory.md 3.9
     moved to `Router`. Reads (`Search`, `Facts`, `Related`, `Provenance`, `Primer`) and `Propose`
     and `PlanForget` are `Router` or `ShellUi`; `Cuad` may only `Record` `Area(Cua)` bodies by a
     `Cua` run actor. There is no `Caller::Companion`, so `Refusal::OutsideSpace` and the
@@ -280,8 +281,9 @@ error of its name, one to one. `DbusTransport::call` maps a missing daemon
 **Who is calling.** `Peers` turns the sender's unique name into a `Caller`. `ProcPeers` is porter's
 `ProcCallers` (bus pid, then `/proc/<pid>/cgroup` alone; no `exe`, which a Landlock domain cannot
 read) with `callers::caller_for` mapping porter's caller onto almanac's: role `cua` is `Cuad`,
-role `sheet_host` of app `org.quire.Shell` is `ShellUi`, role `agent` of app `org.quire.Intents` is
-`Router`, every other identified process is `App`. The table is `/etc/quire/memory-callers.toml`
+role `sheet_host` of app `org.quire.Shell` is `ShellUi`, role `settings` of app `org.quire.Settings`
+(the unit `org.quire.Settings.service`, detent) is `Settings`, role `agent` of app
+`org.quire.Intents` is `Router`, every other identified process is `App`. The table is `/etc/quire/memory-callers.toml`
 with `<config>/quire/memory-callers.toml` laid over it (user rows win; a missing file is empty, a
 bad one stops the daemon): porter's `[[caller]]` rows of `app`, optional `unit`, `role`.
 `dbus/memory-callers.toml` is the packaged system file. `TablePeers` is the test seam.
@@ -827,7 +829,7 @@ app's own). What this adds, on porter 993c56b (`Spaces1`, `SpaceId::{kind, for_a
 
 - **Ownership.** `allowed` refuses an app's request that names another app's own Space (`Refusal::OutsideSpace`, the
   existing refusal: "reaches into another Space"); a desktop-wide Space and `desktop` are open. An app's batch is
-  checked record by record. The router, cuad and the shell are not apps and are not held to it.
+  checked record by record. The router, cuad, the shell and the Settings app are not apps and are not held to it.
 - **Removal.** `MemoryRequest::RemoveSpace(space, Removal)` with `Removal { memories: MemoryFate, history: HistoryFate }`
   (shell only; D-Bus `Control.RemoveSpace(space, removal)`, `removal` the JSON
   `{"memories":"move_to_apps"|"delete","history":"keep"|"delete"}`, answering `Relocation` JSON
@@ -893,12 +895,23 @@ confirmation is kept where the agent sandbox and the apps cannot write.
   applies and is still logged as loosened. A file that later changes the value falls back again
   (the old confirmation names the old value); a confirmation the file no longer uses stays in the
   store, unused. A store that does not read counts as nothing confirmed and is reported.
-- `Memory1.Control.ConfirmSettings(a{ss} values)` records confirmations. Only the shell may call
-  it (porter role `sheet_host` and app `org.quire.Shell`, mapped to `Caller::ShellUi`; `allowed`
-  refuses every other caller with `NotAllowed`). Each key must be a key that can loosen a shipped
+- `Memory1.Control.ConfirmSettings(a{ss} values)` records confirmations. Only the System Settings
+  app (detent) may call it: it is the app that takes the person's agreement, and it runs as the unit
+  `org.quire.Settings.service` (porter role `settings` and app `org.quire.Settings`, mapped to
+  `Caller::Settings`; the row is a unit row in `dbus/memory-callers.toml`, as a scope never
+  carries a fixed role). `allowed` refuses every other caller, the shell included, with
+  `NotAllowed`. `Caller::Settings` is not an app with memory: it may use only `ConfirmSettings`
+  and `PendingSettings` and every other request is refused. Each key must be a key that can loosen a shipped
   default and each value one the key's schema takes; otherwise the whole call is refused as
   `Invalid` and nothing is written. On success memoryd reads the settings again, so the value
   applies to the next request.
+- `Memory1.Control.PendingSettings() -> a(sss)` reads what waits: one (key, waiting value, shipped
+  value) per loose value the file holds that is not confirmed, in key order, exactly the keys the
+  gate turned into `Why::NotConfirmed` fallbacks on the read. The Settings app and the shell may
+  call it; every other caller is refused with `NotAllowed`. memoryd answers it from the files as
+  they are now (`Locator::waiting`, a fresh gated read) rather than from the settings watch's last
+  value, because the watch looks at `settings.toml` alone and would not see a confirmation made
+  since.
 - The shipped default of `memory.consolidation.apply` stays `auto` (the owner did not change it).
   `auto` is the shipped value, so it is never a loosening today; the gate matters for the
   retention and pending days and `at_rest`, and for `apply` if the shipped value ever becomes
@@ -907,12 +920,19 @@ confirmation is kept where the agent sandbox and the apps cannot write.
   again to the same number is not asked again); `Locator::read` is the only gated path, the bare
   reader `read_settings` is not.
 
-Interface note for the shell team: after the Settings app writes a looser-than-shipped value to
-`almanac/settings.toml`, it calls `org.quire.Memory1.Control.ConfirmSettings` with that key and
-value (`a{ss}`, for example `{"memory.retention.search_days": "7"}`; numbers in decimal, words as
-the file has them), once the person has agreed. Until it does, the value waits and the shipped
-value is in force. The call returns nothing and, once it has, the value is in force.
-There is no way yet to read which values are waiting; add a property if Settings needs to show it.
+Interface note for the Settings app (detent): after the person saves a looser-than-shipped value
+on a page, the app writes it to `almanac/settings.toml` and calls
+`org.quire.Memory1.Control.ConfirmSettings` with that key and value (`a{ss}`, for example
+`{"memory.retention.search_days": "7"}`; numbers in decimal, words as the file has them). The
+person's save is the agreement. Until the call is made, the value waits and the shipped value is in
+force. The call returns nothing and, once it has, the value is in force. The app must run as
+`org.quire.Settings.service` with porter's `settings` role (the row is in
+`dbus/memory-callers.toml`); the shell can no longer confirm.
+For a value typed into the file by hand, the page shows "waits for you to confirm" with a Confirm
+button: read `org.quire.Memory1.Control.PendingSettings` (no arguments; answers `a(sss)`, each
+entry the key, the value waiting and the shipped value in force, in key order; an empty list
+means nothing waits). The button calls `ConfirmSettings` with that key and the waiting value. The
+list is read afresh on every call; read it again after a save or a confirm.
 
 ## ALM-18: what forget reaches
 
