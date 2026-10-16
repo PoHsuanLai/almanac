@@ -20,7 +20,7 @@ mod tests;
 
 use almanac_core::{DayCount, RetentionDays, VaultKind};
 
-pub use confirm::{CONFIRMED_FILE, ConfirmError, Confirmations, gate};
+pub use confirm::{CONFIRMED_FILE, ConfirmError, Confirmations};
 pub use locate::Locator;
 pub use loosen::loosenings;
 pub use read::{Fallback, Loaded, Why, read};

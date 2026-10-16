@@ -70,7 +70,7 @@ fn canonical(key: &str, value: &str) -> Result<String, ConfirmError> {
                 max: *range.end(),
             })),
         },
-        Rule::Word { words, .. } => match words.iter().any(|w| *w == value) {
+        Rule::Word { words, .. } => match words.contains(&value) {
             true => Ok(value.to_owned()),
             false => Err(bad(Why::NotAWord { words })),
         },
