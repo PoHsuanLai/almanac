@@ -66,6 +66,12 @@ impl Dirs {
         self.memory().join("spaces.toml")
     }
 
+    /// `<data>/quire/memory/confirmed-settings.toml`: the loosened settings the person confirmed
+    /// (ALM-16). Only memoryd writes it, and it sits in the directory the agent sandbox cannot.
+    pub fn confirmed_settings_toml(&self) -> PathBuf {
+        self.memory().join("confirmed-settings.toml")
+    }
+
     /// The desktop-level log: Space created or deleted, checkpoint anchors.
     pub fn system_events_db(&self) -> PathBuf {
         self.memory().join("system").join("events.db")

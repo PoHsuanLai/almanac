@@ -25,6 +25,12 @@ pub enum Why {
         /// The words the key takes.
         words: &'static [&'static str],
     },
+    /// The value is looser than the shipped default and the person has not confirmed it in the
+    /// Settings app; the shipped value stays in force.
+    NotConfirmed {
+        /// The value the file holds, as a confirmation would name it.
+        value: String,
+    },
 }
 
 impl fmt::Display for Why {
@@ -34,6 +40,9 @@ impl fmt::Display for Why {
             Why::NotANumber => write!(f, "not a whole number"),
             Why::OutOfRange { min, max } => write!(f, "outside {min}..={max}"),
             Why::NotAWord { words } => write!(f, "not one of {}", words.join(", ")),
+            Why::NotConfirmed { value } => {
+                write!(f, "{value} waits for you to confirm it in Settings")
+            }
         }
     }
 }
@@ -72,11 +81,14 @@ impl Loaded {
     /// (ALM-16: the file is unauthenticated, so what it loosens is always logged), for the
     /// daemon's log.
     pub fn lines(&self, daemon: &str) -> Vec<String> {
-        let fell = self.fallbacks.iter().map(|f| {
-            format!(
+        let fell = self.fallbacks.iter().map(|f| match f.why {
+            Why::NotConfirmed { .. } => {
+                format!("{daemon}: settings: {}: {}", f.key, f.why)
+            }
+            _ => format!(
                 "{daemon}: settings: {}: {}; using the previous value",
                 f.key, f.why
-            )
+            ),
         });
         let unknown = self
             .unknown

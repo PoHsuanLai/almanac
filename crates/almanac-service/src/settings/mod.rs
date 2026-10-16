@@ -3,9 +3,14 @@
 //! reader (a bad value falls back, per key, and is reported) and where the file is found. Reading
 //! is a pure function of text; only [`Locator::read`] touches the disk. The live watch is memoryd's.
 //!
+//! A value looser than the shipped default takes effect only once the person confirmed it
+//! (ALM-16): [`Locator::read`] puts back the shipped value of each one the confirmation store does
+//! not hold (`confirm.rs`, `loosen.rs`). [`read`] alone is the lenient reader, ungated.
+//!
 //! The service holds a [`MemorySettings`] and every request reads it afresh, so a change applies
 //! to the next request (`MemoryService::apply_settings`).
 
+mod confirm;
 mod keys;
 mod locate;
 mod loosen;
@@ -15,6 +20,7 @@ mod tests;
 
 use almanac_core::{DayCount, RetentionDays, VaultKind};
 
+pub use confirm::{CONFIRMED_FILE, ConfirmError, Confirmations, gate};
 pub use locate::Locator;
 pub use loosen::loosenings;
 pub use read::{Fallback, Loaded, Why, read};

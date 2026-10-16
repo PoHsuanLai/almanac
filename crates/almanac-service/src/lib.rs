@@ -97,8 +97,8 @@ pub use registry::{Listing, RegistryError};
 pub use retention::{SourceState, Sweep, header_expired, header_expired_after, sweep_body};
 pub use service::{MemoryService, SpaceRuntime};
 pub use settings::{
-    ConsolidateApply, ConsolidateWhen, Fallback, Loaded, Locator, MemorySettings, SCHEMA,
-    SETTINGS_FILE, Why, loosenings, read as read_settings,
+    CONFIRMED_FILE, ConfirmError, Confirmations, ConsolidateApply, ConsolidateWhen, Fallback,
+    Loaded, Locator, MemorySettings, SCHEMA, SETTINGS_FILE, Why, loosenings, read as read_settings,
 };
 pub use space::{BUFFER_LIMIT, SpaceEffect, SpaceEvent};
 pub use timeline::timeline_entry;
