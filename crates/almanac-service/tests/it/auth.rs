@@ -242,6 +242,18 @@ fn reading_proposing_and_planning_belong_to_the_router_and_the_shell() {
     }
 }
 
+fn confirm() -> MemoryRequest {
+    MemoryRequest::ConfirmSettings([("memory.pending_ttl_days".to_owned(), "3".to_owned())].into())
+}
+
+#[test]
+fn confirming_a_setting_is_the_settings_apps_alone() {
+    for (who, caller) in callers() {
+        assert!(!yes(allowed(&caller, &confirm())), "{who}");
+    }
+    assert!(yes(allowed(&Caller::Settings, &confirm())));
+}
+
 #[test]
 fn the_settings_app_is_refused_every_request_of_the_others() {
     let w = space("work");
@@ -300,9 +312,6 @@ fn control_requests() -> Vec<MemoryRequest> {
         MemoryRequest::DiscardConsolidation(RunId::parse("run-1").expect("r")),
         MemoryRequest::Rules,
         MemoryRequest::RemoveRule(RuleId::parse("r-1").expect("r")),
-        MemoryRequest::ConfirmSettings(
-            [("memory.pending_ttl_days".to_owned(), "3".to_owned())].into(),
-        ),
         MemoryRequest::Pause(w.clone(), NOW),
         MemoryRequest::Resume(w.clone()),
         MemoryRequest::Verify(w.clone()),

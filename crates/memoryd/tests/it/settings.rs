@@ -99,7 +99,7 @@ async fn confirm_over_bus(client: &zbus::Connection, values: &[(&str, &str)]) ->
 }
 
 #[tokio::test]
-async fn a_loosened_value_waits_until_the_shell_confirms_it_over_the_bus() {
+async fn a_loosened_value_waits_until_the_settings_app_confirms_it_over_the_bus() {
     let scratch = tempfile::tempdir().expect("scratch");
     let bus = PrivateBus::start(scratch.path());
     let dirs = dirs_in(&scratch.path().join("home"));
@@ -127,13 +127,13 @@ async fn a_loosened_value_waits_until_the_shell_confirms_it_over_the_bus() {
         "unconfirmed, the shipped wait stays"
     );
 
-    // Nobody but the shell may confirm: not an app, not the router.
+    // Nobody but the Settings app may confirm: not an app, not the router, not even the shell.
     let one = [("memory.pending_ttl_days", "3")];
     let app = Caller::App(AppId {
         name: mail(),
         isolation: Isolation::Unsandboxed,
     });
-    for caller in [app, Caller::Router, Caller::Cuad] {
+    for caller in [app, Caller::Router, Caller::Cuad, Caller::ShellUi] {
         let client = world.client(caller.clone()).await;
         assert_eq!(
             confirm_over_bus(&client, &one).await,
@@ -143,9 +143,9 @@ async fn a_loosened_value_waits_until_the_shell_confirms_it_over_the_bus() {
     }
     assert!(!dirs.confirmed_settings_toml().exists());
 
-    // From the shell, a key that cannot loosen anything and a value the key does not take are
-    // refused, and a refused pair keeps the good one beside it out too.
-    let shell = world.client(Caller::ShellUi).await;
+    // From the Settings app, a key that cannot loosen anything and a value the key does not take
+    // are refused, and a refused pair keeps the good one beside it out too.
+    let settings = world.client(Caller::Settings).await;
     for bad in [
         vec![("memory.nonsense", "1")],
         vec![("memory.consolidation.when", "never")],
@@ -155,7 +155,7 @@ async fn a_loosened_value_waits_until_the_shell_confirms_it_over_the_bus() {
             ("memory.files.at_rest", "open"),
         ],
     ] {
-        let refused = confirm_over_bus(&shell, &bad).await;
+        let refused = confirm_over_bus(&settings, &bad).await;
         assert!(
             matches!(refused, Some(Refusal::Invalid(_))),
             "{bad:?}: {refused:?}"
@@ -167,8 +167,8 @@ async fn a_loosened_value_waits_until_the_shell_confirms_it_over_the_bus() {
         MemorySettings::default().pending_ttl
     );
 
-    // The shell confirms: the very next request sees the value, and it is on disk.
-    assert_eq!(confirm_over_bus(&shell, &one).await, None);
+    // The Settings app confirms: the very next request sees the value, and it is on disk.
+    assert_eq!(confirm_over_bus(&settings, &one).await, None);
     assert_eq!(service.settings().pending_ttl, DayCount(3));
     assert!(
         std::fs::read_to_string(dirs.confirmed_settings_toml())

@@ -25,8 +25,8 @@ mod xdg;
 pub use almanac_watch::InotifyWatch as Watcher;
 pub use backend::{SpaceVault, SystemBackend};
 pub use callers::{
-    CallerFileError, ROUTER_APP, SHELL_APP, caller_for, load_callers, table_from_file,
-    table_from_toml,
+    CallerFileError, ROUTER_APP, SETTINGS_APP, SHELL_APP, caller_for, load_callers,
+    table_from_file, table_from_toml,
 };
 pub use clock::SystemClock;
 pub use consent::Consent;

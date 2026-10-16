@@ -58,7 +58,7 @@ pub trait Control {
     /// Writes a tar export to `out` (`ExportOptions` JSON; answers `ExportManifest` JSON).
     fn export(&self, options: &str, out: zbus::zvariant::Fd<'_>) -> zbus::Result<String>;
     /// The person confirmed these loosened memory settings in the Settings app (setting key to
-    /// value). The shell's alone: until then a value looser than the shipped default waits.
+    /// value). The Settings app's alone: until then a value looser than the shipped default waits.
     fn confirm_settings(&self, values: HashMap<String, String>) -> zbus::Result<()>;
     /// A record was stored.
     #[zbus(signal)]

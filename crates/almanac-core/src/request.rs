@@ -131,7 +131,7 @@ pub enum MemoryRequest {
     RemoveSpace(SpaceId, Removal),
     /// The person confirmed these loosened memory settings in the Settings app (setting key to
     /// value, like `memory.retention.search_days` to `7`): a value looser than the shipped default
-    /// takes effect only once memoryd has it here. The shell's alone, and memoryd's daemon
+    /// takes effect only once memoryd has it here. The Settings app's alone, and memoryd's daemon
     /// applies it (the service keeps no settings file), so the service itself refuses it.
     ConfirmSettings(BTreeMap<String, String>),
 }

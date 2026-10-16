@@ -85,7 +85,7 @@ impl<B: Backend, P: Peers> Daemon<B, P> {
         self
     }
 
-    /// `ConfirmSettings`: the shell's alone (the same check every shell-only member has). The
+    /// `ConfirmSettings`: the Settings app's alone (`allowed` decides, as for every member). The
     /// confirmations are recorded, then the settings are read again and put in force.
     fn confirm_settings(&self, caller: &Caller, request: &MemoryRequest) -> MemoryReply {
         if let Allowed::No(refusal) = allowed(caller, request) {

@@ -1,7 +1,7 @@
 //! The person's confirmation of loosened settings (ALM-16). The Settings app writes a value that
 //! is looser than the shipped default into `settings.toml`, which any process of the same user can
-//! also write; the value takes effect only once the shell tells memoryd the person confirmed it
-//! (`Memory1.ConfirmSettings`). memoryd keeps the confirmations in `confirmed-settings.toml` in
+//! also write; the value takes effect only once the Settings app tells memoryd the person
+//! confirmed it (`Memory1.ConfirmSettings`). memoryd keeps the confirmations in `confirmed-settings.toml` in
 //! its own data directory, which the agent sandbox and the apps cannot write, then reads the
 //! settings again so the confirmed value applies at once.
 
