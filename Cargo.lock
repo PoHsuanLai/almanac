@@ -2801,7 +2801,7 @@ dependencies = [
 [[package]]
 name = "porter-client"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=abb164b9d8e876dba394cce8de38bebff8af424e#abb164b9d8e876dba394cce8de38bebff8af424e"
+source = "git+https://github.com/PoHsuanLai/porter?rev=72f5ec918567becf2a1dc1bbc8ad3674b131026f#72f5ec918567becf2a1dc1bbc8ad3674b131026f"
 dependencies = [
  "porter-core",
  "porter-dbus",
@@ -2821,7 +2821,7 @@ dependencies = [
 [[package]]
 name = "porter-core"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=abb164b9d8e876dba394cce8de38bebff8af424e#abb164b9d8e876dba394cce8de38bebff8af424e"
+source = "git+https://github.com/PoHsuanLai/porter?rev=72f5ec918567becf2a1dc1bbc8ad3674b131026f#72f5ec918567becf2a1dc1bbc8ad3674b131026f"
 dependencies = [
  "serde",
  "serde_json",
@@ -2832,7 +2832,7 @@ dependencies = [
 [[package]]
 name = "porter-daemon"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=abb164b9d8e876dba394cce8de38bebff8af424e#abb164b9d8e876dba394cce8de38bebff8af424e"
+source = "git+https://github.com/PoHsuanLai/porter?rev=72f5ec918567becf2a1dc1bbc8ad3674b131026f#72f5ec918567becf2a1dc1bbc8ad3674b131026f"
 dependencies = [
  "notify",
  "thiserror",
@@ -2841,7 +2841,7 @@ dependencies = [
 [[package]]
 name = "porter-dbus"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=abb164b9d8e876dba394cce8de38bebff8af424e#abb164b9d8e876dba394cce8de38bebff8af424e"
+source = "git+https://github.com/PoHsuanLai/porter?rev=72f5ec918567becf2a1dc1bbc8ad3674b131026f#72f5ec918567becf2a1dc1bbc8ad3674b131026f"
 dependencies = [
  "peephole",
  "peephole-bus",
@@ -2857,12 +2857,12 @@ dependencies = [
 [[package]]
 name = "porter-fs"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=abb164b9d8e876dba394cce8de38bebff8af424e#abb164b9d8e876dba394cce8de38bebff8af424e"
+source = "git+https://github.com/PoHsuanLai/porter?rev=72f5ec918567becf2a1dc1bbc8ad3674b131026f#72f5ec918567becf2a1dc1bbc8ad3674b131026f"
 
 [[package]]
 name = "porter-infer"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=abb164b9d8e876dba394cce8de38bebff8af424e#abb164b9d8e876dba394cce8de38bebff8af424e"
+source = "git+https://github.com/PoHsuanLai/porter?rev=72f5ec918567becf2a1dc1bbc8ad3674b131026f#72f5ec918567becf2a1dc1bbc8ad3674b131026f"
 dependencies = [
  "base64 0.22.1",
  "cua-action",
@@ -2875,7 +2875,7 @@ dependencies = [
 [[package]]
 name = "porter-provider"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=abb164b9d8e876dba394cce8de38bebff8af424e#abb164b9d8e876dba394cce8de38bebff8af424e"
+source = "git+https://github.com/PoHsuanLai/porter?rev=72f5ec918567becf2a1dc1bbc8ad3674b131026f#72f5ec918567becf2a1dc1bbc8ad3674b131026f"
 dependencies = [
  "porter-core",
  "serde",
@@ -2886,7 +2886,7 @@ dependencies = [
 [[package]]
 name = "porter-secrets"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=abb164b9d8e876dba394cce8de38bebff8af424e#abb164b9d8e876dba394cce8de38bebff8af424e"
+source = "git+https://github.com/PoHsuanLai/porter?rev=72f5ec918567becf2a1dc1bbc8ad3674b131026f#72f5ec918567becf2a1dc1bbc8ad3674b131026f"
 dependencies = [
  "porter-core",
  "porter-fs",
@@ -2898,7 +2898,7 @@ dependencies = [
 [[package]]
 name = "porter-service"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=abb164b9d8e876dba394cce8de38bebff8af424e#abb164b9d8e876dba394cce8de38bebff8af424e"
+source = "git+https://github.com/PoHsuanLai/porter?rev=72f5ec918567becf2a1dc1bbc8ad3674b131026f#72f5ec918567becf2a1dc1bbc8ad3674b131026f"
 dependencies = [
  "porter-core",
  "porter-provider",
@@ -2989,7 +2989,7 @@ dependencies = [
 [[package]]
 name = "prov"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=abb164b9d8e876dba394cce8de38bebff8af424e#abb164b9d8e876dba394cce8de38bebff8af424e"
+source = "git+https://github.com/PoHsuanLai/porter?rev=72f5ec918567becf2a1dc1bbc8ad3674b131026f#72f5ec918567becf2a1dc1bbc8ad3674b131026f"
 dependencies = [
  "porter-core",
  "serde",
