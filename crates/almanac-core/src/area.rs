@@ -16,6 +16,8 @@ slug_enum!(
         Cua => "cua",
         /// The companion's session records (`SessionRecord`).
         Companion => "companion",
+        /// The person's helpers: the board's jobs and the helpers' posts (`swarm.md`).
+        Helpers => "helpers",
     }
 );
 
