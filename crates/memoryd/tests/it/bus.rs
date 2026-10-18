@@ -282,6 +282,7 @@ async fn the_signals_tell_the_bus_what_changed() {
                 text: FactText::parse("Ana is the CFO.").expect("text"),
                 links: vec![],
                 supersedes: vec![],
+                on_behalf: None,
             },
         )
         .await
@@ -406,6 +407,7 @@ async fn settling_a_pending_fact_and_losing_a_key_are_signalled_too() {
                 text: FactText::parse("Ana is the CFO.").expect("text"),
                 links: vec![],
                 supersedes: vec![],
+                on_behalf: None,
             },
         )
         .await

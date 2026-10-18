@@ -38,6 +38,7 @@ fn draft(text: &str) -> FactDraft {
         text: FactText::parse(text).expect("text"),
         links: vec![],
         supersedes: vec![],
+        on_behalf: None,
     }
 }
 

@@ -6,6 +6,7 @@
 //! | ExplainFile, Mark | own | yes | no | yes | no |
 //! | Search, Facts, Related, Provenance, Primer, Inject, Recent, Entries, Spaces | no | yes (audited as `Memory.Read`) | no | yes | no |
 //! | Propose, PlanForget | no | yes | no | yes | no |
+//! | Propose `on_behalf` a helper | no | yes | no | no | no |
 //! | everything else (with `RemoveSpace`) | no | no | no | yes | no |
 //! | ConfirmSettings | no | no | no | no | yes |
 //! | PendingSettings | no | no | no | yes | yes |
@@ -107,6 +108,17 @@ fn may_record(caller: &Caller, record: &Record) -> bool {
     }
 }
 
+/// Whether `actor` is a helper's job: the only one the router may propose a fact for.
+fn is_helper(actor: &Actor) -> bool {
+    matches!(
+        actor,
+        Actor::Companion {
+            role: AgentRole::Helper { .. },
+            ..
+        }
+    )
+}
+
 fn app_may_explain(app: &AppName, claim: &FileWhyClaim) -> bool {
     &claim.cause.app == app && is_own_actor(&claim.by, app)
 }
@@ -139,6 +151,10 @@ fn by_class(caller: &Caller, request: &MemoryRequest) -> Allowed {
             Caller::Router | Caller::ShellUi => Allowed::Yes,
             Caller::Cuad | Caller::Settings => NO,
         },
+        R::Propose(_, draft) => match &draft.on_behalf {
+            None => yes_if(router_or_shell),
+            Some(actor) => yes_if(matches!(caller, Caller::Router) && is_helper(actor)),
+        },
         R::Search(_)
         | R::Facts(_)
         | R::Related(..)
@@ -147,7 +163,6 @@ fn by_class(caller: &Caller, request: &MemoryRequest) -> Allowed {
         | R::Inject(_)
         | R::Recent(..)
         | R::Entries(..)
-        | R::Propose(..)
         | R::PlanForget(..)
         | R::Spaces => yes_if(router_or_shell),
         R::Status(_)

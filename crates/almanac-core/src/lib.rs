@@ -104,8 +104,8 @@ pub use porter_core::{
 pub use prov::Fault as MessageFault;
 pub use prov::{
     ActionName, Actor, ActorKind, Address, AgentRef, AgentRole, Channel, ClientName,
-    Confidentiality, ConfirmId, ConfirmReceipt, DesktopVerdict, Effect, Flow, InputProof,
-    Integrity, Label, Labelled, Message, MessageId, MessageKind, MessageText, ModelRole,
+    Confidentiality, ConfirmId, ConfirmReceipt, DesktopVerdict, Effect, Flow, HelperId,
+    InputProof, Integrity, Label, Labelled, Message, MessageId, MessageKind, MessageText, ModelRole,
     OutcomeRef, Part, ReportStatus, RunId, SenderCheck, SessionId, Source, SystemPart, TaskId,
     ThreadId, UndoHandle, Witness, declassify, desktop_admits, endorse,
 };

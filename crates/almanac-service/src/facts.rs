@@ -197,7 +197,11 @@ impl<B: Backend> Open<B> {
             id: id.clone(),
             text: draft.text,
             recorded: now,
-            by: caller_actor(cx.caller),
+            // `allowed` let `on_behalf` through only from the router; the label above is still
+            // the real caller's.
+            by: draft
+                .on_behalf
+                .unwrap_or_else(|| caller_actor(cx.caller)),
             label,
             links: draft.links,
             supersedes: draft.supersedes,

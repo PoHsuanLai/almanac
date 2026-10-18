@@ -374,6 +374,7 @@ fn what_a_reply_makes_the_bus_say() {
             text: FactText::parse("x").expect("text"),
             links: vec![],
             supersedes: vec![],
+            on_behalf: None,
         },
     );
     let fact = FactId::mint(1, [1; 10]);

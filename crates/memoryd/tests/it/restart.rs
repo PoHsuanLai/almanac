@@ -92,6 +92,7 @@ async fn fill(service: &MemoryService<Counted>) {
         text: FactText::parse("Ana is the CFO of Porto.").expect("text"),
         links: vec![],
         supersedes: vec![],
+        on_behalf: None,
     };
     let reply = ask(
         service,

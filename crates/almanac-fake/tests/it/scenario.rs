@@ -51,6 +51,7 @@ async fn record_search_forget_cascade() {
         text: FactText::parse("Ana sent the budget report.").expect("t"),
         links: vec![Link::Thing(thing.clone())],
         supersedes: vec![],
+        on_behalf: None,
     };
     let proposed = ask(
         &service,
@@ -194,6 +195,7 @@ async fn pending_facts_settle_and_keep_endorses() {
         text: FactText::parse("Ana is the CFO.").expect("t"),
         links: vec![],
         supersedes: vec![],
+        on_behalf: None,
     };
     let MemoryReply::Proposed(id, FactState::Pending) = ask(
         &service,
@@ -245,6 +247,7 @@ async fn the_desktop_scope_refuses_what_the_person_did_not_state() {
         text: FactText::parse(text).expect("t"),
         links: vec![],
         supersedes: vec![],
+        on_behalf: None,
     };
     let desktop = SpaceId::desktop();
     let from_router = ask(

@@ -77,6 +77,11 @@ pub struct FactDraft {
     pub links: Vec<Link>,
     /// What it replaces.
     pub supersedes: Vec<FactId>,
+    /// Whom the router proposes it for (a helper's job), so the fact is stamped with that actor
+    /// rather than the router's. Only the router may say it; memoryd refuses it from any other
+    /// caller. Absent when the proposer speaks for itself.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub on_behalf: Option<Actor>,
 }
 
 /// What the launcher's Memory rows are about: sill's subject key.

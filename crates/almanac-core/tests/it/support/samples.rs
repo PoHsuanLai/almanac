@@ -110,6 +110,7 @@ pub fn requests() -> Vec<MemoryRequest> {
                 text: FactText::parse("x").expect("t"),
                 links: vec![],
                 supersedes: vec![],
+                on_behalf: None,
             },
         ),
         MemoryRequest::Spaces,

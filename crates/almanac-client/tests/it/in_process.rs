@@ -68,6 +68,7 @@ async fn a_space_is_written_recalled_and_forgotten_in_process() {
         text: FactText::parse("Ana sent the budget report.").expect("text"),
         links: vec![Link::Thing(thing.clone())],
         supersedes: vec![],
+        on_behalf: None,
     };
     let (_, state) = shell.propose(work(), draft).await.expect("propose");
     assert_eq!(state, FactState::Active);

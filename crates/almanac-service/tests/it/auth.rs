@@ -199,6 +199,7 @@ fn reading_proposing_and_planning_belong_to_the_router_and_the_shell() {
                 text: FactText::parse("x").expect("t"),
                 links: vec![],
                 supersedes: vec![],
+                on_behalf: None,
             },
         ),
         MemoryRequest::PlanForget(w.clone(), ForgetScope::Space),
@@ -518,4 +519,35 @@ fn only_the_shell_settles_a_removed_spaces_memories() {
             assert_eq!(yes(allowed(&caller, &request)), who == "shell", "{who}");
         }
     }
+}
+
+#[test]
+fn proposing_for_a_helper_is_the_routers_alone() {
+    let on_behalf = Actor::Companion {
+        session: SessionId::parse("s-7").expect("s"),
+        role: AgentRole::Helper {
+            helper: HelperId::parse("01J9ZK").expect("h"),
+            task: TaskId::parse("t-7").expect("t"),
+        },
+    };
+    let propose = |on_behalf: Actor| {
+        MemoryRequest::Propose(
+            space("work"),
+            FactDraft {
+                topic: TopicPath::parse("a").expect("t"),
+                text: FactText::parse("x").expect("t"),
+                links: vec![],
+                supersedes: vec![],
+                on_behalf: Some(on_behalf),
+            },
+        )
+    };
+    for (who, caller) in callers() {
+        assert_eq!(
+            yes(allowed(&caller, &propose(on_behalf.clone()))),
+            who == "router",
+            "{who}"
+        );
+    }
+    assert!(!yes(allowed(&Caller::Router, &propose(planner()))));
 }

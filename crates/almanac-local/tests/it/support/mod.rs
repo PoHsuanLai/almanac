@@ -67,6 +67,7 @@ pub fn draft(topic_name: &str, text: &str) -> FactDraft {
         text: FactText::parse(text).expect("text"),
         links: vec![],
         supersedes: vec![],
+        on_behalf: None,
     }
 }
 

@@ -26,6 +26,7 @@ async fn propose_pending(service: &Service) {
         text: FactText::parse("Ana is the CFO.").expect("text"),
         links: vec![],
         supersedes: vec![],
+        on_behalf: None,
     };
     let reply = service
         .handle(&Caller::Router, MemoryRequest::Propose(work(), draft))

@@ -133,6 +133,7 @@ async fn plan_goes_stale_when_new_derivation_appears() {
         text: FactText::parse("Ana sent the budget.").expect("t"),
         links: vec![Link::Thing(thing)],
         supersedes: vec![],
+        on_behalf: None,
     };
     ask(
         &service,
@@ -203,6 +204,7 @@ async fn an_untrusted_proposal_lands_in_pending() {
         text: FactText::parse("Ana is the CFO.").expect("t"),
         links: vec![],
         supersedes: vec![],
+        on_behalf: None,
     };
     let reply = ask(
         &service,
@@ -214,6 +216,85 @@ async fn an_untrusted_proposal_lands_in_pending() {
         matches!(reply, MemoryReply::Proposed(_, FactState::Pending))
             || matches!(reply, MemoryReply::Proposed(_, FactState::Active))
     );
+}
+
+fn helper_job() -> Actor {
+    Actor::Companion {
+        session: SessionId::parse("s-7").expect("session"),
+        role: AgentRole::Helper {
+            helper: HelperId::parse("01J9ZK").expect("helper"),
+            task: TaskId::parse("t-7").expect("task"),
+        },
+    }
+}
+
+fn proposal(on_behalf: Option<Actor>) -> MemoryRequest {
+    MemoryRequest::Propose(
+        space("work"),
+        FactDraft {
+            topic: TopicPath::parse("people/ana").expect("t"),
+            text: FactText::parse("Ana is the CFO.").expect("t"),
+            links: vec![],
+            supersedes: vec![],
+            on_behalf,
+        },
+    )
+}
+
+async fn authors(service: &MemoryService<FakeBackend>) -> Vec<Actor> {
+    let MemoryReply::Facts(facts) = ask(
+        service,
+        &Caller::ShellUi,
+        MemoryRequest::Facts(FactQuery {
+            space: space("work"),
+            topic: None,
+            about: None,
+            state: FactFilter::All,
+            limit: Count(10),
+        }),
+    )
+    .await
+    else {
+        panic!("facts")
+    };
+    facts.into_iter().map(|f| f.fact.by).collect()
+}
+
+#[tokio::test]
+async fn a_proposal_the_router_makes_for_a_helper_is_authored_by_it() {
+    let service = service();
+    let reply = ask(&service, &Caller::Router, proposal(Some(helper_job()))).await;
+    assert!(matches!(reply, MemoryReply::Proposed(..)));
+    assert_eq!(authors(&service).await, vec![helper_job()]);
+}
+
+#[tokio::test]
+async fn a_proposal_without_on_behalf_is_authored_by_the_router_as_before() {
+    let service = service();
+    ask(&service, &Caller::Router, proposal(None)).await;
+    let router = Actor::System {
+        part: SystemPart::Router,
+    };
+    assert_eq!(authors(&service).await, vec![router]);
+}
+
+#[tokio::test]
+async fn on_behalf_is_refused_from_any_caller_but_the_router() {
+    let service = service();
+    for caller in [Caller::ShellUi, Caller::Cuad] {
+        let reply = ask(&service, &caller, proposal(Some(helper_job()))).await;
+        assert!(is_refused(&reply, &Refusal::NotAllowed), "{caller:?}");
+    }
+    let reply = ask(&service, &mail_app(), proposal(Some(helper_job()))).await;
+    assert!(matches!(reply, MemoryReply::Refused(_)));
+    assert!(authors(&service).await.is_empty());
+}
+
+#[tokio::test]
+async fn the_router_may_speak_only_for_a_helper() {
+    let service = service();
+    let reply = ask(&service, &Caller::Router, proposal(Some(Actor::Unknown))).await;
+    assert!(is_refused(&reply, &Refusal::NotAllowed));
 }
 
 #[tokio::test]

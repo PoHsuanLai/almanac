@@ -31,6 +31,7 @@ async fn propose(service: &Service, topic_name: &str, text: &str) -> FactId {
         text: FactText::parse(text).expect("text"),
         links: vec![],
         supersedes: vec![],
+        on_behalf: None,
     };
     match shell(service, MemoryRequest::Propose(work(), draft)).await {
         MemoryReply::Proposed(id, FactState::Active) => id,
@@ -350,6 +351,7 @@ async fn propose_pending(service: &Service, text: &str) -> FactId {
         text: FactText::parse(text).expect("text"),
         links: vec![],
         supersedes: vec![],
+        on_behalf: None,
     };
     match service
         .handle(&Caller::Router, MemoryRequest::Propose(work(), draft))
