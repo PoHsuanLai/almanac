@@ -835,7 +835,7 @@ dependencies = [
 [[package]]
 name = "cua-action"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/stoker?rev=45c5a8947f2caa735688ef55f8be012d5fe346a9#45c5a8947f2caa735688ef55f8be012d5fe346a9"
+source = "git+https://github.com/PoHsuanLai/stoker?rev=bb6da201eec8beffc9559ce8644c8ad560aa531a#bb6da201eec8beffc9559ce8644c8ad560aa531a"
 dependencies = [
  "keyboard-types",
  "serde",
@@ -1108,7 +1108,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2720,8 +2720,8 @@ dependencies = [
 
 [[package]]
 name = "peephole"
-version = "0.1.8"
-source = "git+https://github.com/PoHsuanLai/peephole?tag=v0.1.8#bba63d4761b750c0789ca7689df4b86e5213905f"
+version = "0.1.9"
+source = "git+https://github.com/PoHsuanLai/peephole?tag=v0.1.9#f22e99b447d1ef7f84d81ddce6ceb614088ee0ef"
 dependencies = [
  "nix",
  "peephole-core",
@@ -2731,8 +2731,8 @@ dependencies = [
 
 [[package]]
 name = "peephole-bus"
-version = "0.1.8"
-source = "git+https://github.com/PoHsuanLai/peephole?tag=v0.1.8#bba63d4761b750c0789ca7689df4b86e5213905f"
+version = "0.1.9"
+source = "git+https://github.com/PoHsuanLai/peephole?tag=v0.1.9#f22e99b447d1ef7f84d81ddce6ceb614088ee0ef"
 dependencies = [
  "futures-timer",
  "peephole",
@@ -2744,8 +2744,8 @@ dependencies = [
 
 [[package]]
 name = "peephole-core"
-version = "0.1.8"
-source = "git+https://github.com/PoHsuanLai/peephole?tag=v0.1.8#bba63d4761b750c0789ca7689df4b86e5213905f"
+version = "0.1.9"
+source = "git+https://github.com/PoHsuanLai/peephole?tag=v0.1.9#f22e99b447d1ef7f84d81ddce6ceb614088ee0ef"
 dependencies = [
  "serde",
  "thiserror",
@@ -2821,7 +2821,7 @@ dependencies = [
 [[package]]
 name = "porter-client"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=b2adc64da9ce49b41c83c73888a7d4da9e57a8bf#b2adc64da9ce49b41c83c73888a7d4da9e57a8bf"
+source = "git+https://github.com/PoHsuanLai/porter?rev=5f100f284aa557d770b529af5edfcb3afbdaae8a#5f100f284aa557d770b529af5edfcb3afbdaae8a"
 dependencies = [
  "porter-core",
  "porter-dbus",
@@ -2841,7 +2841,7 @@ dependencies = [
 [[package]]
 name = "porter-core"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=b2adc64da9ce49b41c83c73888a7d4da9e57a8bf#b2adc64da9ce49b41c83c73888a7d4da9e57a8bf"
+source = "git+https://github.com/PoHsuanLai/porter?rev=5f100f284aa557d770b529af5edfcb3afbdaae8a#5f100f284aa557d770b529af5edfcb3afbdaae8a"
 dependencies = [
  "peephole-core",
  "serde",
@@ -2853,7 +2853,7 @@ dependencies = [
 [[package]]
 name = "porter-daemon"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=b2adc64da9ce49b41c83c73888a7d4da9e57a8bf#b2adc64da9ce49b41c83c73888a7d4da9e57a8bf"
+source = "git+https://github.com/PoHsuanLai/porter?rev=5f100f284aa557d770b529af5edfcb3afbdaae8a#5f100f284aa557d770b529af5edfcb3afbdaae8a"
 dependencies = [
  "notify",
  "thiserror",
@@ -2862,7 +2862,7 @@ dependencies = [
 [[package]]
 name = "porter-dbus"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=b2adc64da9ce49b41c83c73888a7d4da9e57a8bf#b2adc64da9ce49b41c83c73888a7d4da9e57a8bf"
+source = "git+https://github.com/PoHsuanLai/porter?rev=5f100f284aa557d770b529af5edfcb3afbdaae8a#5f100f284aa557d770b529af5edfcb3afbdaae8a"
 dependencies = [
  "peephole",
  "peephole-bus",
@@ -2878,12 +2878,12 @@ dependencies = [
 [[package]]
 name = "porter-fs"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=b2adc64da9ce49b41c83c73888a7d4da9e57a8bf#b2adc64da9ce49b41c83c73888a7d4da9e57a8bf"
+source = "git+https://github.com/PoHsuanLai/porter?rev=5f100f284aa557d770b529af5edfcb3afbdaae8a#5f100f284aa557d770b529af5edfcb3afbdaae8a"
 
 [[package]]
 name = "porter-infer"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=b2adc64da9ce49b41c83c73888a7d4da9e57a8bf#b2adc64da9ce49b41c83c73888a7d4da9e57a8bf"
+source = "git+https://github.com/PoHsuanLai/porter?rev=5f100f284aa557d770b529af5edfcb3afbdaae8a#5f100f284aa557d770b529af5edfcb3afbdaae8a"
 dependencies = [
  "base64 0.22.1",
  "cua-action",
@@ -2896,7 +2896,7 @@ dependencies = [
 [[package]]
 name = "porter-provider"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=b2adc64da9ce49b41c83c73888a7d4da9e57a8bf#b2adc64da9ce49b41c83c73888a7d4da9e57a8bf"
+source = "git+https://github.com/PoHsuanLai/porter?rev=5f100f284aa557d770b529af5edfcb3afbdaae8a#5f100f284aa557d770b529af5edfcb3afbdaae8a"
 dependencies = [
  "porter-core",
  "serde",
@@ -2907,7 +2907,7 @@ dependencies = [
 [[package]]
 name = "porter-secrets"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=b2adc64da9ce49b41c83c73888a7d4da9e57a8bf#b2adc64da9ce49b41c83c73888a7d4da9e57a8bf"
+source = "git+https://github.com/PoHsuanLai/porter?rev=5f100f284aa557d770b529af5edfcb3afbdaae8a#5f100f284aa557d770b529af5edfcb3afbdaae8a"
 dependencies = [
  "porter-core",
  "porter-fs",
@@ -2919,7 +2919,7 @@ dependencies = [
 [[package]]
 name = "porter-service"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=b2adc64da9ce49b41c83c73888a7d4da9e57a8bf#b2adc64da9ce49b41c83c73888a7d4da9e57a8bf"
+source = "git+https://github.com/PoHsuanLai/porter?rev=5f100f284aa557d770b529af5edfcb3afbdaae8a#5f100f284aa557d770b529af5edfcb3afbdaae8a"
 dependencies = [
  "porter-core",
  "porter-provider",
@@ -3010,7 +3010,7 @@ dependencies = [
 [[package]]
 name = "prov"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=b2adc64da9ce49b41c83c73888a7d4da9e57a8bf#b2adc64da9ce49b41c83c73888a7d4da9e57a8bf"
+source = "git+https://github.com/PoHsuanLai/porter?rev=5f100f284aa557d770b529af5edfcb3afbdaae8a#5f100f284aa557d770b529af5edfcb3afbdaae8a"
 dependencies = [
  "porter-core",
  "serde",
@@ -3395,7 +3395,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3812,10 +3812,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.3.4",
+ "getrandom 0.4.3",
  "once_cell",
  "rustix",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -4476,7 +4476,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
