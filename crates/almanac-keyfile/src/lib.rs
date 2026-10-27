@@ -1,15 +1,21 @@
 //! `FileKeys`: Space keys in one sealed file, for a jailed test that has no Secret Service.
 //!
-//! TEST ONLY (feature `test-keys`, off by default, never in a release or dist build). The file is
+//! TEST ONLY (memoryd pulls this crate in only through its `test-keys` feature, off by default,
+//! never in a release or dist build). The file is replaced whole through `atomic-write-file`
+//! (temp file, fsync, rename, directory sync), so a crash leaves the old keys or the new ones.
+//!
+//! The file is
 //! sealed with a wrapping key that is a constant in this source, so it only keeps the keys from
 //! sitting as plain text; it protects nothing from anyone who can read the file and this code.
 //! A production daemon must use the Secret Service (`Oo7Keys`).
 
-use crate::keys::{Purpose, SpaceKey, derive};
-use crate::seal::{Aad, Nonce, seal, unseal};
-use crate::store::{KeyError, KeyStore};
 use almanac_core::{SpaceId, from_hex, hex_of};
+use almanac_seal::{
+    Aad, KeyError, KeyStore, Nonce, Purpose, SpaceKey, SubKey, derive, seal, unseal,
+};
+use atomic_write_file::AtomicWriteFile;
 use std::collections::BTreeMap;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
@@ -29,7 +35,7 @@ fn aad() -> Aad {
     Aad::file(&SpaceId::desktop(), "test-keys")
 }
 
-fn wrap_key() -> crate::keys::SubKey {
+fn wrap_key() -> SubKey {
     derive(
         &SpaceKey::from_bytes(WRAP),
         &SpaceId::desktop(),
@@ -91,9 +97,9 @@ impl FileKeys {
         if let Some(dir) = self.path.parent() {
             std::fs::create_dir_all(dir).map_err(store_error)?;
         }
-        let tmp = self.path.with_extension("tmp");
-        std::fs::write(&tmp, sealed).map_err(store_error)?;
-        std::fs::rename(&tmp, &self.path).map_err(store_error)
+        let mut file = AtomicWriteFile::open(&self.path).map_err(store_error)?;
+        file.write_all(&sealed).map_err(store_error)?;
+        file.commit().map_err(store_error)
     }
 
     fn with<T>(

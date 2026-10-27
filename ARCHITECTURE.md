@@ -18,6 +18,7 @@ trait), section 5 (what is built), section 6 (copy the recipe).
 | --- | --- | --- |
 | `almanac-core` | the vocabulary: ids and their grammars (`FactId`, `TopicPath`, `KindTag`, `KindPattern`, `SpacePath`), things (`ThingRef` = `prov::EntityId`), `Record`, `EventBody` (with `Message` and `Episode`), `AreaPayload`, `Episode` and its skeleton, `InjectQuery`/`RecentQuery`, facts, remember rules and the pure `admit`, the wire (`MemoryRequest`, `MemoryReply`, `Refusal`, `Caller`), the timeline, forget-plan, draft and status views, the export manifest, `Dirs`; re-exports the porter and `prov` names the other crates use | none |
 | `almanac-seal` | `SpaceKey`, purpose subkeys (`derive`), `DbKey`, `seal`/`unseal` for files, the `KeyStore` seam, `ProvidedKeys` (Space keys derived from a master key the app provides: the portable key source), `MemoryKeys` (feature `testing`), `Oo7Keys` (feature `oo7`) | none (oo7 behind its feature) |
+| `almanac-keyfile` | `FileKeys`: a `KeyStore` in one sealed file, replaced through `atomic-write-file` (synced); TEST ONLY, reached only through memoryd's `test-keys` feature | the file |
 | `almanac-store` | the seams the service stands on, traits and types only: the log (`LogRead`, `LogWrite`, `Entry`, `Header`, `NewHeader`, `verify_chain`, `LogError`), the vault (`Vault`, `VaultPath`, `VaultError`), the search index (`SearchIndex`, `IndexFailure`, `SearchQuery`, `Doc`, `DocId`, `Allow`, `IndexState`, `Embedder`, `EmbedderCard`, `Vector`, `fuse_rrf`, `chunk`). Each store crate implements them and re-exports the names it used to hold | none |
 | `eventlog` | `SqliteLog` (SQLCipher), `MemoryLog` (feature `testing`), the schema; re-exports the log seam from `almanac-store` | rusqlite |
 | `memfiles-format` | pure: the topic file format (`parse_topic`, `render_topic`, the trailer), `Store` over a `Vault` (from `almanac-store`), `Primer`, `MemfilesError`. No file IO | none |
@@ -74,7 +75,7 @@ A crate depends on its own tier or a lower one (P < C < A), never up; `dev-depen
 | Tier | Crates |
 | --- | --- |
 | P | `almanac-core`, `almanac-seal`, `almanac-store`, `memfiles-format`, `almanac-service` |
-| C | `eventlog`, `memfiles`, `recall`, `almanac-watch`, `almanac-dbus`, `almanac-client`, `almanac-fake`, `almanac-local` |
+| C | `almanac-keyfile`, `eventlog`, `memfiles`, `recall`, `almanac-watch`, `almanac-dbus`, `almanac-client`, `almanac-fake`, `almanac-local` |
 | A | `memoryd` |
 
 The script also reports source files over 500 lines (`--long-files`, report only) and seeds one violation per tier to prove the bans fire (`--self-test`). The `KNOWN` list names each violation that exists today and the plan lane (`~/rs-wt/agent-layers/PLAN.md`) that removes it; a row whose violation is gone fails, so the list only shrinks:
@@ -82,7 +83,6 @@ The script also reports source files over 500 lines (`--long-files`, report only
 | Crate | Ban | Lane |
 | --- | --- | --- |
 | `almanac-service` | `fs`, `process` (`config.rs`, `settings/locate.rs`) | A3.2 |
-| `almanac-seal` | `fs` (`FileKeys` in `file.rs`) | none yet |
 
 almanac never depends on stoker, docket or cua: their payloads (policy, consent, computer-use
 steps, sessions) are `EventBody::Area` in their owners' serde form, and `check-boundary.sh`
@@ -103,6 +103,7 @@ may reach `notify` and never `rusqlite`; `almanac-dbus` reaches `tokio` only thr
 | --- | --- |
 | `almanac-core` | `slug`, `text` (ids, `Digest32`/`Link32`/`ContentDigest`/`PlanDigest`, `UserText`, `JsonText`) < `ids`, `thing`, `file`, `area`, `op`, `chain` < `event` < `fact`, `rules`, `space` < `admit` < `query`, `timeline`, `views`, `export` < `request`, `reply`, `caller`, `dirs` |
 | `almanac-seal` | `keys` (`SpaceKey`, `Purpose`, `derive`, `SubKey`, `DbKey`), `seal`, `store`, `memory`, `oo7` |
+| `almanac-keyfile` | `FileKeys` (one file) |
 | `eventlog` | `header` < `chain`, `filter`, `traits` < `memory`, `sqlite` |
 | `memfiles-format` | `trailer` < `topic` < `store` |
 | `memfiles` | `memory`, `dirs` |
@@ -146,7 +147,7 @@ may reach `notify` and never `rusqlite`; `almanac-dbus` reaches `tokio` only thr
 ## 4. Traits (the seams) and closed enums
 
 ```rust
-// almanac-seal: the Secret Service, or MemoryKeys (tests); FileKeys (feature `test-keys`, TEST ONLY).
+// almanac-seal: the Secret Service, or MemoryKeys (tests); FileKeys (crate `almanac-keyfile`, memoryd feature `test-keys`, TEST ONLY).
 pub trait KeyStore: Send + Sync {
     fn get(&self, space: &SpaceId) -> impl Future<Output = Result<SpaceKey, KeyError>> + Send;
     fn create(&self, space: &SpaceId) -> impl Future<Output = Result<SpaceKey, KeyError>> + Send;

@@ -81,6 +81,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "almanac-keyfile"
+version = "0.1.0"
+dependencies = [
+ "almanac-core",
+ "almanac-seal",
+ "atomic-write-file",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
 name = "almanac-local"
 version = "0.1.0"
 dependencies = [
@@ -1040,6 +1051,7 @@ dependencies = [
  "almanac-core",
  "almanac-dbus",
  "almanac-fake",
+ "almanac-keyfile",
  "almanac-local",
  "almanac-seal",
  "almanac-service",

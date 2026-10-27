@@ -1,9 +1,9 @@
-//! `FileKeys` (feature `test-keys`): a sealed file of keys that a second store over the same path
+//! `FileKeys`: a sealed file of keys that a second store over the same path
 //! shares, that holds no plain key, and that a copy of another store's file cannot be forged into.
-#![cfg(feature = "test-keys")]
 
 use almanac_core::{SpaceId, hex_of};
-use almanac_seal::{FileKeys, KeyError, KeyStore};
+use almanac_keyfile::FileKeys;
+use almanac_seal::{KeyError, KeyStore};
 
 fn space(id: &str) -> SpaceId {
     SpaceId::parse(id).expect("space id")

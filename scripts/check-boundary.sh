@@ -28,6 +28,7 @@ LAYERS=(
   "memfiles-format: P"
   "almanac-service: P"
   "almanac-seal: P"
+  "almanac-keyfile: C"
   "eventlog: C"
   "memfiles: C"
   "recall: C"
@@ -42,12 +43,10 @@ LAYERS=(
 # KNOWN: a violation that exists today, with the plan lane (~/rs-wt/agent-layers/PLAN.md) that
 # removes it. "crate: ban: lane". A row whose violation is gone fails, so the list only shrinks.
 # almanac-service reads and writes its config and settings files (config.rs, settings/locate.rs;
-# A3.2 moves them out). almanac-seal holds FileKeys (file.rs), a file-backed key store inside a P
-# crate; lane A0.5 moves it to a C-tier crate.
+# A3.2 moves them out).
 KNOWN=(
   "almanac-service: fs: A3.2"
   "almanac-service: process: A3.2"
-  "almanac-seal: fs: A0.5"
 )
 
 # BANS: "name|tiers|extended regex" over the non-test source of a crate of those tiers. A line
@@ -91,6 +90,7 @@ STORAGE="rusqlite libsqlite3-sys openssl-sys openssl atomic-write-file"
 RULES=(
   "almanac-core: $EFFECTS rusqlite notify toml $CUA_EFFECTS"
   "almanac-seal: $EFFECTS rusqlite notify"
+  "almanac-keyfile: $EFFECTS rusqlite notify"
   "almanac-store: $EFFECTS $STORAGE notify"
   "eventlog: $EFFECTS notify"
   "memfiles: $EFFECTS rusqlite notify"
@@ -279,14 +279,19 @@ done
 ./scripts/check-portable.sh || fail=1
 
 # The test-only features are never on in a default build (a dist build uses default features):
-# memoryd's `test-keys` and `test-proc-root`, and almanac-seal's `test-keys` that one turns on.
+# memoryd's `test-keys` and `test-proc-root`; `test-keys` is what brings almanac-keyfile in.
 enabled=$(cargo tree -p memoryd -e normal,build -f '{p} [{f}]' --prefix none 2>/dev/null \
-  | grep -E '^(memoryd|almanac-seal) ' | grep -oE '\[[^]]*\]' | tr ',[]' '\n\n\n')
+  | grep -E '^memoryd ' | grep -oE '\[[^]]*\]' | tr ',[]' '\n\n\n')
 if printf '%s\n' "$enabled" | grep -qE '^test-'; then
   echo "TEST FEATURE: a default build of memoryd enables: $(printf '%s\n' "$enabled" | grep -E '^test-' | tr '\n' ' ')"
   fail=1
 else
   echo "test features (test-keys, test-proc-root) are off in a default build of memoryd"
+fi
+
+if cargo tree -p memoryd -e normal,build --prefix none 2>/dev/null | grep -q '^almanac-keyfile '; then
+  echo "TEST FEATURE: a default build of memoryd links almanac-keyfile (FileKeys, TEST ONLY)"
+  fail=1
 fi
 
 exit "$fail"

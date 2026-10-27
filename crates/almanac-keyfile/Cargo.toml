@@ -1,0 +1,21 @@
+[package]
+name = "almanac-keyfile"
+description = "FileKeys: a key store in one sealed file, replaced atomically and synced, for a jailed test with no Secret Service. TEST ONLY."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+almanac-core = { workspace = true }
+almanac-seal = { workspace = true }
+atomic-write-file = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+tokio = { workspace = true }
+
+[lints]
+workspace = true

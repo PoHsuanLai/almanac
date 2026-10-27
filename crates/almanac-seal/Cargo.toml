@@ -18,7 +18,7 @@ zeroize = { workspace = true }
 oo7 = { workspace = true, optional = true }
 
 [dev-dependencies]
-almanac-seal = { path = ".", features = ["testing", "oo7", "test-keys"] }
+almanac-seal = { path = ".", features = ["testing", "oo7"] }
 tokio = { workspace = true }
 tempfile = { workspace = true }
 
@@ -31,10 +31,6 @@ oo7 = ["dep:oo7"]
 # blake3's portable Rust implementation (no C/assembly SIMD), for a cross build with no C
 # compiler for the target. Off by default: the desktop keeps blake3's fast paths.
 pure-hash = ["blake3/pure"]
-
-# `FileKeys`: keys in a sealed file, for a jailed test with no Secret Service. TEST ONLY: never
-# enabled in a release or dist build (memoryd's `test-keys` feature turns it on).
-test-keys = []
 
 [lints]
 workspace = true

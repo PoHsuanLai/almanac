@@ -96,7 +96,7 @@ pub enum AnyKeys {
     Oo7(Oo7Keys),
     /// A sealed file (test builds only).
     #[cfg(feature = "test-keys")]
-    File(almanac_seal::FileKeys),
+    File(almanac_keyfile::FileKeys),
 }
 
 /// Why the key store could not be chosen.
@@ -124,7 +124,7 @@ impl AnyKeys {
             Selection::Unreadable(value) => Err(KeysError::Unreadable(value)),
             #[cfg(feature = "test-keys")]
             Selection::File(path) => Ok((
-                Self::File(almanac_seal::FileKeys::at(&path)),
+                Self::File(almanac_keyfile::FileKeys::at(&path)),
                 Some(format!(
                     "TEST BUILD: keys are in the file {}, not the Secret Service",
                     path.display()

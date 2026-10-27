@@ -488,7 +488,7 @@ cuad, reads the person's events during the takeover (`Recent`, a `Router` call) 
   Space)` is now refused (`Invalid`, "the desktop Space cannot be deleted"): it holds memory outside
   every Space and the final head of each deleted Space. Tests: `memoryd/tests/it/desktop.rs`.
 - **File keys for the packaged binary, TEST ONLY** (docket ask 3): feature `test-keys` (memoryd,
-  and almanac-seal's `FileKeys`), off by default and never in a release or dist build.
+  and the `almanac-keyfile` crate that holds `FileKeys`, written through `atomic-write-file` so the key file is synced), off by default and never in a release or dist build.
   `MEMORYD_KEYS=file:<path>` selects a sealed file of Space keys; the daemon says so on standard
   error and adds the file's directory to its Landlock policy. The wrapping key is a constant in
   the source: the file keeps keys from sitting as plain text and protects nothing else, so it is
