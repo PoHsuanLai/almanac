@@ -42,8 +42,3 @@ pub fn dirs_from(lookup: impl Fn(&str) -> Option<String>) -> Result<Dirs, XdgErr
             .ok_or(XdgError::NoRuntimeDir)?,
     ))
 }
-
-/// The directories from the process environment.
-pub fn dirs_from_env() -> Result<Dirs, XdgError> {
-    dirs_from(|name| std::env::var(name).ok())
-}

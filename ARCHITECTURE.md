@@ -63,27 +63,31 @@ builds are unchanged. `scripts/check-portable.sh` checks the left column (includ
 installed macOS/Windows rustup target. `check-boundary.sh` checks `almanac-client`'s boundary rule
 without its defaults (the rule is about what an app without the desktop switch links).
 
-Allowed direct edges (checked by `scripts/check-boundary.sh`; dev-dependencies are outside it):
+Every crate is one tier (`LAYERS` in `scripts/check-boundary.sh`, which checks them):
 
-| Crate | May depend on |
+- **P (pure):** no `std::fs/env/process/net`, no clock reads, no sleeps, no tokio, hyper, reqwest, zbus or rustix, no UI words (`Help`, `Sheet`, `SettingRow`, `ds-settings`).
+- **C (client/IO):** may do IO; no UI words.
+- **A (app/daemon):** wiring only; its libraries read no environment variable outside `main.rs`.
+
+A crate depends on its own tier or a lower one (P < C < A), never up; `dev-dependencies` are outside the check.
+
+| Tier | Crates |
 | --- | --- |
-| `almanac-core` | `porter-core`, `prov` (porter, by git rev) |
-| `almanac-seal` | `almanac-core` |
-| `almanac-store` | `almanac-core`, `almanac-seal` |
-| `eventlog`, `memfiles` | `almanac-core`, `almanac-seal`, `almanac-store` |
-| `memfiles-format` | `almanac-core`, `almanac-store` |
-| `recall` | `almanac-store` |
-| `almanac-service` | `almanac-core`, `almanac-seal`, `almanac-store`, `memfiles-format` |
-| `almanac-watch`, `almanac-dbus` | `almanac-core` |
-| `almanac-client` | `almanac-core`; `almanac-service` with feature `in_process`; `almanac-dbus` with feature `dbus` |
-| `almanac-fake` | `almanac-core`, `almanac-seal`, `almanac-store`, `eventlog`, `memfiles`, `recall`, `almanac-service` |
-| `almanac-local` | `almanac-core`, `almanac-seal`, `almanac-store`, `eventlog`, `memfiles`, `recall`, `almanac-service` |
-| `memoryd` | every crate above except `almanac-client`, `almanac-fake`, `memfiles-format` (tests only); and `porter-core`, `porter-dbus` (its `callers`: who is calling), `porter-infer`, `porter-client` |
+| P | `almanac-core`, `almanac-seal`, `almanac-store`, `memfiles-format`, `almanac-service` |
+| C | `eventlog`, `memfiles`, `recall`, `almanac-watch`, `almanac-dbus`, `almanac-client`, `almanac-fake`, `almanac-local` |
+| A | `memoryd` |
+
+The script also reports source files over 500 lines (`--long-files`, report only) and seeds one violation per tier to prove the bans fire (`--self-test`). The `KNOWN` list names each violation that exists today and the plan lane (`~/rs-wt/agent-layers/PLAN.md`) that removes it; a row whose violation is gone fails, so the list only shrinks:
+
+| Crate | Ban | Lane |
+| --- | --- | --- |
+| `almanac-service` | `fs`, `process` (`config.rs`, `settings/locate.rs`) | A3.2 |
+| `almanac-seal` | `fs` (`FileKeys` in `file.rs`) | none yet |
 
 almanac never depends on stoker, docket or cua: their payloads (policy, consent, computer-use
 steps, sessions) are `EventBody::Area` in their owners' serde form, and `check-boundary.sh`
 fails if any of their crates enters the tree. Other crates reach porter's names through
-`almanac-core`'s re-exports, so the edges stay this exact.
+`almanac-core`'s re-exports, so the dependency tiers stay this exact.
 
 External boundaries (default features): `almanac-core` never reaches `zbus zvariant tokio
 reqwest hyper oo7 ort fastembed rusqlite notify toml`; `almanac-seal`, `memfiles`, `memfiles-format`: the same
@@ -102,7 +106,7 @@ may reach `notify` and never `rusqlite`; `almanac-dbus` reaches `tokio` only thr
 | `eventlog` | `header` < `chain`, `filter`, `traits` < `memory`, `sqlite` |
 | `memfiles-format` | `trailer` < `topic` < `store` |
 | `memfiles` | `memory`, `dirs` |
-| `recall` | `doc`, `vector`, `fuse`, `state`, `embed` < `fts`, `exact`, `fake` < `index` |
+| `recall` | `doc`, `state`, `embed` < `fts`, `exact`, `fake` < `index` |
 | `almanac-service` | `clock`, `auth`, `retention`, `space`, `fact`, `forget`, `consolidation`, `prompt`, `change`, `removals`, `timeline`, `export`, `config`, `settings`, `marks`, `baseline`, `events` < `backend` < `service` < `open`, `record`, `facts`, `search`, `run`, `hunks`, `edits`, `sweep`, `erase`, `control`, `dispatch` |
 | `almanac-watch` | `observed` < `join` < `inotify` |
 | `almanac-dbus` | `names`, `error`, `record`, `recall`, `control` (skeletons and proxies), `codec` (`request`, `reply`), `invoke`, `serve`, `introspect` |
@@ -137,7 +141,7 @@ may reach `notify` and never `rusqlite`; `almanac-dbus` reaches `tokio` only thr
 | the file-why join | `almanac-watch::join` |
 | D-Bus names, members, error names | `almanac-dbus::{names, record, recall, control, error}` |
 | the system clock | `almanac-local` (`clock.rs`) |
-| the environment | `memoryd` (`xdg.rs`) |
+| the environment | `memoryd` (`main.rs`) |
 
 ## 4. Traits (the seams) and closed enums
 

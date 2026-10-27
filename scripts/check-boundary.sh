@@ -1,12 +1,73 @@
 #!/usr/bin/env bash
-# Crate boundaries, mechanically enforced (ARCHITECTURE.md section 1 is the table; this is its
+# Crate layers, mechanically enforced (ARCHITECTURE.md section 1 is the table; this is its
 # mechanical form).
+#
+#   scripts/check-boundary.sh               run every check
+#   scripts/check-boundary.sh --long-files  also report source files over 500 lines (no failure yet)
+#   scripts/check-boundary.sh --self-test   seed violations and assert each is caught
+#
+# Every crate is one tier:
+#   P  pure: no std::fs/env/process/net, no clock reads, no sleeps, no tokio, hyper, reqwest, zbus
+#      or rustix, and no UI words.
+#   C  client/IO: may do IO, but has no UI words (Help, Sheet, SettingRow, ds_settings).
+#   A  app/daemon: wiring only. Its libraries read no environment variable outside main.rs.
+# A crate depends on its own tier or a lower one (P < C < A), never up.
+#
+# `Label` is not a UI word here: prov::Label is the taint label, not copy shown to a person.
 #
 # `cargo tree -i <dep>` exits 101 when the dependency is absent, which is precisely the state
 # we want. Checking the exit status would therefore fail whenever the boundary holds, so we
 # check for OUTPUT instead: any line naming the dependency is a leak.
 set -uo pipefail
 cd "$(dirname "$0")/.."
+
+# LAYERS: crate -> tier. Every workspace member has exactly one row.
+LAYERS=(
+  "almanac-core: P"
+  "almanac-store: P"
+  "memfiles-format: P"
+  "almanac-service: P"
+  "almanac-seal: P"
+  "eventlog: C"
+  "memfiles: C"
+  "recall: C"
+  "almanac-watch: C"
+  "almanac-dbus: C"
+  "almanac-client: C"
+  "almanac-fake: C"
+  "almanac-local: C"
+  "memoryd: A"
+)
+
+# KNOWN: a violation that exists today, with the plan lane (~/rs-wt/agent-layers/PLAN.md) that
+# removes it. "crate: ban: lane". A row whose violation is gone fails, so the list only shrinks.
+# almanac-service reads and writes its config and settings files (config.rs, settings/locate.rs;
+# A3.2 moves them out). almanac-seal holds FileKeys (file.rs), a file-backed key store inside a P
+# crate; lane A0.5 moves it to a C-tier crate.
+KNOWN=(
+  "almanac-service: fs: A3.2"
+  "almanac-service: process: A3.2"
+  "almanac-seal: fs: A0.5"
+)
+
+# BANS: "name|tiers|extended regex" over the non-test source of a crate of those tiers. A line
+# that starts with `//` is skipped, and so is everything from the first `#[cfg(test)]` on.
+BANS=(
+  'fs|P|std::(fs|\{[^}]*\bfs\b)'
+  'env|P|std::(env|\{[^}]*\benv\b)'
+  'process|P|std::(process|\{[^}]*\bprocess\b)'
+  'net|P|std::(net|os::unix::net|\{[^}]*\bnet\b)'
+  'clock|P|SystemTime::now|Instant::now'
+  'sleep|P|thread::sleep'
+  'tokio|P|\btokio\b'
+  'hyper|P|\bhyper\b'
+  'reqwest|P|\breqwest\b'
+  'zbus|P|\bzbus\b'
+  'rustix|P|\brustix\b'
+  'ui-words|PC|\b(Help|Sheet|SettingRow)\b|ds[-_]settings'
+  # Outside main.rs and the src/bin programs; the environment is read once, at the entry point.
+  'env-var|A|\benv::(var|var_os|vars|vars_os)\b'
+)
 
 # RULES: what a crate reaches through ANY path (transitive, default features). The portable
 # crates never reach a bus, a runtime, an HTTP client, a keyring, an ONNX runtime or an
@@ -41,8 +102,141 @@ RULES=(
   "almanac-client: $EFFECTS rusqlite openssl-sys notify"
   "almanac-fake: $EFFECTS notify"
   "almanac-local: $EFFECTS notify"
+  # The daemon reaches the bus, a runtime, the keyring and the file watch. It never reaches HTTP,
+  # an embedding runtime, the MCP SDK or the policy engine (inferd is the model, over the bus).
+  "memoryd: reqwest hyper ort fastembed rmcp cedar-policy"
 )
+
+tier_of() {
+  local row
+  for row in "${LAYERS[@]}"; do
+    [ "${row%%:*}" = "$1" ] && { echo "${row#*: }"; return; }
+  done
+}
+rank() { case "$1" in P) echo 0 ;; C) echo 1 ;; A) echo 2 ;; *) echo 9 ;; esac; }
+
+# Prints "file:line: text" for each non-test source line of crate $2 under root $1 that matches
+# regex $3. A file whose path matches the regex $4 is skipped.
+scan_source() {
+  local root="$1" crate="$2" regex="$3" skip="${4:-^$}" file
+  [ -d "$root/crates/$crate/src" ] || return 0
+  while IFS= read -r file; do
+    [[ "$file" =~ $skip ]] && continue
+    sed '/^[[:space:]]*#\[cfg(test)\]/q' "$file" | grep -nE "$regex" \
+      | grep -vE '^[0-9]+:[[:space:]]*//' | sed "s#^#$file:#"
+  done < <(find "$root/crates/$crate/src" -name '*.rs' ! -name tests.rs ! -path '*/tests/*' | sort)
+}
+
+# Runs every source ban on crate $2 under root $1; prints "ban: hit" lines.
+source_violations() {
+  local root="$1" crate="$2" tier spec name tiers regex skip
+  tier=$(tier_of "$crate")
+  for spec in "${BANS[@]}"; do
+    name="${spec%%|*}"; spec="${spec#*|}"
+    tiers="${spec%%|*}"; regex="${spec#*|}"
+    case "$tiers" in *"$tier"*) ;; *) continue ;; esac
+    skip='^$'
+    [ "$name" = env-var ] && skip='/(main\.rs|bin/[^/]*)$'
+    scan_source "$root" "$crate" "$regex" "$skip" | sed "s#^#$name: #"
+  done
+}
+
+known_lane() { # crate ban -> lane, empty when not listed
+  local row
+  for row in "${KNOWN[@]}"; do
+    case "$row" in "$1: $2: "*) echo "${row##*: }"; return ;; esac
+  done
+}
+
+if [ "${1:-}" = "--self-test" ]; then
+  tmp=$(mktemp -d)
+  trap 'rm -rf "$tmp"' EXIT
+  LAYERS=("p-crate: P" "c-crate: C" "a-crate: A")
+  for c in p-crate c-crate a-crate; do mkdir -p "$tmp/crates/$c/src"; done
+  printf 'pub fn f() { let _ = std::fs::read("x"); }\n' >"$tmp/crates/p-crate/src/lib.rs"
+  printf 'pub fn f() { let _ = std::fs::read("x"); }\npub struct SettingRow;\n' >"$tmp/crates/c-crate/src/lib.rs"
+  printf 'pub fn f() { let _ = std::env::var("X"); }\n' >"$tmp/crates/a-crate/src/lib.rs"
+  printf 'fn main() { let _ = std::env::var("X"); }\n' >"$tmp/crates/a-crate/src/main.rs"
+  p_hits=$(source_violations "$tmp" p-crate)
+  c_hits=$(source_violations "$tmp" c-crate)
+  a_hits=$(source_violations "$tmp" a-crate)
+  grep -q '^fs: ' <<<"$p_hits" || { echo "SELF-TEST FAILED: a std::fs call in a P crate was not caught"; exit 1; }
+  grep -q '^fs: ' <<<"$c_hits" && { echo "SELF-TEST FAILED: a std::fs call in a C crate was reported"; exit 1; }
+  grep -q '^ui-words: ' <<<"$c_hits" || { echo "SELF-TEST FAILED: a UI word in a C crate was not caught"; exit 1; }
+  grep -q 'lib.rs:.*env-var\|^env-var: .*lib.rs' <<<"$a_hits" || { echo "SELF-TEST FAILED: an env read in an A library was not caught"; exit 1; }
+  grep -q 'main.rs' <<<"$a_hits" && { echo "SELF-TEST FAILED: an env read in main.rs was reported"; exit 1; }
+  echo "self-test ok: P bans fire, C allows IO but not UI words, A libraries read no env outside main.rs"
+  exit 0
+fi
+
 fail=0
+long_files=0
+[ "${1:-}" = "--long-files" ] && long_files=1
+
+members=$(sed -n '/^members = \[/,/^\]/s#^  "crates/\(.*\)",$#\1#p' Cargo.toml)
+
+# Every workspace member has a row in LAYERS and in RULES, and every row names a crate, so a new
+# crate cannot slip in unchecked.
+layer_rows=$(printf '%s\n' "${LAYERS[@]}" | grep -v '^#')
+for crate in $members; do
+  grep -q "^$crate: [PCA]\$" <<<"$layer_rows" || { echo "ERROR: $crate has no row in LAYERS"; fail=1; }
+  printf '%s\n' "${RULES[@]}" | grep -q "^$crate:" || { echo "ERROR: $crate has no row in RULES"; fail=1; }
+done
+for row in "${LAYERS[@]}"; do
+  crate="${row%%:*}"
+  [ -f "crates/$crate/Cargo.toml" ] || { echo "ERROR: LAYERS names $crate, which has no crates/$crate/Cargo.toml"; fail=1; }
+done
+
+# Dependencies point down only: a crate's DIRECT normal and build path dependencies (all
+# features, so almanac-client's `in_process` and `dbus` both count) are of its own tier or a
+# lower one. Dev dependencies are outside it. A dependency from another repo (porter, prov) has
+# no row here.
+for row in "${LAYERS[@]}"; do
+  crate="${row%%:*}"
+  tier=$(tier_of "$crate")
+  deps=$(cargo tree -p "$crate" --depth 1 -e normal,build --prefix none --all-features 2>/dev/null \
+    | grep -E '\((/|https://github.com/PoHsuanLai/)' | awk '{print $1}' | grep -vx "$crate" | sort -u)
+  bad=0
+  for dep in $deps; do
+    dep_tier=$(tier_of "$dep")
+    [ -z "$dep_tier" ] && continue
+    if [ "$(rank "$dep_tier")" -gt "$(rank "$tier")" ]; then
+      echo "LAYER: $crate ($tier) depends on $dep ($dep_tier), which is above it"; bad=1; fail=1
+    fi
+  done
+  [ "$bad" -eq 0 ] && echo "layers hold: $crate ($tier) depends only on its own tier or below"
+done
+
+# Source bans, with the KNOWN list.
+for row in "${LAYERS[@]}"; do
+  crate="${row%%:*}"
+  hits=$(source_violations . "$crate")
+  seen=""
+  while IFS= read -r hit; do
+    [ -n "$hit" ] || continue
+    ban="${hit%%: *}"
+    lane=$(known_lane "$crate" "$ban")
+    if [ -n "$lane" ]; then
+      echo "KNOWN: $crate ($ban) is removed by lane $lane: ${hit#*: }"
+      seen="$seen $ban"
+    else
+      echo "BAN: $crate ($(tier_of "$crate")): $hit"
+      fail=1
+    fi
+  done <<<"$hits"
+  for k in "${KNOWN[@]}"; do
+    [ "${k%%:*}" = "$crate" ] || continue
+    k_ban=$(cut -d: -f2 <<<"$k" | tr -d ' ')
+    grep -qw -- "$k_ban" <<<"$seen" || { echo "STALE: KNOWN names $k_ban in $crate, which no longer breaks it; delete the row"; fail=1; }
+  done
+  [ -z "$hits" ] && echo "bans hold: $crate ($(tier_of "$crate")) source is clean"
+done
+
+# Source files over 500 lines: reported on request, not a failure yet.
+if [ "$long_files" -eq 1 ]; then
+  find crates -name '*.rs' -path '*/src/*' -not -path '*/target/*' -print0 \
+    | xargs -0 wc -l | awk '$1 > 500 && $2 != "total" {print "LONG: " $2 " has " $1 " lines"}'
+fi
 
 for rule in "${RULES[@]}"; do
   crate="${rule%%:*}"
@@ -72,43 +266,6 @@ for rule in "${RULES[@]}"; do
   fi
 done
 
-# The allowed edges between our own crates (and porter's): each crate's DIRECT normal and build
-# path dependencies (all features), and nothing else. A dependency not listed is a leak; so is
-# one the crate no longer has, so the table stays exact. Dev dependencies are outside it. The
-# check passes --all-features, so `almanac-client`'s optional `almanac-service` (feature
-# `in_process`) and `almanac-dbus` (feature `dbus`) both belong to its row.
-# almanac depends on porter (porter-core, prov, and memoryd's porter-infer, porter-client and porter-dbus),
-# never on stoker, docket or cua: other areas' payloads are opaque `EventBody::Area`.
-EDGES=(
-  "almanac-core: porter-core prov"
-  "almanac-seal: almanac-core"
-  "almanac-store: almanac-core almanac-seal"
-  "eventlog: almanac-core almanac-seal almanac-store"
-  "memfiles: almanac-core almanac-seal almanac-store"
-  "memfiles-format: almanac-core almanac-store"
-  "recall: almanac-store"
-  "almanac-service: almanac-core almanac-seal almanac-store memfiles-format"
-  "almanac-watch: almanac-core"
-  "almanac-dbus: almanac-core"
-  "almanac-client: almanac-core almanac-dbus almanac-service"
-  "almanac-fake: almanac-core almanac-seal almanac-store eventlog memfiles memfiles-format recall almanac-service"
-  "almanac-local: almanac-core almanac-seal almanac-store eventlog memfiles recall almanac-service"
-  "memoryd: almanac-core almanac-seal almanac-store almanac-local eventlog memfiles recall almanac-service almanac-watch almanac-dbus porter-core porter-daemon porter-dbus porter-infer porter-client"
-)
-for edge in "${EDGES[@]}"; do
-  crate="${edge%%:*}"
-  read -r -a allowed <<<"${edge#*:}"
-  found=$(cargo tree -p "$crate" --depth 1 -e normal,build --prefix none --all-features 2>/dev/null \
-    | grep -E '\((/|https://github.com/PoHsuanLai/)' | awk '{print $1}' | grep -vx "$crate" | sort -u | tr '\n' ' ')
-  want=$(printf '%s\n' "${allowed[@]}" | grep . | sort -u | tr '\n' ' ')
-  if [ "$found" != "$want" ]; then
-    echo "EDGE: $crate depends on [${found% }], the table allows [${want% }]"
-    fail=1
-  else
-    echo "edges hold: $crate depends on [${found% }]"
-  fi
-done
-
 # Nothing of almanac's reaches another area's repo.
 for banned in docket-core docket-router intentd cua-run cua-bus cuad companion-wire model-provider; do
   if cargo tree --workspace -i "$banned" -e normal,build,dev 2>/dev/null | grep -q .; then
@@ -131,10 +288,5 @@ if printf '%s\n' "$enabled" | grep -qE '^test-'; then
 else
   echo "test features (test-keys, test-proc-root) are off in a default build of memoryd"
 fi
-
-# Every workspace member has a row above, so a new crate cannot slip in unchecked.
-for member in $(sed -n 's#^  "crates/\(.*\)",$#\1#p' Cargo.toml); do
-  printf '%s\n' "${EDGES[@]}" | grep -q "^$member:" || { echo "ERROR: $member has no row in EDGES"; fail=1; }
-done
 
 exit "$fail"

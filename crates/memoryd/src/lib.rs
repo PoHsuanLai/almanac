@@ -43,7 +43,7 @@ pub use sandbox::{
 };
 pub use settings_watch::{DEBOUNCE, SettingsWatch, WatchState, apply, apply_next};
 pub use signals::{Delivery, delivery_of};
-pub use xdg::{XdgError, dirs_from, dirs_from_env};
+pub use xdg::{XdgError, dirs_from};
 
 use porter_client::{AnyTransport, DbusTransport};
 use std::sync::Arc;
