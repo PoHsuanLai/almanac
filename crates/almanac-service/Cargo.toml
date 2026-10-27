@@ -9,6 +9,7 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
+const-hex = { workspace = true }
 almanac-core = { workspace = true }
 almanac-seal = { workspace = true }
 almanac-search = { workspace = true }

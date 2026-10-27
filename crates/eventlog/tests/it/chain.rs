@@ -27,9 +27,13 @@ fn header_bytes_golden() {
     let bytes = header_bytes(&fixed_header());
     assert!(bytes.starts_with(b"QEL1"));
     let golden = include_str!("../golden/header_v1.hex").trim();
-    assert_eq!(hex_of(&bytes), golden, "the v1 header encoding is a format");
     assert_eq!(
-        hex_of(&link(&fixed_header()).0),
+        const_hex::encode(&bytes),
+        golden,
+        "the v1 header encoding is a format"
+    );
+    assert_eq!(
+        const_hex::encode(link(&fixed_header()).0),
         include_str!("../golden/header_v1.link").trim()
     );
 }

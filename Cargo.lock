@@ -41,11 +41,13 @@ dependencies = [
 name = "almanac-core"
 version = "0.1.0"
 dependencies = [
+ "const-hex",
  "porter-core",
  "prov",
  "serde",
  "serde_json",
  "thiserror",
+ "ulid",
 ]
 
 [[package]]
@@ -125,6 +127,7 @@ dependencies = [
  "almanac-core",
  "almanac-seal",
  "atomic-write-file",
+ "const-hex",
  "tempfile",
  "tokio",
 ]
@@ -160,6 +163,7 @@ dependencies = [
  "almanac-seal",
  "blake3",
  "chacha20poly1305",
+ "const-hex",
  "getrandom 0.3.4",
  "oo7",
  "tempfile",
@@ -189,6 +193,7 @@ dependencies = [
  "almanac-tidy",
  "blake3",
  "chrono",
+ "const-hex",
  "eventlog",
  "memfiles-format",
  "serde",
@@ -574,6 +579,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1d07550c9036bf2ae0c684c4297d503f838287c83c53686d05370d0e139ae570"
 
 [[package]]
+name = "const-hex"
+version = "1.19.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0e59eef12462b0f9b0a3620219be5d639afd79fe39dff0a42c3997061f9298b4"
+dependencies = [
+ "cfg-if",
+ "cpufeatures 0.2.17",
+ "proptest",
+ "serde_core",
+]
+
+[[package]]
 name = "constant_time_eq"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -700,6 +717,7 @@ dependencies = [
  "almanac-seal",
  "almanac-store",
  "blake3",
+ "const-hex",
  "eventlog",
  "rusqlite",
  "serde",
@@ -1940,7 +1958,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.3.4",
+ "getrandom 0.4.3",
  "once_cell",
  "rustix",
  "windows-sys 0.61.2",
@@ -2094,6 +2112,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ulid"
+version = "3.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "947dde63b6d514cc5e044edad4e0ca7261afd1099d16c83d942cb2b2f348689c"
+dependencies = [
+ "web-time",
+]
+
+[[package]]
 name = "unarray"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2227,6 +2254,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "23f0c9c52aa7cd7d77769a4cfe2a9adb1b331f489a41d912ce14513d5ab995c6"
 dependencies = [
  "unicode-ident",
+]
+
+[[package]]
+name = "web-time"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5a6580f308b1fad9207618087a65c04e7a10bc77e02c8e84e9b00dd4b12fa0bb"
+dependencies = [
+ "js-sys",
+ "wasm-bindgen",
 ]
 
 [[package]]

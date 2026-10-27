@@ -1,10 +1,11 @@
 //! The ids almanac mints or names: facts, topics, rules, plans, kinds, paths and the counters
 //! of the log. Grammars are checked once where text enters.
 
-use crate::text::{dotted, element_ok, from_hex, hex_of, text_id};
+use crate::text::{decode_lower_hex, dotted, element_ok, text_id};
 use porter_core::is_id;
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use ulid::Ulid;
 
 /// Crockford base32 without `i l o u`, lowercase: the alphabet of fact ids.
 const ALPHABET: &[u8; 32] = b"0123456789abcdefghjkmnpqrstvwxyz";
@@ -111,23 +112,17 @@ text_id!(
 );
 
 impl FactId {
-    /// The id for a fact learned at `unix_ms` with 80 injected random bits.
+    /// The id for a fact learned at `unix_ms` with 80 injected random bits: a ULID with the clock and
+    /// the entropy given, written in lowercase. Time beyond 48 bits is dropped.
     pub fn mint(unix_ms: u64, random: [u8; 10]) -> FactId {
         let random_bits = random
             .iter()
             .fold(0u128, |acc, byte| acc << 8 | u128::from(*byte));
-        let value = u128::from(unix_ms & 0xFFFF_FFFF_FFFF) << 80 | random_bits;
-        Self::from_u128(value)
-    }
-
-    fn from_u128(value: u128) -> FactId {
-        let text: String = (0..26)
-            .map(|i| {
-                let index = usize::try_from((value >> (5 * (25 - i))) & 31).unwrap_or(0);
-                char::from(ALPHABET[index])
-            })
-            .collect();
-        FactId(text)
+        FactId(
+            Ulid::from_parts(unix_ms, random_bits)
+                .to_string()
+                .to_lowercase(),
+        )
     }
 }
 
@@ -176,20 +171,20 @@ pub struct ReplicaId(pub [u8; 16]);
 
 impl fmt::Debug for ReplicaId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "ReplicaId({})", hex_of(&self.0))
+        write!(f, "ReplicaId({})", const_hex::encode(self.0))
     }
 }
 
 impl Serialize for ReplicaId {
     fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-        s.serialize_str(&hex_of(&self.0))
+        s.serialize_str(&const_hex::encode(self.0))
     }
 }
 
 impl<'de> Deserialize<'de> for ReplicaId {
     fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
         let text = String::deserialize(d)?;
-        from_hex::<16>(&text)
+        decode_lower_hex::<16>(&text)
             .map(Self)
             .ok_or_else(|| serde::de::Error::custom("expected 32 lowercase hex digits"))
     }

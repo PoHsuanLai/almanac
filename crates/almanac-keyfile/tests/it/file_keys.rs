@@ -1,7 +1,7 @@
 //! `FileKeys`: a sealed file of keys that a second store over the same path
 //! shares, that holds no plain key, and that a copy of another store's file cannot be forged into.
 
-use almanac_core::{SpaceId, hex_of};
+use almanac_core::SpaceId;
 use almanac_keyfile::FileKeys;
 use almanac_seal::{KeyError, KeyStore};
 
@@ -32,7 +32,7 @@ async fn the_file_holds_no_plain_key_and_a_damaged_one_is_a_store_error() {
     let keys = FileKeys::at(&path);
     let made = keys.create(&space("desktop")).await.expect("create");
     let bytes = std::fs::read(&path).expect("file");
-    let hex = hex_of(made.expose());
+    let hex = const_hex::encode(made.expose());
     assert!(bytes.starts_with(b"QMEM"));
     assert!(!bytes.windows(hex.len()).any(|w| w == hex.as_bytes()));
     std::fs::write(&path, b"not sealed").expect("damage");

@@ -93,6 +93,10 @@ oo7 = "0.6"
 landlock = "0.4"
 # memoryd's removal notes: write to a temp file, fsync, rename over (BSD-3-Clause, in deny.toml's list).
 atomic-write-file = "0.3"
+# Hex text of digests, replica ids and keys (almanac-core's `decode_lower_hex` keeps the lowercase-only rule).
+const-hex = "1.19"
+# Fact ids: a ULID with the clock and entropy injected (almanac-core `FactId::mint`).
+ulid = { version = "3", default-features = false }
 # Dev-dependencies.
 proptest = "1"
 tempfile = "3"

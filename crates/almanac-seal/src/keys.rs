@@ -1,6 +1,6 @@
 //! Keys: the per-Space key, the purpose subkeys derived from it, and the database key.
 
-use almanac_core::{SpaceId, hex_of};
+use almanac_core::SpaceId;
 use std::fmt;
 use zeroize::Zeroize;
 
@@ -110,7 +110,7 @@ impl DbKey {
     /// The database key for a subkey (derive it with [`Purpose::Eventlog`] or
     /// [`Purpose::Index`]).
     pub fn of(sub: &SubKey) -> Self {
-        Self(hex_of(sub.expose()))
+        Self(const_hex::encode(sub.expose()))
     }
 
     /// The value of `PRAGMA key`: `x'<64 hex digits>'`, SQLCipher's raw-key form.

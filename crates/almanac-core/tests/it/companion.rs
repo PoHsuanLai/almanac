@@ -202,7 +202,7 @@ fn index_texts_are_a_pure_view_with_a_label_per_part() {
 #[test]
 fn doc_ids_and_facets_per_part_and_search_scope() {
     let event = event_ref(7);
-    let replica = hex_of(&event.replica.0);
+    let replica = const_hex::encode(event.replica.0);
     assert_eq!(IndexPart::Message.doc_id(&event), format!("e:{replica}:7"));
     assert_eq!(IndexPart::Skeleton.doc_id(&event), format!("e:{replica}:7"));
     assert_eq!(

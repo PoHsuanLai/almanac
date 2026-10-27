@@ -10,7 +10,7 @@ use crate::service::{Lease, MemoryService};
 use almanac_core::{
     Count, EXPORT_FORMAT, ExportCounts, ExportManifest, ExportOptions, ExportedSpace, FactState,
     ForgetScope, Head, MemoryOp, MemoryReply, MemoryRequest, Refusal, RunId, SpaceId,
-    VerificationKey, hex_of,
+    VerificationKey,
 };
 use almanac_store::{LogRead, Vault, VaultPath};
 use std::io::Write;
@@ -441,7 +441,7 @@ fn gather<B: Backend>(open: &Open<B>, key: VerificationKey) -> Result<Gathered, 
         lines,
         files,
         key: match key {
-            VerificationKey::Include => Some(hex_of(open.digest.expose())),
+            VerificationKey::Include => Some(const_hex::encode(open.digest.expose())),
             VerificationKey::Omit => None,
         },
     })

@@ -93,7 +93,7 @@ fn derive_is_stable_golden() {
             lines.push(format!(
                 "{s} {} {}",
                 purpose.context(),
-                almanac_core::hex_of(sub.expose())
+                const_hex::encode(sub.expose())
             ));
         }
     }

@@ -32,7 +32,7 @@ async fn keys_derive_from_the_master_and_the_space() {
 #[tokio::test]
 async fn derivation_is_pinned() {
     let key = ProvidedKeys::new(master(7)).derived(&space("work"));
-    let hex = almanac_core::hex_of(key.expose());
+    let hex = const_hex::encode(key.expose());
     assert_eq!(
         hex, "67e81bf55489d2adf416a05d637b3db1057735ce0dd6678b143f750392b5faf7",
         "update this golden only with a format change"

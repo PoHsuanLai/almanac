@@ -60,6 +60,51 @@ fn minted_fact_ids_sort_by_time_and_parse() {
     assert_ne!(FactId::mint(1_000, [1; 10]), FactId::mint(1_000, [2; 10]));
 }
 
+/// Strings the hand-written Crockford encoder produced before the swap to `ulid`, traced with a
+/// line-for-line port of it: 48 bits of time, 80 of entropy, five bits per digit from the top.
+#[test]
+fn minted_fact_ids_keep_their_exact_text() {
+    let golden: [(u64, [u8; 10], &str); 7] = [
+        (0, [0; 10], "00000000000000000000000000"),
+        (1, [0; 10], "00000000010000000000000000"),
+        (1_000, [1; 10], "00000000z8040g2081040g2081"),
+        (1, [1; 10], "0000000001040g2081040g2081"),
+        (0x0123_4567_89AB, [0xff; 10], "014d2pf2dbzzzzzzzzzzzzzzzz"),
+        (0xFFFF_FFFF_FFFF, [0xff; 10], "7zzzzzzzzzzzzzzzzzzzzzzzzz"),
+        (0x1_0000_0000_0005, [0xA5; 10], "0000000005mpjtb9d5mpjtb9d5"),
+    ];
+    for (ms, random, text) in golden {
+        let id = FactId::mint(ms, random);
+        assert_eq!(id.as_str(), text, "ms {ms}");
+        assert_eq!(FactId::parse(text).as_ref(), Ok(&id));
+    }
+}
+
+#[test]
+fn hex_on_the_wire_is_lowercase_only() {
+    let lower = "ab".repeat(32);
+    let json = |text: &str| format!("\"{text}\"");
+    assert!(serde_json::from_str::<Digest32>(&json(&lower)).is_ok());
+    for refused in [
+        lower.to_uppercase(),
+        format!("0x{}", &lower[2..]),
+        format!("0x{lower}"),
+    ] {
+        assert!(
+            serde_json::from_str::<Digest32>(&json(&refused)).is_err(),
+            "{refused}"
+        );
+    }
+    assert!(decode_lower_hex::<2>("ABCD").is_none());
+    assert!(decode_lower_hex::<2>("0xcd").is_none());
+    assert_eq!(decode_lower_hex::<2>("abcd"), Some([0xab, 0xcd]));
+    let replica = "01".repeat(16);
+    assert!(
+        serde_json::from_str::<ReplicaId>(&json(&replica.to_uppercase().replace("01", "0A")))
+            .is_err()
+    );
+}
+
 #[test]
 fn kind_patterns_cover_and_rank() {
     let p = |t: &str| KindPattern::parse(t).expect("pattern");

@@ -9,7 +9,7 @@
 //! sitting as plain text; it protects nothing from anyone who can read the file and this code.
 //! A production daemon must use the Secret Service (`Oo7Keys`).
 
-use almanac_core::{SpaceId, from_hex, hex_of};
+use almanac_core::{SpaceId, decode_lower_hex};
 use almanac_seal::{
     Aad, KeyError, KeyStore, Nonce, Purpose, SpaceKey, SubKey, derive, seal, unseal,
 };
@@ -57,7 +57,7 @@ fn parse(text: &str) -> Result<Table, KeyError> {
                 .split_once(' ')
                 .ok_or_else(|| store_error("bad line"))?;
             let id = SpaceId::parse(id).map_err(store_error)?;
-            let bytes = from_hex::<32>(hex).ok_or_else(|| store_error("bad key"))?;
+            let bytes = decode_lower_hex::<32>(hex).ok_or_else(|| store_error("bad key"))?;
             Ok((id, SpaceKey::from_bytes(bytes)))
         })
         .collect()
@@ -66,7 +66,7 @@ fn parse(text: &str) -> Result<Table, KeyError> {
 fn render(table: &Table) -> String {
     table
         .iter()
-        .map(|(id, key)| format!("{} {}\n", id.as_str(), hex_of(key.expose())))
+        .map(|(id, key)| format!("{} {}\n", id.as_str(), const_hex::encode(key.expose())))
         .collect()
 }
 

@@ -97,26 +97,26 @@ macro_rules! digest {
 
         impl ::std::fmt::Debug for $name {
             fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-                write!(f, concat!(stringify!($name), "({})"), $crate::text::hex_of(&self.0))
+                write!(f, concat!(stringify!($name), "({})"), ::const_hex::encode(&self.0))
             }
         }
 
         impl ::std::fmt::Display for $name {
             fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-                f.write_str(&$crate::text::hex_of(&self.0))
+                f.write_str(&::const_hex::encode(&self.0))
             }
         }
 
         impl ::serde::Serialize for $name {
             fn serialize<S: ::serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-                s.serialize_str(&$crate::text::hex_of(&self.0))
+                s.serialize_str(&::const_hex::encode(&self.0))
             }
         }
 
         impl<'de> ::serde::Deserialize<'de> for $name {
             fn deserialize<D: ::serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
                 let text = <String as ::serde::Deserialize>::deserialize(d)?;
-                $crate::text::from_hex::<32>(&text)
+                $crate::text::decode_lower_hex::<32>(&text)
                     .map(Self)
                     .ok_or_else(|| ::serde::de::Error::custom("expected 64 lowercase hex digits"))
             }
@@ -146,33 +146,13 @@ digest!(
     PlanDigest
 );
 
-/// Lowercase hex of `bytes`.
-pub fn hex_of(bytes: &[u8]) -> String {
-    const DIGITS: &[u8; 16] = b"0123456789abcdef";
-    bytes
-        .iter()
-        .flat_map(|b| [DIGITS[usize::from(b >> 4)], DIGITS[usize::from(b & 15)]])
-        .map(char::from)
-        .collect()
-}
-
-/// The `N` bytes written as `2 * N` lowercase hex digits, or `None`.
-pub fn from_hex<const N: usize>(text: &str) -> Option<[u8; N]> {
-    let digit = |b: u8| match b {
-        b'0'..=b'9' => Some(b - b'0'),
-        b'a'..=b'f' => Some(b - b'a' + 10),
-        _ => None,
-    };
-    let bytes = text.as_bytes();
-    if bytes.len() != 2 * N {
+/// The `N` bytes written as exactly `2 * N` lowercase hex digits, or `None`. const-hex also takes
+/// uppercase digits and a `0x` prefix; the wire and the key files do not, so both are refused here.
+pub fn decode_lower_hex<const N: usize>(text: &str) -> Option<[u8; N]> {
+    if text.len() != 2 * N || text.bytes().any(|b| b.is_ascii_uppercase()) {
         return None;
     }
-    let mut out = [0u8; N];
-    let (pairs, _) = bytes.as_chunks::<2>();
-    for (slot, pair) in out.iter_mut().zip(pairs) {
-        *slot = digit(pair[0])? << 4 | digit(pair[1])?;
-    }
-    Some(out)
+    const_hex::decode_to_array::<_, N>(text).ok()
 }
 
 /// Text a person wrote or saw (titles, search text, diffs). Serialises as a plain string;

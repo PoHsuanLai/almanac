@@ -6,7 +6,7 @@
 
 use almanac_core::{
     AppName, EventBody, EventRef, Fact, FactId, IndexPart, Integrity, Label, Recallable, ReplicaId,
-    Seq, UnixSeconds, from_hex,
+    Seq, UnixSeconds, decode_lower_hex,
 };
 use almanac_store::{
     BodyState, ClassTag, Doc, DocId, Entry, Facets, TrustTier, class_of, class_tag,
@@ -52,7 +52,7 @@ impl DocRef {
             "e" | "n" => {
                 let (replica, seq) = rest.split_once(':')?;
                 Some(DocRef::Event {
-                    replica: ReplicaId(from_hex::<16>(replica)?),
+                    replica: ReplicaId(decode_lower_hex::<16>(replica)?),
                     seq: Seq(seq.parse().ok()?),
                 })
             }

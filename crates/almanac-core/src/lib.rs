@@ -74,7 +74,7 @@ pub use space::{
     ChainHealth, DegradedWhy, IndexView, SpaceMeta, SpaceState, SpaceStatus, SpaceSummary,
     StaleWhy, VaultKind,
 };
-pub use text::{ContentDigest, Digest32, JsonText, Link32, PlanDigest, UserText, from_hex, hex_of};
+pub use text::{ContentDigest, Digest32, JsonText, Link32, PlanDigest, UserText, decode_lower_hex};
 pub use thing::{ThingKey, ThingKind, ThingRef, ThingRole, ThingView, Verb};
 pub use timeline::{
     ActorFilter, EntryBody, EraseCause, TimelineEntry, TimelineFilter, TimelinePage, TimelineQuery,

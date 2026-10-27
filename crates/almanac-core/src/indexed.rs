@@ -3,7 +3,6 @@
 
 use crate::event::{EventBody, EventRef};
 use crate::query::RecallOver;
-use crate::text::hex_of;
 use prov::Label;
 
 /// Which part of an event a document is.
@@ -53,7 +52,7 @@ impl IndexPart {
         format!(
             "{}:{}:{}",
             self.prefix(),
-            hex_of(&event.replica.0),
+            const_hex::encode(event.replica.0),
             event.seq.0
         )
     }

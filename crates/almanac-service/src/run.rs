@@ -12,7 +12,7 @@ use crate::open::{Cx, LastRun, Open, failed, files_refusal};
 use crate::revert_guard::{self, RevertGuard};
 use almanac_core::{
     DraftView, Fact, FactId, FactState, Hunk, Lands, MemoryOp, Refusal, RunId, RunState, Seq,
-    SkipReason, SkippedHunk, TopicPath, hex_of,
+    SkipReason, SkippedHunk, TopicPath,
 };
 use almanac_search::docs::{fact_doc, fact_doc_id};
 use almanac_settings::{ConsolidateApply, ConsolidateWhen};
@@ -47,8 +47,11 @@ impl<B: Backend> Open<B> {
             ));
         }
         let now = cx.now();
-        let run =
-            RunId::parse(&format!("c-{}", hex_of(&self.entropy(cx, b"run")))).map_err(failed)?;
+        let run = RunId::parse(&format!(
+            "c-{}",
+            const_hex::encode(self.entropy(cx, b"run"))
+        ))
+        .map_err(failed)?;
         let cut = self.last.as_ref().map_or(Seq(0), |l| l.cut);
         let mut state = RunState::Due;
         let (s, _) = step(state, RunEvent::Start);

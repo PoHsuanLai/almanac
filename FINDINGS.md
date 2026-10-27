@@ -1030,3 +1030,22 @@ builds; show nothing for it (or treat any unknown word the same way). Not done: 
   `session_log`; `intentd` test support only mentions it in a comment), cua (`cuad` tests
   `links.rs:102,223`). sill, detent, files, mailo and anyview do not name it. Those users already
   depend on `almanac-service` for `MemoryService`, since `InProcess` takes one.
+
+## Layering lane U0.9a: hex and ulid swaps (2026-10-28)
+- Decision: our hand-written hex and fact-id encoders went to public crates. `hex_of` is gone: every
+  call site uses `const_hex::encode` (const-hex 1.19.3, MIT OR Apache-2.0; no newer 1.x was in the
+  local registry, so this is the newest on crates.io). `from_hex` became
+  `almanac_core::decode_lower_hex::<N>`, a three-line guard over `const_hex::decode_to_array`: const-hex
+  also takes uppercase digits and a `0x` prefix, and every serialised form here is exactly `2 * N`
+  lowercase digits, so the guard checks the length and refuses uppercase (a prefixed string of the
+  right length decodes to fewer bytes and fails). `FactId::mint` is now
+  `Ulid::from_parts(ms, random).to_string().to_lowercase()` (ulid 3.0.0, MIT, default features off, so
+  no `rand`). Read against ulid's source: same alphabet (Crockford, uppercase), 48-bit time masked
+  from the top, 80 random bits, five bits a digit from the most significant end, 26 chars. The
+  golden test `minted_fact_ids_keep_their_exact_text` pins seven ids computed with a line-for-line
+  port of the old encoder before the swap. `is_fact_id` stays: it checks text read from files.
+- Other hand-written hex in almanac: none (`{:02x}` and friends do not occur).
+- Users in other repos: none. `git grep` at origin/master of docket, cua, sill and detent finds no use of
+  `almanac_core::hex_of` or `from_hex` (detent has its own unrelated `detent-ui` `hex_of`). docket's
+  own `format!("{b:02x}")` copies are the docket lane's.
+- Licences: MIT and MIT OR Apache-2.0 are in deny.toml's list. `ulid` pulls `web-time` only on wasm.
