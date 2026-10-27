@@ -1,13 +1,12 @@
 //! `Daemon`: the bus handler. A call comes in with its sender's unique name; the sender becomes a
 //! `Caller` (`Peers`), the call a `MemoryRequest` (`decode_request`), the request waits its turn
-//! in its Space's queue (`Serialised`), and the reply goes back as the member's outputs
+//! in its Space's queue (the service's own), and the reply goes back as the member's outputs
 //! (`encode_reply`). After each request the daemon persists the files only it writes
 //! (`spaces.toml`, `memory.toml`) and tells the bus what changed.
 
 use crate::consent::Consent;
 use crate::ledger::FileLedger;
 use crate::peers::Peers;
-use crate::queue::Serialised;
 use crate::settings_watch::apply;
 use crate::signals::{Delivery, delivery_of};
 use almanac_core::{
@@ -28,7 +27,7 @@ use std::sync::{Mutex, OnceLock, PoisonError};
 
 /// The daemon over a backend and a way to tell who is calling.
 pub struct Daemon<B: Backend, P: Peers> {
-    queue: Serialised<B>,
+    service: MemoryService<B>,
     peers: P,
     dirs: Dirs,
     bus: OnceLock<zbus::Connection>,
@@ -77,7 +76,7 @@ impl<B: Backend, P: Peers> Daemon<B, P> {
     pub fn new(service: MemoryService<B>, peers: P, dirs: Dirs) -> Self {
         Self {
             removals: Removals::new(FileLedger::load(dirs.memory().join("removals.toml"))),
-            queue: Serialised::new(service),
+            service,
             peers,
             dirs,
             bus: OnceLock::new(),
@@ -128,16 +127,16 @@ impl<B: Backend, P: Peers> Daemon<B, P> {
         };
         match consent.confirm(values) {
             Ok(loaded) => {
-                apply(self.queue.service(), &loaded);
+                apply(&self.service, &loaded);
                 MemoryReply::Ok
             }
             Err(refusal) => MemoryReply::Refused(refusal),
         }
     }
 
-    /// The queues in front of the service.
-    pub fn queue(&self) -> &Serialised<B> {
-        &self.queue
+    /// The service, whose requests queue per Space.
+    pub fn service(&self) -> &MemoryService<B> {
+        &self.service
     }
 
     /// Who is calling.
@@ -152,7 +151,7 @@ impl<B: Backend, P: Peers> Daemon<B, P> {
 
     /// Writes `spaces.toml` and `memory.toml` if the service changed what they say.
     pub fn persist(&self) {
-        let service = self.queue.service();
+        let service = &self.service;
         let spaces = SpacesFile {
             spaces: service.metas(),
         };
@@ -207,7 +206,7 @@ impl<B: Backend, P: Peers> Daemon<B, P> {
     /// or aged out, Spaces locked or open again. Called after every request and on the timers.
     pub async fn flush_events(&self) {
         loop {
-            let events = self.queue.service().take_events();
+            let events = self.service.take_events();
             if events.is_empty() {
                 return;
             }
@@ -233,7 +232,7 @@ impl<B: Backend, P: Peers> Daemon<B, P> {
 
     async fn pending_changed(&self, space: SpaceId) {
         let asked = MemoryRequest::Pending(space.clone());
-        if let MemoryReply::Pending(pending) = self.queue.handle(&Caller::ShellUi, asked).await {
+        if let MemoryReply::Pending(pending) = self.service.handle(&Caller::ShellUi, asked).await {
             let count = u32::try_from(pending.len()).unwrap_or(u32::MAX);
             let space = space.to_string();
             self.signal(Signal::PendingChanged { space, count }).await;
@@ -242,7 +241,7 @@ impl<B: Backend, P: Peers> Daemon<B, P> {
 
     async fn status_changed(&self, space: SpaceId) {
         let asked = MemoryRequest::Status(space.clone());
-        if let MemoryReply::Status(status) = self.queue.handle(&Caller::ShellUi, asked).await {
+        if let MemoryReply::Status(status) = self.service.handle(&Caller::ShellUi, asked).await {
             let status = serde_json::to_string(&status).unwrap_or_default();
             let space = space.to_string();
             self.signal(Signal::StatusChanged { space, status }).await;
@@ -251,7 +250,7 @@ impl<B: Backend, P: Peers> Daemon<B, P> {
 
     /// The timer's work: the key check, then the events it caused.
     pub async fn check_keys(&self) {
-        self.queue.check_keys().await;
+        self.service.check_keys().await;
         self.flush_events().await;
     }
 
@@ -269,7 +268,7 @@ impl<B: Backend, P: Peers> Daemon<B, P> {
         SpaceId,
         Result<almanac_core::SweepReport, almanac_core::Refusal>,
     )> {
-        let swept = self.queue.sweep_all().await;
+        let swept = self.service.sweep_all().await;
         self.flush_events().await;
         swept
     }
@@ -280,8 +279,7 @@ impl<B: Backend, P: Peers> Daemon<B, P> {
     /// night.
     pub async fn consolidate_all(&self) -> Vec<(SpaceId, MemoryReply)> {
         let spaces: Vec<SpaceId> = self
-            .queue
-            .service()
+            .service
             .metas()
             .into_iter()
             .map(|meta| meta.id)
@@ -289,7 +287,7 @@ impl<B: Backend, P: Peers> Daemon<B, P> {
         let mut out = Vec::with_capacity(spaces.len());
         for space in spaces {
             let request = MemoryRequest::RunConsolidation(space.clone());
-            let reply = self.queue.handle(&Caller::ShellUi, request.clone()).await;
+            let reply = self.service.handle(&Caller::ShellUi, request.clone()).await;
             self.persist();
             self.follow(&request, &reply).await;
             out.push((space, reply));
@@ -308,7 +306,7 @@ impl<B: Backend, P: Peers> Daemon<B, P> {
         let reply = match (&request, fd) {
             (MemoryRequest::Export(options), Some(fd)) => {
                 let mut out = std::fs::File::from(fd);
-                self.queue.export(caller, options, &mut out).await
+                self.service.export(caller, options, &mut out).await
             }
             (MemoryRequest::Export(_), None) => almanac_core::MemoryReply::Refused(
                 almanac_core::Refusal::Invalid("Export needs the stream it writes to".into()),
@@ -320,7 +318,7 @@ impl<B: Backend, P: Peers> Daemon<B, P> {
             }
             (MemoryRequest::ConfirmSettings(_), _) => self.confirm_settings(caller, &request),
             (MemoryRequest::PendingSettings, _) => self.pending_settings(caller, &request),
-            _ => self.queue.handle(caller, request.clone()).await,
+            _ => self.service.handle(caller, request.clone()).await,
         };
         self.persist();
         self.follow(&request, &reply).await;
@@ -364,7 +362,7 @@ impl<B: Backend, P: Peers> Daemon<B, P> {
     async fn settle(&self, space: &SpaceId, removal: Removal) -> MemoryReply {
         logged(self.removals.begin(space, removal));
         let request = MemoryRequest::RemoveSpace(space.clone(), removal);
-        let reply = self.queue.handle(&Caller::ShellUi, request.clone()).await;
+        let reply = self.service.handle(&Caller::ShellUi, request.clone()).await;
         self.persist();
         if matches!(reply, MemoryReply::Relocated(_)) {
             logged(self.removals.finish(space));
@@ -388,7 +386,7 @@ impl<B: Backend, P: Peers> Daemon<B, P> {
     /// stays under a key nobody can resolve.
     pub async fn reconcile(&self, registry: &[DesktopSpace]) -> Vec<(SpaceId, MemoryReply)> {
         let known: BTreeSet<SpaceId> = registry.iter().map(SpaceId::linked).collect();
-        for meta in self.queue.service().metas() {
+        for meta in self.service.metas() {
             let orphan =
                 matches!(meta.id.kind(), SpaceKind::Linked(_)) && !known.contains(&meta.id);
             if orphan {

@@ -1,6 +1,6 @@
 [package]
 name = "almanac-service"
-description = "memoryd's core over seams: authorisation, the Space, fact, forget and consolidation machines (with the consolidation prompt and draft parse), what a reply changed, the removal notes, timeline assembly, export, and MemoryService."
+description = "memoryd's core over seams: authorisation, the Space, fact, forget and consolidation machines (with the consolidation prompt and draft parse), what a reply changed, the removal notes, timeline assembly, export, the per-Space request queue, and MemoryService."
 version.workspace = true
 edition.workspace = true
 license.workspace = true

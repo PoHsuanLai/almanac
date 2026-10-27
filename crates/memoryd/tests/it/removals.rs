@@ -44,7 +44,7 @@ fn draft(text: &str) -> FactDraft {
 
 /// "old" holds a fact the person wrote through the shell and one the router proposed (pending).
 async fn fill_old(daemon: &TestDaemon) {
-    let queue = daemon.queue();
+    let queue = daemon.service();
     let kept = queue
         .handle(
             &Caller::ShellUi,
@@ -70,7 +70,7 @@ async fn fill_old(daemon: &TestDaemon) {
 
 async fn pending_in(daemon: &TestDaemon, space: SpaceId) -> usize {
     match daemon
-        .queue()
+        .service()
         .handle(&Caller::ShellUi, MemoryRequest::Pending(space))
         .await
     {
@@ -132,7 +132,7 @@ async fn a_space_the_registry_does_not_know_is_settled_as_removed() {
     let first = daemon(&dirs, &keys);
     fill_old(&first).await;
     let kept = first
-        .queue()
+        .service()
         .handle(
             &Caller::ShellUi,
             MemoryRequest::Propose(space("work"), draft("stays")),
@@ -189,7 +189,7 @@ async fn record_in_old(daemon: &TestDaemon) {
         ..mail_thread_archived().expect("fixture")
     };
     let reply = daemon
-        .queue()
+        .service()
         .handle(&Caller::Router, MemoryRequest::Record(record))
         .await;
     assert!(matches!(reply, MemoryReply::Recorded(_)), "{reply:?}");
@@ -208,7 +208,7 @@ async fn archived_in(daemon: &TestDaemon, space: SpaceId) -> usize {
         },
     };
     match daemon
-        .queue()
+        .service()
         .handle(&Caller::ShellUi, MemoryRequest::Timeline(space, query))
         .await
     {

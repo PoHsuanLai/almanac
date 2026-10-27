@@ -241,7 +241,7 @@ Decisions the fill made where the frozen text left room:
   every other request answers `SpaceLocked`.
 - **A Space is checked out for the length of a request** (Index writes hold `&mut` across the
   embedding and `almanac-service` may not link tokio); a second request for the same Space meanwhile
-  is `Busy`. memoryd serialises per Space or retries.
+  would be `Busy`, so the service queues requests per Space itself (below).
 - **Search runs the index halves itself** (`Index::lexical`, `VectorIndex::nearest`, `fuse_rrf`):
   `Index::search` holds a shared borrow of SQLite connections across the query embedding, which makes
   the future `!Send`. The facet filter (`over`, trust) is the `kind`/`trust` columns of `docs`.
@@ -286,11 +286,15 @@ with `<config>/quire/memory-callers.toml` laid over it (user rows win; a missing
 bad one stops the daemon): porter's `[[caller]]` rows of `app`, optional `unit`, `role`.
 `dbus/memory-callers.toml` is the packaged system file. `TablePeers` is the test seam.
 
-**One queue per Space.** `Serialised` wraps the service: a request that names Spaces holds their
-queues in id order (a message holds the receiver's), one that cannot name them (`Forget`, `Settle`,
-`Revert`, `Export`, the rules, the timer's sweep) holds all of them, `Spaces` and `Rules` hold none.
-`Busy` never reaches a client; the cost is that `RunConsolidation` (a model call) holds its Space's
-queue for as long as it runs.
+**One queue per Space.** The queue lives in `almanac-service` (`queue`), in front of
+`MemoryService::handle`, `export`, `sweep_space` and `check_keys`, so memoryd and an app hosting the
+service in process (`InProcess`) behave alike. A request that names Spaces waits until nothing
+running, and nothing ahead of it in the line, holds one of them (a message holds the receiver's);
+one that cannot name them (`Forget`, `Settle`, `Revert`, `Export`, the rules, the key check) waits for
+all of them, `Spaces` and `Rules` wait for none. The line is plain `std` (wakers parked in a mutex),
+so the service still links no runtime. `Busy` no longer reaches a caller for an overlap; the cost is
+that `RunConsolidation` (a model call) holds its Space for as long as it runs. `Refusal::Busy` still
+comes from a locked key store or a failed index.
 
 **memoryd's seams.** `SystemBackend<K, E, C>` takes any key store, embedder and consolidator (the
 defaults are the real ones), so a test keeps SQLCipher and the sealed vault real and swaps the rest.

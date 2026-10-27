@@ -1,5 +1,5 @@
 //! memoryd's library half: the real seams (`SystemBackend`, the inferd-backed
-//! `InferdEmbedder` and `InferdConsolidator`), the XDG roots, the per-Space queues, the caller
+//! `InferdEmbedder` and `InferdConsolidator`), the XDG roots, the caller
 //! identities and the bus handler (`Daemon`), so every module is testable on a private bus. `start` builds
 //! these over the real system and serves the session bus; the binary (`main.rs`) is arguments and
 //! a call to it.
@@ -13,7 +13,6 @@ mod keyring;
 mod keysel;
 mod ledger;
 mod peers;
-mod queue;
 mod registry;
 mod run;
 mod sandbox;
@@ -35,7 +34,6 @@ pub use keysel::KeysError;
 pub use ledger::FileLedger;
 pub use peers::{Peers, ProcPeers, TablePeers};
 pub use porter_daemon::{ProcGate, ProcRoot};
-pub use queue::{Claim, Serialised, claim_for, claim_of};
 pub use registry::{REGISTRY_WAIT, SpaceRegistry};
 pub use run::{Env, PROC_GATE, PROC_ROOT_VAR, SYSTEM_CALLERS_VAR, StartError, start};
 pub use sandbox::{

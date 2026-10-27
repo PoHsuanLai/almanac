@@ -74,7 +74,7 @@ async fn a_restarted_daemon_finds_everything_where_the_last_one_left_it() {
 
     // First run: events, a fact, a mark and a rule; the daemon persists its two files.
     let first = Daemon::new(service(&dirs, &keys), TablePeers::new(), dirs.clone());
-    let queue = first.queue();
+    let queue = first.service();
     let recorded = queue
         .handle(
             &Caller::Router,
@@ -117,7 +117,7 @@ async fn a_restarted_daemon_finds_everything_where_the_last_one_left_it() {
         .handle(&Caller::ShellUi, MemoryRequest::SetRule(rule.clone()))
         .await;
     first.persist();
-    let rules_before = first.queue().service().rules();
+    let rules_before = first.service().rules();
     drop(first);
 
     // Second run: spaces.toml and memory.toml are read back, the Space opens from its files.

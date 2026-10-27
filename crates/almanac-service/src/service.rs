@@ -1,61 +1,30 @@
 //! `MemoryService`: memoryd's core, over a [`Backend`]: every request is authorised with
-//! [`allowed`], routed to its Space and run through the pure machines; their effects are applied
+//! `allowed`, routed to its Space and run through the pure machines; their effects are applied
 //! here. A Space is checked out of the service for the length of a request (its index is written
-//! across an await), so a second request for the same Space meanwhile is answered `Busy`.
+//! across an await), so the service queues requests per Space (`queue`): a second request for the
+//! same Space waits its turn, and `Busy` never reaches a caller for that reason.
 
-use crate::auth::{Allowed, allowed};
 use crate::backend::Backend;
 use crate::clock::Clock;
 use crate::events::ServiceEvent;
-use crate::forget::{Plan, PlanState};
 use crate::key_refusal::key_refusal;
 use crate::open::{Cx, ErasedNotes, Open};
+use crate::queue::{Claim, Line};
 use crate::quota::Quota;
 use crate::record::Stored;
 use crate::registry::Listing;
+use crate::runtime::SpaceRuntime;
 use crate::settings::MemorySettings;
 use almanac_core::{
-    AppName, Caller, ChainHealth, Count, ExportOptions, Marks, MemoryReply, MemoryRequest,
-    PlanToken, Record, Refusal, RuleSet, RunState, SpaceId, SpaceKind, SpaceMeta, SpaceState,
-    SpaceSummary,
+    AppName, Caller, ChainHealth, Count, PlanToken, Record, Refusal, RuleSet, RunState, SpaceId,
+    SpaceKind, SpaceMeta, SpaceState, SpaceSummary,
 };
 use almanac_seal::{KeyError, KeyStore, Purpose, derive};
 use almanac_store::SearchIndex;
 use chrono::{Offset, Utc};
 use memfiles_format::Store;
 use std::collections::{BTreeMap, BTreeSet};
-use std::future::Future;
-use std::io::Write;
 use std::sync::{Mutex, MutexGuard, PoisonError};
-
-/// One open Space.
-pub struct SpaceRuntime<B: Backend> {
-    /// Its `spaces.toml` entry.
-    pub meta: SpaceMeta,
-    /// Where it is in its lifecycle.
-    pub state: SpaceState,
-    /// Its event log.
-    pub log: B::Log,
-    /// Its facts.
-    pub store: Store<B::Files>,
-    /// Its index.
-    pub index: B::Index,
-    /// Things marked "do not remember".
-    pub marks: Marks,
-    /// Records waiting while it is locked (at most `BUFFER_LIMIT`).
-    pub buffer: Vec<Record>,
-    /// Forget plans made and not yet applied or lapsed.
-    pub plans: BTreeMap<PlanToken, (Plan, PlanState)>,
-}
-
-impl<B: Backend> std::fmt::Debug for SpaceRuntime<B> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("SpaceRuntime")
-            .field("meta", &self.meta)
-            .field("state", &self.state)
-            .finish_non_exhaustive()
-    }
-}
 
 /// A Space either sits in the service or is out on a request.
 enum Slot<B: Backend> {
@@ -63,7 +32,7 @@ enum Slot<B: Backend> {
     Busy,
 }
 
-/// memoryd's core: every request goes through [`allowed`], then the machines.
+/// memoryd's core: every request goes through `allowed`, then the machines.
 pub struct MemoryService<B: Backend> {
     backend: B,
     rules: Mutex<RuleSet>,
@@ -79,6 +48,8 @@ pub struct MemoryService<B: Backend> {
     events: Mutex<Vec<ServiceEvent>>,
     /// The app whose App Space takes a memory no app wrote (`relocate`).
     fallback_owner: Mutex<Option<AppName>>,
+    /// Who waits for which Spaces.
+    pub(crate) line: Line,
 }
 
 impl<B: Backend> std::fmt::Debug for MemoryService<B> {
@@ -133,6 +104,7 @@ impl<B: Backend> MemoryService<B> {
             locked: Mutex::new(BTreeSet::new()),
             events: Mutex::new(Vec::new()),
             fallback_owner: Mutex::new(None),
+            line: Line::default(),
         }
     }
 
@@ -162,6 +134,7 @@ impl<B: Backend> MemoryService<B> {
     /// announced as locked (the keyring locked); a locked one whose key is back is opened again,
     /// which flushes the records it buffered. Spaces out on a request are left to it.
     pub async fn check_keys(&self) {
+        let _all = self.line.enter(Claim::Everything).await;
         let open: Vec<SpaceId> = locked(&self.spaces)
             .iter()
             .filter(|(_, slot)| matches!(slot, Slot::Ready(_)))
@@ -251,7 +224,7 @@ impl<B: Backend> MemoryService<B> {
         }
     }
 
-    fn known(&self) -> Vec<SpaceId> {
+    pub(crate) fn known(&self) -> Vec<SpaceId> {
         let mut ids: Vec<SpaceId> = locked(&self.metas).keys().cloned().collect();
         ids.extend(locked(&self.spaces).keys().cloned());
         ids.sort();
@@ -394,70 +367,6 @@ impl<B: Backend> MemoryService<B> {
             }
         }
         Ok(open)
-    }
-
-    /// Answers one request from `caller`. Never fails: a refusal is a [`MemoryReply::Refused`].
-    pub fn handle(
-        &self,
-        caller: &Caller,
-        request: MemoryRequest,
-    ) -> impl Future<Output = MemoryReply> + Send {
-        let verdict = allowed(caller, &request);
-        async move {
-            let result = match verdict {
-                Allowed::No(refusal) => Err(refusal),
-                Allowed::Yes => self.dispatch(caller, request).await,
-            };
-            result.unwrap_or_else(MemoryReply::Refused)
-        }
-    }
-
-    /// Runs the retention sweep in every Space the service knows (memoryd's timer, daily). A
-    /// Space whose key is locked is skipped until the next round.
-    pub async fn sweep_all(&self) -> Vec<(SpaceId, Result<almanac_core::SweepReport, Refusal>)> {
-        let mut out = Vec::new();
-        for id in self.all_spaces() {
-            let swept = self.sweep_space(&id).await;
-            out.push((id, swept));
-        }
-        out
-    }
-
-    /// Sweeps one Space. A Space the service no longer knows is `SpaceUnknown`: the sweep never
-    /// provisions one. memoryd's timer calls this per Space, holding only that Space's queue.
-    pub async fn sweep_space(&self, id: &SpaceId) -> Result<almanac_core::SweepReport, Refusal> {
-        if !self.known().contains(id) {
-            return Err(Refusal::SpaceUnknown);
-        }
-        let caller = Caller::ShellUi;
-        let mut lease = self.checkout(&caller, id).await?;
-        let cx = self.cx(&caller);
-        let open = lease.open().ok_or(Refusal::Busy)?;
-        let report = open.sweep(&cx);
-        self.raise_all(open.outbox.drain(..));
-        report
-    }
-
-    /// Every Space the service knows.
-    pub fn space_ids(&self) -> Vec<SpaceId> {
-        self.known()
-    }
-
-    /// Writes the export of `options` as a tar stream into `out`, and returns its manifest.
-    pub fn export(
-        &self,
-        caller: &Caller,
-        options: &ExportOptions,
-        out: &mut (impl Write + Send),
-    ) -> impl Future<Output = MemoryReply> + Send {
-        let verdict = allowed(caller, &MemoryRequest::Export(options.clone()));
-        async move {
-            let result = match verdict {
-                Allowed::No(refusal) => Err(refusal),
-                Allowed::Yes => self.export_to(caller, options, out).await,
-            };
-            result.map_or_else(MemoryReply::Refused, MemoryReply::Exported)
-        }
     }
 
     /// One record into its Space; a locked Space buffers it.

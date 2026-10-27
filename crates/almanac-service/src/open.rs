@@ -6,7 +6,7 @@ use crate::backend::{Backend, BackendError};
 use crate::clock::Clock;
 use crate::docs::{event_ref, fact_doc, indexed_docs, newest_episodes};
 use crate::forget::{FactGraph, FactNode};
-use crate::service::SpaceRuntime;
+use crate::runtime::SpaceRuntime;
 use almanac_core::{
     Actor, Caller, ChainHealth, Count, Effect, EventBody, EventRef, Fact, FactId, FactState, Label,
     Link, MemoryOp, Record, Refusal, RuleSet, RunId, RunState, Seq, SpaceId, SystemPart, TopicPath,

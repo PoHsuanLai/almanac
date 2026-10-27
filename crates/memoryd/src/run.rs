@@ -199,7 +199,7 @@ async fn run(
     tokio::spawn(async move { watcher.follow_keyring(changes).await });
     let following = daemon.clone();
     tokio::spawn(async move {
-        while apply_next(following.queue().service(), &mut watched)
+        while apply_next(following.service(), &mut watched)
             .await
             .is_some()
         {}
@@ -213,7 +213,7 @@ async fn run(
         tokio::time::sleep(FIRST_CONSOLIDATION).await;
         loop {
             // The setting is read afresh each night, so turning it off takes effect tonight.
-            if consolidator.queue().service().settings().consolidate == ConsolidateWhen::Nightly {
+            if consolidator.service().settings().consolidate == ConsolidateWhen::Nightly {
                 for (space, reply) in consolidator.consolidate_all().await {
                     if let almanac_core::MemoryReply::Refused(why) = reply {
                         eprintln!("memoryd: consolidation of {space}: {why:?}");

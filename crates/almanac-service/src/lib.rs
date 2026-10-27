@@ -1,6 +1,6 @@
 //! memoryd's core over seams: the authorisation matrix, the pure state machines (Space
 //! lifecycle, facts, forget plans, consolidation runs), retention, timeline assembly, the
-//! export writer, the config files, and `MemoryService` over a `Backend`.
+//! export writer, the per-Space request queue, the config files, and `MemoryService` over a `Backend`.
 //!
 //! Pure over its seams (`Clock`, `KeyStore`, `Vault`, `LogWrite`, `SearchIndex`, `Embedder`,
 //! `Consolidator`): the store seams come from `almanac-store`, so the service links no SQLite,
@@ -55,6 +55,7 @@ mod marks;
 mod open;
 mod prompt;
 mod proposals;
+mod queue;
 mod quota;
 mod record;
 mod registry;
@@ -66,6 +67,7 @@ mod retention;
 mod revert_guard;
 mod run;
 mod runfile;
+mod runtime;
 mod search;
 mod service;
 mod settings;
@@ -97,11 +99,13 @@ pub use forget::{
 };
 pub use hunks::tidy_is_acceptable;
 pub use prompt::{parse_draft, render_prompt};
+pub use queue::{Claim, claim_for, claim_of};
 pub use quota::{ByteCap, EventCap, FieldLimits, Quota};
 pub use registry::{Listing, RegistryError};
 pub use removals::{LedgerError, RemovalLedger, Removals, removals_from_toml, removals_to_toml};
 pub use retention::{SourceState, Sweep, header_expired, sweep_body};
-pub use service::{MemoryService, SpaceRuntime};
+pub use runtime::SpaceRuntime;
+pub use service::MemoryService;
 pub use settings::{
     CONFIRMED_FILE, ConfirmError, Confirmations, ConsolidateApply, ConsolidateWhen, Fallback,
     Loaded, Locator, MemorySettings, SCHEMA, SETTINGS_FILE, Why, loosenings, read as read_settings,

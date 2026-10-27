@@ -5,6 +5,7 @@ mod files;
 mod machines;
 mod plans;
 mod prompt;
+mod queue;
 mod removals;
 mod support;
 

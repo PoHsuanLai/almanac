@@ -3,8 +3,6 @@
 use crate::support::{SharedKeys, dirs_in, service, space};
 use almanac_core::*;
 use almanac_fake::mail_thread_archived;
-use memoryd::{Claim, Serialised, claim_for, claim_of};
-use std::collections::BTreeSet;
 use std::sync::Arc;
 
 fn record_in(space_id: &str, key: &str) -> Record {
@@ -26,32 +24,13 @@ fn search_in(space_id: &str) -> MemoryRequest {
 }
 
 #[tokio::test]
-async fn two_requests_at_once_for_one_space_collide_without_the_queue_and_queue_with_it() {
+async fn two_requests_at_once_for_one_space_queue_instead_of_meeting_busy() {
     let scratch = tempfile::tempdir().expect("scratch");
     let keys = SharedKeys::default();
 
-    // The bare service: the second request finds the Space checked out by the first (the
-    // embedder gives the executor back mid-request, as a call to inferd does).
-    let bare = service(&dirs_in(&scratch.path().join("bare")), &keys);
-    let (a, b) = tokio::join!(
-        bare.handle(
-            &Caller::Router,
-            MemoryRequest::Record(record_in("work", "a1"))
-        ),
-        bare.handle(
-            &Caller::Router,
-            MemoryRequest::Record(record_in("work", "a2"))
-        ),
-    );
-    assert!(
-        [&a, &b]
-            .iter()
-            .any(|r| **r == MemoryReply::Refused(Refusal::Busy)),
-        "without a queue one of them is Busy: {a:?} {b:?}"
-    );
-
-    // The same two requests through the queue both succeed, in order.
-    let queued = Serialised::new(service(&dirs_in(&scratch.path().join("queued")), &keys));
+    // The embedder gives the executor back mid-request, as a call to inferd does, so the second
+    // request meets the first while its Space is out: it waits instead of being answered Busy.
+    let queued = service(&dirs_in(&scratch.path().join("queued")), &keys);
     let (a, b) = tokio::join!(
         queued.handle(
             &Caller::Router,
@@ -75,10 +54,7 @@ async fn two_requests_at_once_for_one_space_collide_without_the_queue_and_queue_
 #[tokio::test]
 async fn a_crowd_of_mixed_requests_never_sees_busy() {
     let scratch = tempfile::tempdir().expect("scratch");
-    let queued = Arc::new(Serialised::new(service(
-        &dirs_in(scratch.path()),
-        &SharedKeys::default(),
-    )));
+    let queued = Arc::new(service(&dirs_in(scratch.path()), &SharedKeys::default()));
     let mut tasks = Vec::new();
     for n in 0..24 {
         let queue = queued.clone();
@@ -107,107 +83,5 @@ async fn a_crowd_of_mixed_requests_never_sees_busy() {
     for task in tasks {
         let reply = task.await.expect("task");
         assert_ne!(reply, MemoryReply::Refused(Refusal::Busy), "{reply:?}");
-    }
-}
-
-fn spaces(ids: &[&str]) -> Claim {
-    Claim::Spaces(ids.iter().map(|s| space(s)).collect::<BTreeSet<_>>())
-}
-
-#[test]
-fn what_a_request_holds() {
-    let message_to_home = {
-        let mut record = record_in("work", "m");
-        record.body = EventBody::Message(Box::new(Message {
-            id: MessageId::parse("m-2").expect("id"),
-            thread: ThreadId::parse("m-1").expect("id"),
-            in_reply_to: None,
-            from: Address::new(AgentRef::Companion, space("work")),
-            to: Address::new(AgentRef::User, space("home")),
-            kind: MessageKind::Note,
-            parts: vec![Part::Text(MessageText::new("hello"))],
-            label: almanac_fake::trusted_label(),
-            sent: UnixSeconds(1),
-        }));
-        record
-    };
-    let table = [
-        (MemoryRequest::Spaces, Claim::Nothing),
-        (MemoryRequest::Rules, Claim::Nothing),
-        (
-            MemoryRequest::Record(record_in("work", "a")),
-            spaces(&["work"]),
-        ),
-        (MemoryRequest::Record(message_to_home), spaces(&["home"])),
-        (
-            MemoryRequest::RecordBatch(vec![record_in("work", "a"), record_in("home", "b")]),
-            spaces(&["home", "work"]),
-        ),
-        (search_in("work"), spaces(&["work"])),
-        (MemoryRequest::Status(space("home")), spaces(&["home"])),
-        (
-            MemoryRequest::RunConsolidation(space("work")),
-            spaces(&["work"]),
-        ),
-        (MemoryRequest::Sweep(space("work")), spaces(&["work"])),
-        (
-            MemoryRequest::Forget(PlanToken::parse("p-1").expect("t")),
-            Claim::Everything,
-        ),
-        (
-            MemoryRequest::Settle(FactId::mint(1, [0; 10]), Settlement::Discard),
-            Claim::Everything,
-        ),
-        (
-            MemoryRequest::Revert(RunId::parse("run-1").expect("r")),
-            Claim::Everything,
-        ),
-        (
-            MemoryRequest::ApplyConsolidation(RunId::parse("run-1").expect("r")),
-            Claim::Everything,
-        ),
-        (
-            MemoryRequest::DiscardConsolidation(RunId::parse("run-1").expect("r")),
-            Claim::Everything,
-        ),
-        (
-            MemoryRequest::Export(ExportOptions {
-                spaces: vec![],
-                verification_key: VerificationKey::Omit,
-            }),
-            Claim::Everything,
-        ),
-        (
-            MemoryRequest::RemoveRule(RuleId::parse("r-1").expect("r")),
-            Claim::Everything,
-        ),
-        (
-            MemoryRequest::ConfirmSettings(Default::default()),
-            Claim::Everything,
-        ),
-        (MemoryRequest::PendingSettings, Claim::Nothing),
-    ];
-    for (request, claim) in table {
-        assert_eq!(claim_of(&request), claim, "{request:?}");
-    }
-}
-
-#[test]
-fn a_request_the_service_will_refuse_holds_nothing() {
-    let settle = || MemoryRequest::Settle(FactId::mint(1, [0; 10]), Settlement::Discard);
-    let forget = || MemoryRequest::Forget(PlanToken::parse("p-1").expect("t"));
-    let table = [
-        (Caller::ShellUi, settle(), Claim::Everything),
-        (Caller::Router, settle(), Claim::Nothing),
-        (Caller::Cuad, forget(), Claim::Nothing),
-        (Caller::ShellUi, forget(), Claim::Everything),
-        (Caller::Router, search_in("work"), spaces(&["work"])),
-    ];
-    for (caller, request, claim) in table {
-        assert_eq!(
-            claim_for(&caller, &request),
-            claim,
-            "{caller:?} {request:?}"
-        );
     }
 }

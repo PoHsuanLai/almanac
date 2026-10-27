@@ -134,7 +134,7 @@ async fn a_loosened_value_waits_until_the_settings_app_confirms_it_over_the_bus(
         Some(Consent::new(locator.clone())),
     )
     .await;
-    let service = world.daemon.queue().service();
+    let service = world.daemon.service();
     apply(service, &locator.read(MemorySettings::default()));
     assert_eq!(
         service.settings().retention.search,
