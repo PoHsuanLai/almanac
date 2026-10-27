@@ -6,7 +6,6 @@
 //! finishes the next time it is asked.
 
 use crate::backend::Backend;
-use crate::docs::fact_doc;
 use crate::events::ServiceEvent;
 use crate::open::{Cx, Open, Stored, failed, files_refusal};
 use crate::rehome::{EventMap, Held, Parcel, rehomed, sort_into_parcels};
@@ -16,6 +15,7 @@ use almanac_core::{
     Removal, SpaceId, SpaceKind,
 };
 use almanac_seal::{KeyError, KeyStore};
+use almanac_search::docs::fact_doc;
 use almanac_store::{Vault, VaultPath};
 use std::collections::BTreeSet;
 

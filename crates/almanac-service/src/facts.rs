@@ -1,16 +1,16 @@
 //! Facts: proposals, settling pending ones, and the views the UI draws.
 
 use crate::backend::Backend;
-use crate::docs::{fact_doc, fact_doc_id};
 use crate::events::ServiceEvent;
 use crate::open::{Cx, Open, Stored, failed, files_refusal};
-use crate::search::caller_actor;
+use crate::readers::caller_actor;
 use crate::timeline::timeline_entry;
 use almanac_core::{
     Caller, Confidentiality, Count, DesktopVerdict, EventBody, Fact, FactDraft, FactId, FactState,
     FactView, Integrity, Label, Link, MemoryOp, ModelRole, PENDING_TTL_DAYS, Refusal, Settlement,
     Source, SourceView, SpaceId, UnixSeconds, UseCount, Validity, desktop_admits,
 };
+use almanac_search::docs::{fact_doc, fact_doc_id};
 use almanac_store::Entry;
 use almanac_tidy::fact::{FactEffect, FactEvent, FactLife, lands, step};
 use std::collections::{BTreeMap, BTreeSet};

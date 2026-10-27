@@ -4,7 +4,6 @@
 //! Flag in `hunks.rs`.
 
 use crate::backend::Backend;
-use crate::docs::{fact_doc, fact_doc_id};
 use crate::events::ServiceEvent;
 use crate::facts::lands_for;
 use crate::grounds::Grounds;
@@ -15,6 +14,7 @@ use almanac_core::{
     DraftView, Fact, FactId, FactState, Hunk, Lands, MemoryOp, Refusal, RunId, RunState, Seq,
     SkipReason, SkippedHunk, TopicPath, hex_of,
 };
+use almanac_search::docs::{fact_doc, fact_doc_id};
 use almanac_settings::{ConsolidateApply, ConsolidateWhen};
 use almanac_store::BodyState;
 use almanac_tidy::consolidation::{RunEffect, RunEvent, step};

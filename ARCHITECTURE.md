@@ -26,7 +26,8 @@ trait), section 5 (what is built), section 6 (copy the recipe).
 | `recall` | generic: `VectorIndex`, `Fts5`, `ExactScan`, `Index` (implements `SearchIndex`), `FakeEmbedder` (feature `testing`); re-exports the `Embedder` and document types from `almanac-store`; the vector, card and fusion code (`Vector`, `EmbedderCard`, `fuse_rrf`, `chunk`, `nearest_exact`) lives only there. Knows nothing of almanac's domain | rusqlite |
 | `almanac-settings` | pure: what the person can set for memory: `MemorySettings`, `ConsolidateWhen`, `ConsolidateApply`, `SCHEMA` (`schema/almanac.settings.toml`, the file the Settings app draws them from; `memoryd --write-schema` writes it), `SETTINGS_FILE`, the lenient reader `read` (`Loaded`, `Fallback`, `Why`), the key table, and the consent gate (`Confirmations`, `gate`, `waiting`, `loosenings`: a value looser than shipped applies only once the person confirmed it). No file is read | none |
 | `almanac-tidy` | pure: what memory learns and keeps tidy: the fact lifecycle machine (`fact`), the consolidation run machine, the `Consolidator` seam and `check_draft` (`consolidation`), the consolidation prompt and the parse of the model's draft (`render_prompt`, `parse_draft`), `tidy_is_acceptable`, `changes` (what a reply changed, as the pure `Change` events the daemon turns into bus signals), the removal notes (`Removals` over the `RemovalLedger` seam and the `removals.toml` text) | none |
-| `almanac-service` | memoryd's core over seams: `allowed`, the per-Space request queue (`Claim`), the Space and forget-plan machines, the run that drives `almanac-tidy`'s fact and consolidation machines over a `Backend`, search and the readers, retention, timeline rows, the export writer, the config file text (`memory.toml`, `spaces.toml`; the files themselves are `almanac-host`'s), `Backend` and `MemoryService`; it takes the person's `MemorySettings` from `almanac-settings`, injected through `apply_settings`, `Backend` and `MemoryService`. Depends on `almanac-tidy`, `almanac-store` and `memfiles-format`, never on `eventlog` or `recall`, so it links no SQLite, SQLCipher or OpenSSL | none (seams are passed in) |
+| `almanac-search` | pure: how memory is searched: `docs` (the recall documents facts and events contribute to the index: `event_docs`, `fact_doc`, `indexed_docs`, `DocRef`, `newest_episodes`), `SpaceReader` (the narrow view of a Space that a search reads: its index, its log entries, its stored facts), `embed_query`, `search` and `inject` (fused lexical and semantic ranking, reciprocal-rank merge of facts and events, the token budget) | none |
+| `almanac-service` | memoryd's core over seams: `allowed`, the per-Space request queue (`Claim`), the Space and forget-plan machines, the run that drives `almanac-tidy`'s fact and consolidation machines over a `Backend`, the readers (`SpaceReader` for `Open`; the ranking is `almanac-search`'s), retention, timeline rows, the export writer, the config file text (`memory.toml`, `spaces.toml`; the files themselves are `almanac-host`'s), `Backend` and `MemoryService`; it takes the person's `MemorySettings` from `almanac-settings`, injected through `apply_settings`, `Backend` and `MemoryService`. Depends on `almanac-tidy`, `almanac-search`, `almanac-store` and `memfiles-format`, never on `eventlog` or `recall`, so it links no SQLite, SQLCipher or OpenSSL | none (seams are passed in) |
 | `almanac-infer` | the inferd adapters over porter-client's `Transport`: `InferdEmbedder` (an `Embedder`), `InferdConsolidator` (a `Consolidator`) and their `Deadlines`. No daemon, so an app other than memoryd can use them | inferd, through the transport it is given |
 | `almanac-host` | the files memory keeps beside its Spaces: `Locator` (finds `$XDG_CONFIG_HOME/almanac/settings.toml`, then `$XDG_CONFIG_DIRS`; reads it through `almanac-settings` and keeps the confirmations store), `write_private_atomic`, `read_config`. Used by memoryd and `almanac-local` | the filesystem |
 | `almanac-watch` | `FileWatch`, `WatchError`, the pure `join` of observed changes and app-supplied reasons; `InotifyWatch` (notify 8.2) behind the `linux` feature | inotify (feature `linux`) |
@@ -44,7 +45,7 @@ cross-platform, and the desktop's features are additive. For almanac:
 
 | Portable core (builds with `--no-default-features`) | Desktop extra |
 | --- | --- |
-| `almanac-core`, `almanac-seal` (`ProvidedKeys`), `almanac-store`, `eventlog`, `memfiles`, `recall`, `almanac-tidy`, `almanac-service`, `almanac-local` (the app's disk `Backend`), `almanac-client` with `in_process`, `almanac-watch`'s seam and `join` | `almanac-dbus`, `almanac-dbus-serve`, `memoryd` (the one shared memory daemon: Secret Service keys, Landlock, the bus, file watching, the nightly timer), `almanac-client`'s `dbus` feature, `almanac-seal`'s `oo7` feature, `almanac-watch`'s `linux` feature (`InotifyWatch`) |
+| `almanac-core`, `almanac-seal` (`ProvidedKeys`), `almanac-store`, `eventlog`, `memfiles`, `recall`, `almanac-tidy`, `almanac-search`, `almanac-service`, `almanac-local` (the app's disk `Backend`), `almanac-client` with `in_process`, `almanac-watch`'s seam and `join` | `almanac-dbus`, `almanac-dbus-serve`, `memoryd` (the one shared memory daemon: Secret Service keys, Landlock, the bus, file watching, the nightly timer), `almanac-client`'s `dbus` feature, `almanac-seal`'s `oo7` feature, `almanac-watch`'s `linux` feature (`InotifyWatch`) |
 | test helpers: `almanac-fake` | |
 
 An app on another desktop hosts the service itself: `Memory::over(InProcess::new(service,
@@ -79,7 +80,7 @@ A crate depends on its own tier or a lower one (P < C < A), never up; `dev-depen
 
 | Tier | Crates |
 | --- | --- |
-| P | `almanac-core`, `almanac-seal`, `almanac-store`, `memfiles-format`, `almanac-settings`, `almanac-tidy`, `almanac-service` |
+| P | `almanac-core`, `almanac-seal`, `almanac-store`, `memfiles-format`, `almanac-settings`, `almanac-tidy`, `almanac-search`, `almanac-service` |
 | C | `almanac-keyfile`, `almanac-host`, `eventlog`, `memfiles`, `recall`, `almanac-watch`, `almanac-infer`, `almanac-dbus`, `almanac-dbus-serve`, `almanac-client`, `almanac-fake`, `almanac-local` |
 | A | `memoryd` |
 
@@ -93,7 +94,7 @@ fails if any of their crates enters the tree. Other crates reach porter's names 
 External boundaries (default features): `almanac-core` never reaches `zbus zvariant tokio
 reqwest hyper oo7 ort fastembed rusqlite notify toml`; `almanac-seal`, `memfiles`, `memfiles-format`: the same
 minus `toml`/with `rusqlite` forbidden; `eventlog`, `recall`, `almanac-fake`,
-`almanac-client` (default features) never reach the effect list (`zbus ... fastembed`) or `notify`; `almanac-store`, `almanac-tidy` and `almanac-service` also never reach `rusqlite`, `libsqlite3-sys` (SQLCipher), `openssl-sys` or `openssl`; `almanac-infer` reaches no bus, HTTP client, keyring, embedding runtime or storage (inferd is behind the `Transport` it is given); `almanac-watch`
+`almanac-client` (default features) never reach the effect list (`zbus ... fastembed`) or `notify`; `almanac-store`, `almanac-tidy`, `almanac-search` and `almanac-service` also never reach `rusqlite`, `libsqlite3-sys` (SQLCipher), `openssl-sys` or `openssl`; `almanac-infer` reaches no bus, HTTP client, keyring, embedding runtime or storage (inferd is behind the `Transport` it is given); `almanac-watch`
 may reach `notify` and never `rusqlite`; `almanac-dbus` and `almanac-dbus-serve` reach `tokio` only through zbus's
 `tokio` feature. `oo7` is behind `almanac-seal`'s `oo7` feature only; `zbus` behind
 `almanac-client`'s `dbus` feature only; `almanac-client` with `in_process` reaches no `rusqlite` or `openssl-sys` either.
@@ -110,8 +111,9 @@ may reach `notify` and never `rusqlite`; `almanac-dbus` and `almanac-dbus-serve`
 | `memfiles` | `memory`, `dirs` |
 | `recall` | `doc`, `state`, `embed` < `fts`, `exact`, `fake` < `index` |
 | `almanac-tidy` | `fact`, `consolidation` < `prompt`, `tidy`, `change`, `removals` |
+| `almanac-search` | `docs`, `reader` < `plan` |
 | `almanac-infer` | `deadline` < `embed`, `consolidate` |
-| `almanac-service` | `clock`, `auth`, `queue` (`Claim`, the line of requests waiting for their Spaces), `retention`, `space`, `forget`, `timeline`, `export`, `config`, `marks`, `baseline`, `events` < `backend` < `service` < `open`, `record`, `facts`, `search`, `run`, `hunks`, `edits`, `sweep`, `erase`, `control`, `dispatch` |
+| `almanac-service` | `clock`, `auth`, `queue` (`Claim`, the line of requests waiting for their Spaces), `retention`, `space`, `forget`, `timeline`, `export`, `config`, `marks`, `baseline`, `events` < `backend` < `service` < `open`, `record`, `facts`, `readers`, `run`, `hunks`, `edits`, `sweep`, `erase`, `control`, `dispatch` |
 | `almanac-settings` | `keys`, `loosen` < `read` < `confirm` |
 | `almanac-host` | `files` < `locate` |
 | `almanac-watch` | `observed` < `join` < `inotify` |

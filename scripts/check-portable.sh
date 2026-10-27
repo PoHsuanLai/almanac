@@ -21,6 +21,7 @@ CORE=(
   "recall"
   "almanac-settings"
   "almanac-tidy"
+  "almanac-search"
   "almanac-service"
   "almanac-host"
   "almanac-watch"

@@ -3,13 +3,13 @@
 //! checkpoint. Run by the `Sweep` request and by memoryd's timer.
 
 use crate::backend::Backend;
-use crate::docs::{indexed_docs, newest_episodes};
 use crate::open::{Cx, Open, log_refusal};
 use crate::retention::{SourceState, Sweep, header_expired, sweep_body};
 use almanac_core::{
     Count, EventBody, FileChange, MemoryOp, Record, Refusal, Retention, Seq, SpacePath, SpaceState,
     SweepReport, ThingRef, Verb,
 };
+use almanac_search::docs::{indexed_docs, newest_episodes};
 use almanac_store::{BodyState, Entry, LogWrite};
 use std::collections::HashMap;
 

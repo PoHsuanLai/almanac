@@ -4,13 +4,13 @@
 //! put every file back.
 
 use crate::backend::Backend;
-use crate::docs::{fact_doc, fact_doc_id};
 use crate::open::{Cx, Open, failed, files_refusal};
-use crate::search::caller_actor;
+use crate::readers::caller_actor;
 use almanac_core::{
     Caller, Fact, FactId, FactState, FactText, FlagNote, Hunk, Label, MemoryOp, Refusal, RunId,
     TidyHunk, TopicPath, UnixSeconds, UserText, Validity,
 };
+use almanac_search::docs::{fact_doc, fact_doc_id};
 use almanac_store::{Vault, VaultPath};
 use memfiles_format::{Block, TopicFile, parse_topic, render_topic};
 use serde::{Deserialize, Serialize};

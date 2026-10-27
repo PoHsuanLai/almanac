@@ -4,7 +4,6 @@
 
 use crate::backend::{Backend, BackendError};
 use crate::clock::Clock;
-use crate::docs::{event_ref, fact_doc, indexed_docs, newest_episodes};
 use crate::forget::{FactGraph, FactNode};
 use crate::runtime::SpaceRuntime;
 use almanac_core::{
@@ -13,8 +12,9 @@ use almanac_core::{
     UnixSeconds,
 };
 use almanac_seal::{KeyError, SubKey};
-use almanac_store::{BodyState, Entry, LogError, LogRead, LogWrite, NewHeader, Vault, VaultPath};
+use almanac_search::docs::{event_ref, fact_doc, indexed_docs, newest_episodes};
 use almanac_store::{Doc, DocId, IndexFailure, SearchIndex};
+use almanac_store::{Entry, LogError, LogRead, LogWrite, NewHeader, Vault, VaultPath};
 use memfiles_format::{Block, MemfilesError};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -381,14 +381,6 @@ pub(crate) fn any_filter() -> almanac_core::TimelineFilter {
         kinds: Vec::new(),
         trust: almanac_core::TrustFilter::Any,
         range: None,
-    }
-}
-
-/// Whether the body of `entry` is still there.
-pub(crate) fn present(entry: &Entry) -> Option<&EventBody> {
-    match &entry.body {
-        BodyState::Present(body) => Some(body),
-        BodyState::Erased => None,
     }
 }
 

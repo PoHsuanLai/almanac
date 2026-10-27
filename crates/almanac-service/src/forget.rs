@@ -3,11 +3,11 @@
 //! A plan is computed once over snapshots of the log and the facts; its digest covers the whole
 //! closure, so `Forget(token)` refuses when anything new derived from it in between.
 
-use crate::docs::{event_ref, fact_doc_id, indexed_docs, newest_episodes};
 use almanac_core::{
     Count, FactId, FactState, ForgetCounts, ForgetScope, Link, PlanDigest, PlanToken, Refusal, Seq,
     SpaceId, UnixSeconds,
 };
+use almanac_search::docs::{event_ref, fact_doc_id, indexed_docs, newest_episodes};
 use almanac_store::{BodyState, Entry, LogRead, VaultPath};
 use std::collections::BTreeSet;
 

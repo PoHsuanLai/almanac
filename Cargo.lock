@@ -169,12 +169,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "almanac-search"
+version = "0.1.0"
+dependencies = [
+ "almanac-core",
+ "almanac-store",
+]
+
+[[package]]
 name = "almanac-service"
 version = "0.1.0"
 dependencies = [
  "almanac-core",
  "almanac-fake",
  "almanac-seal",
+ "almanac-search",
  "almanac-settings",
  "almanac-store",
  "almanac-tidy",

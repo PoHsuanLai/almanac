@@ -1,6 +1,6 @@
 [package]
 name = "almanac-service"
-description = "memoryd's core over seams: authorisation, the Space and forget machines, the run that drives almanac-tidy's fact and consolidation machines over a backend, retention, search and the readers, timeline assembly, export, the per-Space request queue, and MemoryService."
+description = "memoryd's core over seams: authorisation, the Space and forget machines, the run that drives almanac-tidy's fact and consolidation machines over a backend, retention, the readers (search itself is almanac-search's), timeline assembly, export, the per-Space request queue, and MemoryService."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -11,6 +11,7 @@ publish.workspace = true
 [dependencies]
 almanac-core = { workspace = true }
 almanac-seal = { workspace = true }
+almanac-search = { workspace = true }
 almanac-settings = { workspace = true }
 almanac-tidy = { workspace = true }
 blake3 = { workspace = true }

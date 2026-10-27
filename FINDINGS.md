@@ -17,6 +17,7 @@ eventlog (header bytes golden, chain, `verify_chain`, `MemoryLog`, schema as SQL
 (topic file golden, trailer grammar, `VaultPath`, `MemoryVault`, `Primer`), recall (`fuse_rrf`,
 `chunk`, `nearest_exact`, the vector BLOB, the index state machine, `FakeEmbedder`),
 almanac-tidy (the fact and consolidation machines, the prompt and its parse, the removal notes, `Change`),
+almanac-search (the recall document ids, `DocRef`),
 almanac-service (the authorisation matrix, the Space and plan machines,
 `Plan::digest`, retention, the export writer and event lines, the config files, timeline rows),
 almanac-watch (`join`), almanac-dbus (proxies, `MemoryError`), almanac-dbus-serve (skeletons, introspection XML),
@@ -988,12 +989,20 @@ builds; show nothing for it (or treat any unknown word the same way). Not done: 
   The removal notes' text has its own `NotesFileError` (it used the service's `ConfigError`).
   `class_of`, `class_tag` and `class_from_tag` moved to `almanac-store`, next to `ClassTag`, so
   `almanac-infer` needs no service.
-- `almanac-search` was NOT created. `search.rs` is an `impl Open<B>` block: every reader
-  (`search`, `inject`, `recent`, `related`, `provenance`, `facts`, `primer`) works on the open
-  Space's private state (`Open`, `Cx`, `Stored`, `rt`) and the audit it writes. The only pure
-  leftovers are `why_of`, `count_of`, `merged` and the trust mapping, about 60 lines. Cutting a
-  crate needs the readers to take a narrow view of a Space first (a reader trait over the log,
-  the index and the stored facts); that is a design change, not a move.
+- `almanac-search` followed in lane A3.6b (below).
+
+## Layering lane A3.6b (2026-10-28)
+- `almanac-search` (tier P) holds `Search` and `Inject` and the recall documents. It reads a Space
+  only through `SpaceReader`: the index, the log entry at a sequence number, the event reference
+  and the stored facts. `Open<B>` implements it in `almanac-service/src/readers.rs`.
+- The query is embedded first (`almanac_search::embed_query`, the only async step) and the vector
+  is passed in, so a search never holds the index across an await (the index's SQLite
+  connections are not `Sync`). The audit of a read, and `recent`, `related`, `provenance`,
+  `facts` and `primer`, stay in the service (`search.rs` became `readers.rs`).
+- The document model (`event_docs`, `fact_doc`, `indexed_docs`, `DocRef`, `newest_episodes`,
+  `present`) moved with it from the service's `docs.rs`; `record_fault` stays in the service.
+- `almanac-search` has no tests of Search itself: the service's integration tests and the
+  `almanac-client`, `almanac-local` and `memoryd` tests run it through the service.
 
 ## Layering lane A3.4 (2026-10-28)
 - `almanac-dbus` is the caller's half: proxies, bus names, `MemoryError`, the codec and `invoke`.

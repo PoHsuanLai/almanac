@@ -1,0 +1,16 @@
+[package]
+name = "almanac-search"
+description = "How memory is searched, as pure values: the recall documents that facts and events contribute to the index, and Search and Inject over a narrow reader of a Space's log, index and stored facts (fused lexical and semantic ranking, reciprocal-rank merging, the token budget)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+almanac-core = { workspace = true }
+almanac-store = { workspace = true }
+
+[lints]
+workspace = true
