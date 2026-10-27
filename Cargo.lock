@@ -3010,7 +3010,7 @@ dependencies = [
 [[package]]
 name = "prov"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=dcc16ada850559c7c8ae213cd7a9b153672e5031#dcc16ada850559c7c8ae213cd7a9b153672e5031"
+source = "git+https://github.com/PoHsuanLai/prov?rev=bf8d316f45c9856f72abfb9ab214db424a60cbbb#bf8d316f45c9856f72abfb9ab214db424a60cbbb"
 dependencies = [
  "porter-core",
  "serde",

@@ -46,7 +46,7 @@ almanac-fake    = { path = "crates/almanac-fake" }
 # porter-dbus); almanac never names stoker itself
 # (porter-infer does, by its own git rev).
 porter-core     = { git = "https://github.com/PoHsuanLai/porter", rev = "dcc16ada850559c7c8ae213cd7a9b153672e5031" }
-prov            = { git = "https://github.com/PoHsuanLai/porter", rev = "dcc16ada850559c7c8ae213cd7a9b153672e5031" }
+prov            = { git = "https://github.com/PoHsuanLai/prov", rev = "bf8d316f45c9856f72abfb9ab214db424a60cbbb" }
 porter-infer    = { git = "https://github.com/PoHsuanLai/porter", rev = "dcc16ada850559c7c8ae213cd7a9b153672e5031" }
 porter-client   = { git = "https://github.com/PoHsuanLai/porter", rev = "dcc16ada850559c7c8ae213cd7a9b153672e5031" }
 porter-dbus     = { git = "https://github.com/PoHsuanLai/porter", rev = "dcc16ada850559c7c8ae213cd7a9b153672e5031" }

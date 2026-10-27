@@ -222,9 +222,11 @@ Nothing below is built; the interfaces it will use are.
   ```toml
   [patch."https://github.com/PoHsuanLai/porter"]
   porter-core = { path = "/path/to/porter/crates/porter-core" }
-  prov        = { path = "/path/to/porter/crates/prov" }
   # one line per porter crate almanac names; add the same for stoker/quire crates if the
   # local porter checkout pins a different rev than the one in Cargo.lock
+
+  [patch."https://github.com/PoHsuanLai/prov"]
+  prov = { path = "/path/to/prov/prov" }
   ```
 
   A local `[patch]` rewrites `Cargo.lock` entries for the patched crates; commit the lock only
