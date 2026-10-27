@@ -1,8 +1,10 @@
 //! `InferdEmbedder`: embeddings through an inferd session.
 
-use super::{Deadlines, turn, within};
-use almanac_service::class_from_tag;
-use almanac_store::{EmbedRole, EmbedderCard, Urgency, Vector};
+use crate::deadline::{Deadlines, turn, within};
+use almanac_store::{
+    Classed, EmbedError, EmbedRole, Embedder, EmbedderCard, RetryClass, Urgency, Vector,
+    class_from_tag,
+};
 use porter_client::{Transport, TransportError};
 use porter_core::capability::Modality;
 use porter_core::consent::Usage;
@@ -12,7 +14,6 @@ use porter_infer::{
     EmbedReply, EmbedRequest, EmbedRole as WireRole, InferRefusal, InferReply, InferRequest,
     ModelError,
 };
-use recall::{Classed, EmbedError, Embedder, RetryClass};
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 

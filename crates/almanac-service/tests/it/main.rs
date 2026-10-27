@@ -1,12 +1,9 @@
 mod auth;
-mod change;
 mod closure;
 mod files;
 mod machines;
 mod plans;
-mod prompt;
 mod queue;
-mod removals;
 mod support;
 
 /// Fails if a file or directory beside this one is not reached by a `mod`, or if a stray

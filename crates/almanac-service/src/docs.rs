@@ -4,14 +4,20 @@
 //! Pure: the index is rebuildable from the log and the files because everything here is a
 //! function of them.
 
-use crate::class::tag_of;
 use almanac_core::{
     AppName, EventBody, EventRef, Fact, FactId, IndexPart, Integrity, Label, MessageFault,
     Recallable, ReplicaId, SenderCheck, Seq, UnixSeconds, from_hex,
 };
-use almanac_store::{BodyState, Doc, DocId, Entry, Facets, TrustTier};
+use almanac_store::{
+    BodyState, ClassTag, Doc, DocId, Entry, Facets, TrustTier, class_of, class_tag,
+};
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
+
+/// The tag of the strictest class among `label`'s: what a document with this label carries.
+fn tag_of(label: &Label) -> ClassTag {
+    class_tag(class_of([label]))
+}
 
 /// The document id of a fact.
 pub(crate) fn fact_doc_id(id: &FactId) -> String {

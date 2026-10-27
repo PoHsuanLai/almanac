@@ -190,7 +190,7 @@ slug_enum!(
     }
 );
 
-/// Where a consolidation run is (the machine in `almanac-service::consolidation`).
+/// Where a consolidation run is (the machine in `almanac-tidy::consolidation`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "v", rename_all = "snake_case")]
 #[non_exhaustive]

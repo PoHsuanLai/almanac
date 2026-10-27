@@ -1,0 +1,26 @@
+[package]
+name = "almanac-infer"
+description = "almanac's two models through inferd (org.quire.Inference1, over porter-client's Transport): an embedder for recall and a consolidator that drafts hunks, each with its deadlines. No daemon: an app that is not memoryd can use them over its own transport."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+almanac-store = { workspace = true }
+almanac-tidy = { workspace = true }
+porter-client = { workspace = true }
+porter-core = { workspace = true }
+porter-infer = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+
+[dev-dependencies]
+almanac-core = { workspace = true }
+almanac-fake = { workspace = true }
+recall = { workspace = true, features = ["testing"] }
+
+[lints]
+workspace = true

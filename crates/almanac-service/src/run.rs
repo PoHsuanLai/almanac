@@ -4,9 +4,6 @@
 //! Flag in `hunks.rs`.
 
 use crate::backend::Backend;
-use crate::consolidation::{
-    ConsolidationInput, Consolidator, Draft, InputEvent, RunEffect, RunEvent, check_draft, step,
-};
 use crate::docs::{fact_doc, fact_doc_id};
 use crate::events::ServiceEvent;
 use crate::facts::lands_for;
@@ -20,6 +17,10 @@ use almanac_core::{
 };
 use almanac_settings::{ConsolidateApply, ConsolidateWhen};
 use almanac_store::BodyState;
+use almanac_tidy::consolidation::{RunEffect, RunEvent, step};
+use almanac_tidy::{
+    ConsolidateError, ConsolidationInput, Consolidator, Draft, InputEvent, check_draft,
+};
 
 /// Where promoted facts land: the model names no topic.
 const TOPIC: &str = "consolidated";
@@ -96,7 +97,7 @@ impl<B: Backend> Open<B> {
             Err(e) => {
                 self.run = step(state, RunEvent::DraftFailed(e.into())).0;
                 return Err(match e {
-                    crate::consolidation::ConsolidateError::Unparseable => {
+                    ConsolidateError::Unparseable => {
                         failed("the consolidation draft is unreadable")
                     }
                     _ => Refusal::Busy,

@@ -3,10 +3,10 @@
 //! Consent and the on-device floor are per class, so a request over several labels takes the
 //! most sensitive class present, and each indexed document carries the class of its own label.
 //! recall names no porter type: its `ClassTag` is the data-class slug, written and read only
-//! here.
+//! here (an embedder reads it back with [`class_from_tag`]).
 
+use crate::doc::ClassTag;
 use almanac_core::{DataClass, Label};
-use almanac_store::ClassTag;
 
 /// The data class a request carries when its input mixes several: the most sensitive present, in
 /// this order (the grant and the on-device floor are per class, so the request takes the
@@ -49,11 +49,6 @@ pub fn class_tag(class: DataClass) -> ClassTag {
 /// index written by a newer build), which an embedder treats as its own strictest pin.
 pub fn class_from_tag(tag: &ClassTag) -> Option<DataClass> {
     serde_json::from_value(serde_json::Value::String(tag.0.clone())).ok()
-}
-
-/// The tag of the strictest class among `label`'s: what a document with this label carries.
-pub(crate) fn tag_of(label: &Label) -> ClassTag {
-    class_tag(class_of([label]))
 }
 
 #[cfg(test)]

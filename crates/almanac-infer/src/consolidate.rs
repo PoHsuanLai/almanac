@@ -1,8 +1,9 @@
 //! `InferdConsolidator`: a consolidation draft from an inferd task session.
 
-use super::{Deadlines, turn, within};
-use almanac_service::{
-    ConsolidateError, ConsolidationInput, Consolidator, Draft, class_of, parse_draft, render_prompt,
+use crate::deadline::{Deadlines, turn, within};
+use almanac_store::class_of;
+use almanac_tidy::{
+    ConsolidateError, ConsolidationInput, Consolidator, Draft, parse_draft, render_prompt,
 };
 use porter_client::Transport;
 use porter_core::capability::LlmFeature;

@@ -10,7 +10,9 @@ members = [
   "crates/memfiles-format",
   "crates/recall",
   "crates/almanac-settings",
+  "crates/almanac-tidy",
   "crates/almanac-service",
+  "crates/almanac-infer",
   "crates/almanac-host",
   "crates/almanac-watch",
   "crates/almanac-dbus",
@@ -39,7 +41,9 @@ memfiles        = { path = "crates/memfiles" }
 memfiles-format = { path = "crates/memfiles-format" }
 recall          = { path = "crates/recall" }
 almanac-settings = { path = "crates/almanac-settings" }
+almanac-tidy    = { path = "crates/almanac-tidy" }
 almanac-service = { path = "crates/almanac-service" }
+almanac-infer   = { path = "crates/almanac-infer" }
 almanac-host    = { path = "crates/almanac-host" }
 almanac-watch   = { path = "crates/almanac-watch" }
 almanac-dbus    = { path = "crates/almanac-dbus" }

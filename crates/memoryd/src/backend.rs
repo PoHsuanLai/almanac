@@ -1,13 +1,14 @@
 //! `SystemBackend`: the real seams. The key store is the Secret Service, the log is SQLCipher,
 //! the vault is sealed or plain per Space, the models are inferd's.
 
-use crate::infer::{InferdConsolidator, InferdEmbedder};
 use crate::registry::SpaceRegistry;
 use almanac_core::{Dirs, ReplicaId, SpaceId, SpaceMeta, VaultKind};
+use almanac_infer::{InferdConsolidator, InferdEmbedder};
 use almanac_local::SystemClock;
 use almanac_seal::{DbKey, KeyStore, Oo7Keys, Purpose, SpaceKey, derive};
-use almanac_service::{Backend, BackendError, Clock, Consolidator, Listing, RegistryError};
+use almanac_service::{Backend, BackendError, Clock, Listing, RegistryError};
 use almanac_store::{Vault, VaultError, VaultPath};
+use almanac_tidy::Consolidator;
 use eventlog::SqliteLog;
 use memfiles::{PlainDir, SealedDir};
 use porter_client::DbusTransport;

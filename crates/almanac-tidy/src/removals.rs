@@ -9,10 +9,20 @@
 //! This module holds what is recorded and when a note is honoured; where the notes are kept is
 //! the [`RemovalLedger`] seam, which the daemon implements over a file.
 
-use crate::config::ConfigError;
 use almanac_core::{Removal, SpaceId};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
+
+/// Why the text of the removal notes could not be made or read.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum NotesFileError {
+    /// The notes could not be written as TOML.
+    #[error("encode: {0}")]
+    Encode(String),
+    /// The text is not a valid notes file.
+    #[error("decode: {0}")]
+    Decode(String),
+}
 
 /// Why the ledger could not keep a note.
 #[derive(Debug, thiserror::Error)]
@@ -97,14 +107,14 @@ struct RemovalsFile {
 }
 
 /// The notes in `removals.toml` text.
-pub fn removals_from_toml(text: &str) -> Result<BTreeMap<SpaceId, Removal>, ConfigError> {
+pub fn removals_from_toml(text: &str) -> Result<BTreeMap<SpaceId, Removal>, NotesFileError> {
     let file: RemovalsFile =
-        toml::from_str(text).map_err(|e| ConfigError::Decode(e.to_string()))?;
+        toml::from_str(text).map_err(|e| NotesFileError::Decode(e.to_string()))?;
     Ok(file.removed.into_iter().map(Note::into_pair).collect())
 }
 
 /// `notes` as `removals.toml` text.
-pub fn removals_to_toml(notes: &BTreeMap<SpaceId, Removal>) -> Result<String, ConfigError> {
+pub fn removals_to_toml(notes: &BTreeMap<SpaceId, Removal>) -> Result<String, NotesFileError> {
     let file = RemovalsFile {
         removed: notes
             .iter()
@@ -114,5 +124,5 @@ pub fn removals_to_toml(notes: &BTreeMap<SpaceId, Removal>) -> Result<String, Co
             })
             .collect(),
     };
-    toml::to_string(&file).map_err(|e| ConfigError::Encode(e.to_string()))
+    toml::to_string(&file).map_err(|e| NotesFileError::Encode(e.to_string()))
 }

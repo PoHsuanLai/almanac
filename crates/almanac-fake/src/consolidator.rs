@@ -1,6 +1,6 @@
 //! A consolidator that answers from a script.
 
-use almanac_service::{ConsolidateError, ConsolidationInput, Consolidator, Draft};
+use almanac_tidy::{ConsolidateError, ConsolidationInput, Consolidator, Draft};
 use std::collections::VecDeque;
 use std::sync::Mutex;
 

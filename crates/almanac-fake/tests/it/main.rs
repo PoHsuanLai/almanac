@@ -10,6 +10,7 @@ mod scenario;
 mod service;
 mod session_log;
 mod settings;
+mod sweep;
 
 /// Fails if a file or directory beside this one is not reached by a `mod`, or if a stray
 /// `tests/*.rs` would build as a second test binary: either would silently never run (or run alone).

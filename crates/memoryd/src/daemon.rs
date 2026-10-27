@@ -18,9 +18,10 @@ use almanac_dbus::{
 };
 use almanac_host::write_private_atomic;
 use almanac_service::{
-    Allowed, Backend, LedgerError, MemoryService, Removals, ServiceEvent, SpacesFile, allowed,
-    changes, locked_status, rules_to_toml, spaces_to_toml,
+    Allowed, Backend, MemoryService, ServiceEvent, SpacesFile, allowed, locked_status,
+    rules_to_toml, spaces_to_toml,
 };
+use almanac_tidy::{LedgerError, Removals, changes};
 use porter_core::SpaceChange;
 use std::collections::{BTreeMap, BTreeSet};
 use std::os::fd::OwnedFd;

@@ -30,6 +30,8 @@ recall = { workspace = true }
 almanac-local = { workspace = true }
 almanac-host = { workspace = true }
 almanac-service = { workspace = true }
+almanac-infer = { workspace = true }
+almanac-tidy = { workspace = true }
 almanac-settings = { workspace = true }
 almanac-watch = { workspace = true }
 atomic-write-file = { workspace = true }
@@ -37,7 +39,6 @@ almanac-dbus = { workspace = true }
 porter-core = { workspace = true }
 porter-daemon = { workspace = true }
 porter-dbus = { workspace = true }
-porter-infer = { workspace = true }
 porter-client = { workspace = true, features = ["dbus"] }
 clap = { workspace = true }
 getrandom = { workspace = true }
@@ -52,6 +53,7 @@ serde_json = { workspace = true }
 blake3 = { workspace = true }
 
 [dev-dependencies]
+porter-infer = { workspace = true }
 # The tests present their processes as a fixture tree, which porter reads only in a test build.
 memoryd = { path = ".", features = ["test-proc-root"] }
 almanac-client = { workspace = true, features = ["dbus"] }

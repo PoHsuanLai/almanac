@@ -2,10 +2,10 @@
 //! (`baseline.rs`) and reported by the next consolidation run as `ExternalEdit` hunks.
 
 use crate::backend::Backend;
-use crate::consolidation::InputTopic;
 use crate::docs::fact_doc_id;
 use crate::open::{Open, files_refusal};
 use almanac_core::{Hunk, Refusal, TopicPath, UserText};
+use almanac_tidy::InputTopic;
 use memfiles_format::render_topic;
 use std::collections::BTreeMap;
 

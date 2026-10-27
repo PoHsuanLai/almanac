@@ -16,7 +16,8 @@ trip, kind tags, `Dirs`), almanac-seal (derivation goldens, seal/unseal, `Memory
 eventlog (header bytes golden, chain, `verify_chain`, `MemoryLog`, schema as SQL), memfiles
 (topic file golden, trailer grammar, `VaultPath`, `MemoryVault`, `Primer`), recall (`fuse_rrf`,
 `chunk`, `nearest_exact`, the vector BLOB, the index state machine, `FakeEmbedder`),
-almanac-service (the authorisation matrix, the Space, fact, plan and consolidation machines,
+almanac-tidy (the fact and consolidation machines, the prompt and its parse, the removal notes, `Change`),
+almanac-service (the authorisation matrix, the Space and plan machines,
 `Plan::digest`, retention, the export writer and event lines, the config files, timeline rows),
 almanac-watch (`join`), almanac-dbus (skeletons, proxies, introspection XML, `MemoryError`),
 almanac-client (`Memory`, `Absent`, `InProcess`), almanac-fake, memoryd (`xdg`).
@@ -311,7 +312,7 @@ count or length as fatal (another vector space). It carries one `DataClass` (def
 on-device floor), because `Embedder::embed` has no per-document class. `InferdConsolidator` sends
 `Task::Extract` in the background with the most sensitive class among the labels it reads; the
 model answers `{"hunks": [...]}` of `promote`, `supersede` and `flag` that cite links, and memoryd
-builds the facts (label = the join of what they cite, `almanac_service::cited_label`, which
+builds the facts (label = the join of what they cite, `almanac_tidy::cited_label`, which
 `check_draft` also uses; id from a hash of the run and the text; date from the run). A hunk that
 cites nothing in the input is dropped, an answer that is not the object is `Unparseable`.
 `ConsolidationInput` gained `now`.
@@ -363,9 +364,9 @@ serves.
 
 **Embedding by data class (ask 70/80).** `recall::Doc.class` is a `ClassTag` (the data-class slug;
 recall names no porter type; empty means "no class"). `almanac-service` sets it from the strictest
-class of the document's label (`class_of`, which now also ranks `Prompt` after `Voice`; the tag is
-`class_tag`/`class_from_tag`). `recall::Embedder::embed_classed` (defaulted to `embed`) receives
-each batch with its texts' classes, and `InferdEmbedder` partitions the batch by class, opens one
+class of the document's label (`almanac_store::class_of`, which now also ranks `Prompt` after `Voice`; the tag is
+`class_tag`/`class_from_tag`, beside `ClassTag` in `almanac-store`). `recall::Embedder::embed_classed` (defaulted to `embed`) receives
+each batch with its texts' classes, and `almanac_infer::InferdEmbedder` partitions the batch by class, opens one
 session per class for that call (sessions are not kept), and returns the vectors in input order.
 Strictest-class pinning: one index is one model, so a class can only decide whether the model may
 receive the text, not which model embeds it. The card's model must satisfy the strictest class the
@@ -850,7 +851,7 @@ app's own). What this adds, on porter 993c56b (`Spaces1`, `SpaceId::{kind, for_a
 - **Crash safety.** Events and facts are matched against what the destination already holds (an event by times, actor,
   kind, label and body digest; a fact by id), then the Space is deleted, so a repeat finishes a half move without
   duplicates; a key already destroyed with no Space entry left means only the directories remain, and they are
-  removed. memoryd writes `removals.toml` (the logic is `almanac_service::Removals` over the `RemovalLedger` seam; `memoryd::FileLedger` keeps the file with `atomic-write-file`, which syncs the file and the directory, where the hand-written rename did not) (`removed = [{ space, removal = { memories, history } }]`; a bare space name
+  removed. memoryd writes `removals.toml` (the logic is `almanac_tidy::Removals` over the `RemovalLedger` seam; `memoryd::FileLedger` keeps the file with `atomic-write-file`, which syncs the file and the directory, where the hand-written rename did not) (`removed = [{ space, removal = { memories, history } }]`; a bare space name
   from an older file reads as `KEEP_ALL`) before moving, for the shell's call as well as for the registry's, and
   strikes the Space out after; it finishes the open notes at start (`Daemon::resume_removals`) with the choice noted.
 - **Spaces the registry does not know.** At start, after subscribing, `Daemon::reconcile` settles every desktop-wide
@@ -976,3 +977,19 @@ plain line: `confined` as "Memory keeps itself to its own folders"; `partial` as
 itself to its own folders, though this computer's system can only enforce part of that";
 `not-available` as "This computer can't confine memory to its folders". `off` occurs only in test
 builds; show nothing for it (or treat any unknown word the same way). Not done: the Settings UI.
+
+## Layering lanes A3.3 and A3.6 (2026-10-28)
+- `almanac-infer` (tier C) holds the inferd embedder and consolidator and their deadlines, over
+  porter-client's `Transport` and nothing else, so an app that is not memoryd can use them. The
+  prompt and its parse were already in the service (A0.3); they moved on into `almanac-tidy`.
+- `almanac-tidy` (tier P) holds the fact and consolidation machines, the prompt and parse,
+  `tidy_is_acceptable`, `Change`/`changes` and the removal notes (`RemovalLedger`, `Removals`).
+  The removal notes' text has its own `NotesFileError` (it used the service's `ConfigError`).
+  `class_of`, `class_tag` and `class_from_tag` moved to `almanac-store`, next to `ClassTag`, so
+  `almanac-infer` needs no service.
+- `almanac-search` was NOT created. `search.rs` is an `impl Open<B>` block: every reader
+  (`search`, `inject`, `recent`, `related`, `provenance`, `facts`, `primer`) works on the open
+  Space's private state (`Open`, `Cx`, `Stored`, `rt`) and the audit it writes. The only pure
+  leftovers are `why_of`, `count_of`, `merged` and the trust mapping, about 60 lines. Cutting a
+  crate needs the readers to take a narrow view of a Space first (a reader trait over the log,
+  the index and the stored facts); that is a design change, not a move.

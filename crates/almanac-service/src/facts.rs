@@ -3,7 +3,6 @@
 use crate::backend::Backend;
 use crate::docs::{fact_doc, fact_doc_id};
 use crate::events::ServiceEvent;
-use crate::fact::{FactEffect, FactEvent, FactLife, lands, step};
 use crate::open::{Cx, Open, Stored, failed, files_refusal};
 use crate::search::caller_actor;
 use crate::timeline::timeline_entry;
@@ -13,6 +12,7 @@ use almanac_core::{
     Source, SourceView, SpaceId, UnixSeconds, UseCount, Validity, desktop_admits,
 };
 use almanac_store::Entry;
+use almanac_tidy::fact::{FactEffect, FactEvent, FactLife, lands, step};
 use std::collections::{BTreeMap, BTreeSet};
 
 const SECONDS_PER_DAY: i64 = 86_400;

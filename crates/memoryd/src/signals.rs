@@ -1,10 +1,10 @@
-//! Turns what `almanac_service::changes` says changed into the bus: the signal to emit as it
+//! Turns what `almanac_tidy::changes` says changed into the bus: the signal to emit as it
 //! is, or the lookup the daemon must make first (the pending count and the status, which the
 //! signals carry).
 
 use almanac_core::SpaceId;
 use almanac_dbus::Signal;
-use almanac_service::Change;
+use almanac_tidy::Change;
 
 /// How the bus is told of a [`Change`].
 #[derive(Debug, Clone, PartialEq, Eq)]

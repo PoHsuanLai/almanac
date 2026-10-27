@@ -8,7 +8,7 @@
 //! `check_draft` holds every promotion to. A hunk that cites nothing in the input, or whose text
 //! is not fact text, is dropped; an answer that is not the JSON object at all is `Unparseable`.
 
-use crate::{ConsolidateError, ConsolidationInput, Draft, cited_label};
+use crate::consolidation::{ConsolidateError, ConsolidationInput, Draft, cited_label};
 use almanac_core::{
     Actor, Fact, FactId, FactText, Hunk, Link, SystemPart, TidyHunk, TopicPath, UserText, Validity,
 };

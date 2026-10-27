@@ -68,6 +68,7 @@ dependencies = [
  "almanac-service",
  "almanac-settings",
  "almanac-store",
+ "almanac-tidy",
  "chrono",
  "eventlog",
  "memfiles",
@@ -88,6 +89,22 @@ dependencies = [
  "almanac-core",
  "almanac-settings",
  "tempfile",
+]
+
+[[package]]
+name = "almanac-infer"
+version = "0.1.0"
+dependencies = [
+ "almanac-core",
+ "almanac-fake",
+ "almanac-store",
+ "almanac-tidy",
+ "porter-client",
+ "porter-core",
+ "porter-infer",
+ "recall",
+ "thiserror",
+ "tokio",
 ]
 
 [[package]]
@@ -113,6 +130,7 @@ dependencies = [
  "almanac-service",
  "almanac-settings",
  "almanac-store",
+ "almanac-tidy",
  "eventlog",
  "getrandom 0.3.4",
  "memfiles",
@@ -148,6 +166,7 @@ dependencies = [
  "almanac-seal",
  "almanac-settings",
  "almanac-store",
+ "almanac-tidy",
  "blake3",
  "chrono",
  "eventlog",
@@ -182,6 +201,20 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+]
+
+[[package]]
+name = "almanac-tidy"
+version = "0.1.0"
+dependencies = [
+ "almanac-core",
+ "almanac-fake",
+ "blake3",
+ "memfiles-format",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "toml",
 ]
 
 [[package]]
@@ -1074,12 +1107,14 @@ dependencies = [
  "almanac-dbus",
  "almanac-fake",
  "almanac-host",
+ "almanac-infer",
  "almanac-keyfile",
  "almanac-local",
  "almanac-seal",
  "almanac-service",
  "almanac-settings",
  "almanac-store",
+ "almanac-tidy",
  "almanac-watch",
  "atomic-write-file",
  "blake3",

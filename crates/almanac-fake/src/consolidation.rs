@@ -3,7 +3,7 @@
 
 use crate::fixtures::{mail_label, trusted_label};
 use almanac_core::*;
-use almanac_service::{ConsolidationInput, InputEvent, InputTopic};
+use almanac_tidy::{ConsolidationInput, InputEvent, InputTopic};
 use memfiles_format::{Block, TopicFile, render_topic};
 
 fn run_id() -> RunId {

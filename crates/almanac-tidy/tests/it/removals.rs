@@ -3,7 +3,7 @@
 
 use crate::support::space;
 use almanac_core::{HistoryFate, MemoryFate, Removal, SpaceId};
-use almanac_service::{LedgerError, RemovalLedger, Removals, removals_from_toml, removals_to_toml};
+use almanac_tidy::{LedgerError, RemovalLedger, Removals, removals_from_toml, removals_to_toml};
 use std::collections::BTreeMap;
 use std::sync::{Mutex, PoisonError};
 

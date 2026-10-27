@@ -7,9 +7,11 @@ use crate::support::inferd::{FakeInferd, Seen};
 use crate::support::{SharedKeys, bus::PrivateBus, connect, dirs_in, listed_spaces, space};
 use almanac_core::*;
 use almanac_fake::{mail_label, mail_thread_archived};
-use almanac_service::{ConsolidateError, ConsolidationInput, Consolidator, MemoryService};
+use almanac_infer::{InferdConsolidator, InferdEmbedder};
+use almanac_service::MemoryService;
 use almanac_store::{EmbedRole, Urgency};
-use memoryd::{InferdConsolidator, InferdEmbedder, SystemBackend, inferd_link};
+use almanac_tidy::{ConsolidateError, ConsolidationInput, Consolidator};
+use memoryd::{SystemBackend, inferd_link};
 use recall::{ClassTag, Classed, EmbedError, Embedder, FakeEmbedder};
 use std::sync::{Arc, Mutex};
 

@@ -1,14 +1,14 @@
 //! Consolidation proposals as files: the run file written when a run is drafted, read again when
 //! the Space opens, rewritten with each outcome. Applying, discarding and superseding are steps of
-//! the run machine (`consolidation::step`); this module carries them out and keeps the file and
+//! the run machine (`almanac_tidy::consolidation::step`); this module carries them out and keeps the file and
 //! `Open::last` in line.
 
 use crate::backend::Backend;
-use crate::consolidation::{RunEvent, step};
 use crate::events::ServiceEvent;
 use crate::open::{Cx, LastRun, Open, failed};
 use crate::runfile::{self, Gone, RecordState, RunRecord};
 use almanac_core::{DraftView, Refusal, RunId, RunState, UnixSeconds};
+use almanac_tidy::consolidation::{RunEvent, step};
 
 impl<B: Backend> Open<B> {
     /// Writes (or rewrites) the file of `last`: its state, the hunks as they stand, the skipped.

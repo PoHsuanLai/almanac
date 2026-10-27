@@ -3,7 +3,7 @@
 
 use crate::support::space;
 use almanac_core::*;
-use almanac_service::{Change, changes};
+use almanac_tidy::{Change, changes};
 
 #[test]
 fn what_a_reply_changed() {

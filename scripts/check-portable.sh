@@ -20,6 +20,7 @@ CORE=(
   "memfiles-format"
   "recall"
   "almanac-settings"
+  "almanac-tidy"
   "almanac-service"
   "almanac-host"
   "almanac-watch"

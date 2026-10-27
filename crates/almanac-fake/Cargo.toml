@@ -16,6 +16,7 @@ almanac-store = { workspace = true }
 memfiles = { workspace = true, features = ["testing"] }
 recall = { workspace = true, features = ["testing"] }
 almanac-service = { workspace = true }
+almanac-tidy = { workspace = true }
 memfiles-format = { workspace = true }
 chrono = { workspace = true }
 rusqlite = { workspace = true }

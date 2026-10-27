@@ -34,6 +34,7 @@
 //! ```
 
 mod chain;
+mod class;
 mod doc;
 mod embed;
 mod fuse;
@@ -45,6 +46,7 @@ mod vault;
 mod vector;
 
 pub use chain::{BodyState, Entry, verify_chain};
+pub use class::{class_from_tag, class_of, class_tag};
 pub use doc::{
     Allow, Chunk, ClassTag, Count, Doc, DocId, Facets, Ranked, StoredDoc, TopK, TrustTier,
 };

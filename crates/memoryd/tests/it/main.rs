@@ -2,7 +2,6 @@ mod binary;
 mod bus;
 mod bus_members;
 mod desktop;
-mod infer;
 mod inferd_bus;
 mod keyring;
 mod peers;

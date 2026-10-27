@@ -1,5 +1,5 @@
-//! memoryd's library half: the real seams (`SystemBackend`, the inferd-backed
-//! `InferdEmbedder` and `InferdConsolidator`), the XDG roots, the caller
+//! memoryd's library half: the real seams (`SystemBackend`, over the inferd-backed
+//! `almanac_infer` embedder and consolidator), the XDG roots, the caller
 //! identities and the bus handler (`Daemon`), so every module is testable on a private bus. `start` builds
 //! these over the real system and serves the session bus; the binary (`main.rs`) is arguments and
 //! a call to it.
@@ -8,7 +8,6 @@ mod backend;
 mod callers;
 mod consent;
 mod daemon;
-mod infer;
 mod keyring;
 mod keysel;
 mod ledger;
@@ -28,7 +27,6 @@ pub use callers::{
 };
 pub use consent::Consent;
 pub use daemon::Daemon;
-pub use infer::{Deadlines, InferdConsolidator, InferdEmbedder, class_of};
 pub use keyring::{LockChanges, is_lock_change};
 pub use keysel::KeysError;
 pub use ledger::FileLedger;

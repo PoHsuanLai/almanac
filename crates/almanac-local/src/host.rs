@@ -5,9 +5,9 @@ use crate::backend::LocalBackend;
 use almanac_core::{ReplicaId, RuleSet, SpaceId, SpaceMeta, VaultKind};
 use almanac_host::{read_config, write_private_atomic};
 use almanac_service::{
-    Backend, Clock, ConfigError, Consolidator, MemoryService, SpacesFile, spaces_from_toml,
-    spaces_to_toml,
+    Backend, Clock, ConfigError, MemoryService, SpacesFile, spaces_from_toml, spaces_to_toml,
 };
+use almanac_tidy::Consolidator;
 use recall::Embedder;
 
 /// Why the root could not be opened or written.

@@ -1,10 +1,10 @@
 //! The defaults for the two models an app may not have.
 
-use almanac_service::{ConsolidateError, ConsolidationInput, Consolidator, Draft};
 use almanac_store::{
     EmbedError, EmbedRole, Embedder, EmbedderCard, MaxBatch, Metric, PromptPrefixes, Urgency,
     Vector,
 };
+use almanac_tidy::{ConsolidateError, ConsolidationInput, Consolidator, Draft};
 
 /// No embedder: every request says it is unavailable, so the index stays lexical-only (FTS5)
 /// and recall answers by keyword. The exact vector scan has nothing to scan.

@@ -2,11 +2,11 @@
 //! memoryd supplies the real one; almanac-fake supplies in-memory ones.
 
 use crate::clock::Clock;
-use crate::consolidation::Consolidator;
 use crate::registry::{Listing, RegistryError};
 use almanac_core::{ReplicaId, SpaceId, SpaceMeta};
 use almanac_seal::{KeyError, KeyStore, SpaceKey};
 use almanac_store::{Embedder, IndexFailure, LogError, LogWrite, SearchIndex, Vault, VaultError};
+use almanac_tidy::Consolidator;
 use std::future::Future;
 
 /// Why a backend could not open a Space's stores.

@@ -1,9 +1,9 @@
-//! `removals.toml`: the removal notes (`almanac_service::RemovalLedger`) kept in a file. The
+//! `removals.toml`: the removal notes (`almanac_tidy::RemovalLedger`) kept in a file. The
 //! file is replaced whole through `atomic-write-file` (temp file, fsync, rename), so a crash
 //! leaves the old notes or the new ones.
 
 use almanac_core::{Removal, SpaceId};
-use almanac_service::{LedgerError, RemovalLedger, removals_from_toml, removals_to_toml};
+use almanac_tidy::{LedgerError, RemovalLedger, removals_from_toml, removals_to_toml};
 use atomic_write_file::AtomicWriteFile;
 use std::collections::BTreeMap;
 use std::io::Write;

@@ -5,9 +5,7 @@ use almanac_core::*;
 use almanac_fake::{
     ana_topic_text, consolidation_event, consolidation_event_link, consolidation_input,
 };
-use almanac_service::{
-    ConsolidateError, Draft, InputTopic, check_draft, parse_draft, render_prompt,
-};
+use almanac_tidy::{ConsolidateError, Draft, InputTopic, check_draft, parse_draft, render_prompt};
 
 #[test]
 fn the_prompt_lists_the_facts_and_the_events_and_says_what_to_answer() {
