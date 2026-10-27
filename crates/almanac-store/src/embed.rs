@@ -62,8 +62,8 @@ pub struct Classed {
 }
 
 /// Turns texts into vectors. Implementations: `FakeEmbedder` (feature `testing`),
-/// `FastembedEmbedder` (recall-fastembed), `InferdEmbedder` (memoryd, over porter's inference
-/// session).
+/// `InferdEmbedder` (memoryd, over porter's
+/// inference session).
 pub trait Embedder: Send + Sync {
     /// Which vector space it produces, how many texts it takes at once and its prompt prefixes.
     fn card(&self) -> &EmbedderCard;

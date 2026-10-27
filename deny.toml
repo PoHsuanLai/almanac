@@ -23,18 +23,6 @@ allow = [
 ]
 confidence-threshold = 0.9
 
-# Two narrow exceptions, both reached only through `recall-fastembed` (fastembed -> hf-hub ->
-# ureq -> webpki-roots): Mozilla's CA bundle data is published under CDLA-Permissive-2.0, a
-# permissive data licence in the same family as the allowed ones. It is allowed for those two
-# crates and nothing else, so a new dependency arriving under it still stops the build. The
-# crates are excluded from the gate's build (ort downloads binaries), but `cargo deny` reads the
-# whole lockfile. Whether quire's shared deny.toml should carry the same exception is the
-# deny-owner's decision; until then this repo's file is the only one that does.
-exceptions = [
-    { allow = ["CDLA-Permissive-2.0"], crate = "webpki-roots" },
-    { allow = ["CDLA-Permissive-2.0"], crate = "webpki-root-certs" },
-]
-
 # MPL-2.0 is allowed, and it is a decision rather than an oversight.
 #
 # MPL is file-level copyleft: fine to link or depend on, never to paste source from. That

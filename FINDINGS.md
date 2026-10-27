@@ -3,7 +3,7 @@
 Open items and standing facts. An entry names the condition that closes it. At the freeze
 (porter 4623e18) there were 59 `todo!()` bodies; fill waves 1 and 2 (eventlog, memfiles, recall, seal,
 watch, almanac-service) removed 53 and the bus and daemon wave (F2 memoryd, below) removed the last
-6, so **0 remain**. No contract test is `#[ignore]`d except the by-hand fastembed one.
+6, so **0 remain**. No contract test is `#[ignore]`d.
 
 ## Stubs behind frozen interfaces
 
@@ -28,7 +28,7 @@ message model", `research-persistent-agent.md` sections C, D and E, and `researc
 section 7 item 9. It builds against the amended porter (branch `m-amend-comp`: `prov::Message`,
 `AgentRef`, `Address`, `AgentRole::Worker`). Types, traits, signatures, docs, pure tables and
 tests; no new `todo!()` (the count and the list above are unchanged; three stub bodies,
-`FastembedEmbedder::embed`, `InferdEmbedder::embed` and the `Index` methods, only have longer
+`InferdEmbedder::embed` and the `Index` methods, only have longer
 doc text).
 
 **Rig item 9 (recall).** `Embedder::embed(texts, role, urgency)` with `EmbedRole { Query,
@@ -38,8 +38,7 @@ and porter-core `EmbedCap.{max_batch, prompts}`); `EmbedderCard::{prefixed, batc
 space_vs}` are pure and table-tested (a different prefix or model is a different vector space, a
 different batch size is not); `EmbedError` gained `Busy` and `Failed { class, why }` with
 `retry_class() -> RetryClass { Retry, Fatal }` (`Unavailable` and `Busy` retry; `Refused` and
-`TooLong` are fatal). Only one side applies the prefix: inferd does, from `EmbedCap.prompts`;
-`FastembedEmbedder` does it itself. The card carries the prefixes so the index can tell when it
+`TooLong` are fatal). Only one side applies the prefix: inferd does, from `EmbedCap.prompts`. The card carries the prefixes so the index can tell when it
 went stale.
 
 **Messages: an `EventBody::Message` variant, not a text field on `AreaPayload`.** The research
@@ -208,9 +207,6 @@ Nothing below is built; the interfaces it will use are.
   (memory.md conflict 2).
 - **porter's `prov::Label` constructors and `Label::join` are stubs** until porter's fill, so
   almanac's tests build labels from their fields and `check_draft` is a stub with them.
-- **`recall-fastembed` is excluded from clippy and test** (ort downloads binaries at build
-  time): check it by hand with network, `cargo check -p recall-fastembed`. It is in the lockfile,
-  so `cargo deny check licenses` covers its tree.
 - **Cross-repo dependencies are git deps at pinned revs** (`porter-core`, `prov`, `porter-infer`,
   `porter-client`, `porter-dbus` from `https://github.com/PoHsuanLai/porter`), so a plain `git clone`
   builds with no sibling checkout (quire `CONSUMING.md` section 1). The URL spelling and the rev

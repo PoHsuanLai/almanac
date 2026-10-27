@@ -23,7 +23,6 @@ trait), section 5 (what is built), section 6 (copy the recipe).
 | `memfiles-format` | pure: the topic file format (`parse_topic`, `render_topic`, the trailer), `Store` over a `Vault` (from `almanac-store`), `Primer`, `MemfilesError`. No file IO | none |
 | `memfiles` | the vaults on disk: `PlainDir`, `SealedDir`, and `MemoryVault` (feature `testing`). The `Vault` seam and `VaultPath` are in `almanac-store` | the filesystem |
 | `recall` | generic: `VectorIndex`, `Fts5`, `ExactScan`, `Index` (implements `SearchIndex`), `FakeEmbedder` (feature `testing`); re-exports the `Embedder`, document, fusion and index-state types from `almanac-store`. Knows nothing of almanac's domain | rusqlite |
-| `recall-fastembed` | `FastembedEmbedder` (in-process ONNX). Excluded from clippy and test: ort downloads binaries | ort through fastembed |
 | `almanac-service` | memoryd's core over seams: `allowed`, the Space, fact, forget-plan and consolidation machines (with the consolidation prompt and the parse of the model's draft), `changes` (what a reply changed, as the pure `Change` events the daemon turns into bus signals), the removal notes (`Removals` over the `RemovalLedger` seam and the `removals.toml` format), retention, timeline rows, the export writer, the config files, `MemorySettings` and the lenient settings reader (`settings`: the key table held to `dist/settings/almanac.settings.toml`, `Locator`, and the consent gate: `Confirmations` and `loosen` put back the shipped value of any looser-than-shipped value the person has not confirmed), `Backend` and `MemoryService`. Depends on `almanac-store` and `memfiles-format`, never on `eventlog` or `recall`, so it links no SQLite, SQLCipher or OpenSSL | none (seams are passed in) |
 | `almanac-watch` | `FileWatch`, `WatchError`, the pure `join` of observed changes and app-supplied reasons; `InotifyWatch` (notify 8.2) behind the `linux` feature | inotify (feature `linux`) |
 | `almanac-dbus` | `org.quire.Memory1` (`Record`, `Recall`, `Control`) as zbus proxies and skeletons (the introspection source), `MemoryError`, the argument codec (`encode_request`/`decode_request`, `encode_reply`/`decode_reply`), `invoke` (the caller's half) and the served objects over a `Serve` handler (the daemon's half) | zbus |
@@ -40,7 +39,7 @@ cross-platform, and the desktop's features are additive. For almanac:
 | Portable core (builds with `--no-default-features`) | Desktop extra |
 | --- | --- |
 | `almanac-core`, `almanac-seal` (`ProvidedKeys`), `almanac-store`, `eventlog`, `memfiles`, `recall`, `almanac-service`, `almanac-local` (the app's disk `Backend`), `almanac-client` with `in_process`, `almanac-watch`'s seam and `join` | `almanac-dbus`, `memoryd` (the one shared memory daemon: Secret Service keys, Landlock, the bus, file watching, the nightly timer), `almanac-client`'s `dbus` feature, `almanac-seal`'s `oo7` feature, `almanac-watch`'s `linux` feature (`InotifyWatch`) |
-| test helpers: `almanac-fake`; `recall-fastembed` (ONNX, optional) | |
+| test helpers: `almanac-fake` | |
 
 An app on another desktop hosts the service itself: `Memory::over(InProcess::new(service,
 caller))` over a `Backend` whose keys are `ProvidedKeys` (the app gives one 32-byte master key,
@@ -74,13 +73,12 @@ Allowed direct edges (checked by `scripts/check-boundary.sh`; dev-dependencies a
 | `eventlog`, `memfiles` | `almanac-core`, `almanac-seal`, `almanac-store` |
 | `memfiles-format` | `almanac-core`, `almanac-store` |
 | `recall` | `almanac-store` |
-| `recall-fastembed` | `recall` |
 | `almanac-service` | `almanac-core`, `almanac-seal`, `almanac-store`, `memfiles-format` |
 | `almanac-watch`, `almanac-dbus` | `almanac-core` |
 | `almanac-client` | `almanac-core`; `almanac-service` with feature `in_process`; `almanac-dbus` with feature `dbus` |
 | `almanac-fake` | `almanac-core`, `almanac-seal`, `almanac-store`, `eventlog`, `memfiles`, `recall`, `almanac-service` |
 | `almanac-local` | `almanac-core`, `almanac-seal`, `almanac-store`, `eventlog`, `memfiles`, `recall`, `almanac-service` |
-| `memoryd` | every crate above except `almanac-client`, `almanac-fake`, `recall-fastembed`, `memfiles-format` (tests only); and `porter-core`, `porter-dbus` (its `callers`: who is calling), `porter-infer`, `porter-client` |
+| `memoryd` | every crate above except `almanac-client`, `almanac-fake`, `memfiles-format` (tests only); and `porter-core`, `porter-dbus` (its `callers`: who is calling), `porter-infer`, `porter-client` |
 
 almanac never depends on stoker, docket or cua: their payloads (policy, consent, computer-use
 steps, sessions) are `EventBody::Area` in their owners' serde form, and `check-boundary.sh`
@@ -173,7 +171,7 @@ pub trait Vault: Send + Sync {
     fn remove(&self, p: &VaultPath) -> Result<(), VaultError>;
 }
 
-// recall: FakeEmbedder, FastembedEmbedder, memoryd's InferdEmbedder.
+// recall: FakeEmbedder, memoryd's InferdEmbedder.
 pub trait Embedder: Send + Sync {
     fn card(&self) -> &EmbedderCard;
     /// `role` is Query or Document (asymmetric models); at most `card().max_batch` texts.
@@ -221,7 +219,7 @@ interface other work builds on; a change is a format bump (section 6) or a SPEC 
 | `MemoryLog`, `SqliteLog` | built; one contract, `SqliteLog` also over a file (SQLCipher, keyed digest checked on append) |
 | key derivation (contexts pinned), `seal`/`unseal`, `DbKey`, `MemoryKeys`, `Oo7Keys` | built; golden derivation |
 | topic file format, trailer grammar, `parse_topic`/`render_topic`, `VaultPath`, `MemoryVault`, `PlainDir`, `SealedDir`, `Store`, `Primer` | built; golden file |
-| `fuse_rrf`, `chunk`, `nearest_exact`, the vector BLOB, `Fts5`, `ExactScan`, `Index` (rebuild, upsert, `sync` that adopts a file, per-class refusal), `FakeEmbedder`, `FastembedEmbedder` | built, tested |
+| `fuse_rrf`, `chunk`, `nearest_exact`, the vector BLOB, `Fts5`, `ExactScan`, `Index` (rebuild, upsert, `sync` that adopts a file, per-class refusal), `FakeEmbedder` | built, tested |
 | the Space, fact, plan and consolidation machines, `Plan::digest`, retention, timeline rows | built, table-tested |
 | every hunk (Promote, Supersede, Tidy, Stamp, ExternalEdit, Flag), revert, the retention sweep, marks, use counts | built; `almanac-fake/tests/it/hunks.rs` |
 | the export writer, `EventLine`, config files (`memory.toml`, `spaces.toml`) | built; golden tar layout and event lines |
@@ -375,19 +373,18 @@ the fakes.
 
 ## 9. Repo rules
 
-- **Gate** (check every exit code; `recall-fastembed` is excluded because ort downloads binaries):
+- **Gate** (check every exit code):
 
   ```bash
   set -euo pipefail
   cargo fmt --all --check
-  cargo clippy --workspace --all-targets --all-features --exclude recall-fastembed -- -D warnings
-  cargo test --workspace --all-features --exclude recall-fastembed
+  cargo clippy --workspace --all-targets --all-features -- -D warnings
+  cargo test --workspace --all-features
   ./scripts/check-boundary.sh
   cargo deny check licenses
   echo "GATE GREEN"
   ```
 
-  A network-allowed dev check, run by hand: `cargo check -p recall-fastembed`.
 - **No `unsafe`** anywhere (`unsafe_code = "deny"`). That is why vectors are exact scan and not
   `sqlite-vec` (QUESTIONS P5).
 - **Dependencies** come from quire's pinned block (`docs/workspace-deps.toml` there), copied

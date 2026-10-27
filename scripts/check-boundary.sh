@@ -17,8 +17,7 @@ cd "$(dirname "$0")/.."
 # OpenSSL) even with its `in_process` feature (the service is generic over the store seams), and almanac-dbus reaches tokio only through zbus's
 # `tokio` feature. almanac-store (the seam traits and types the service stands on) and
 # almanac-service reach no storage at all: no rusqlite, no SQLCipher (libsqlite3-sys), no OpenSSL,
-# no runtime, no bus. recall-fastembed and memoryd are the places that reach fastembed and the
-# daemon's runtime, so they have no rule.
+# no runtime, no bus. memoryd is the place that reaches the daemon's runtime, so it has no rule.
 EFFECTS="zbus zvariant tokio reqwest hyper oo7 ort fastembed"
 # almanac-core is also light enough for cua-bus to depend on (interface ask 26: `HandedBack`
 # carries `almanac_core::EventRef`; cua's own EFFECTS list adds these to ours), so it reaches none
@@ -88,7 +87,6 @@ EDGES=(
   "memfiles: almanac-core almanac-seal almanac-store"
   "memfiles-format: almanac-core almanac-store"
   "recall: almanac-store"
-  "recall-fastembed: recall"
   "almanac-service: almanac-core almanac-seal almanac-store memfiles-format"
   "almanac-watch: almanac-core"
   "almanac-dbus: almanac-core"

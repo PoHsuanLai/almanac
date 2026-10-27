@@ -8,7 +8,6 @@ members = [
   "crates/memfiles",
   "crates/memfiles-format",
   "crates/recall",
-  "crates/recall-fastembed",
   "crates/almanac-service",
   "crates/almanac-watch",
   "crates/almanac-dbus",
@@ -80,8 +79,6 @@ oo7 = "0.6"
 landlock = "0.4"
 # memoryd's removal notes: write to a temp file, fsync, rename over (BSD-3-Clause, in deny.toml's list).
 atomic-write-file = "0.3"
-# recall-fastembed only; excluded from the gate.
-fastembed = "7.1"
 # Dev-dependencies.
 proptest = "1"
 tempfile = "3"
