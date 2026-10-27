@@ -10,7 +10,6 @@
 //! ([`policy_for`]) so it is a table test; [`enforce`] is the only effect.
 
 use almanac_core::Dirs;
-use almanac_dbus::Confinement;
 use landlock::{
     ABI, Access, AccessFs, AccessNet, Ruleset, RulesetAttr, RulesetCreatedAttr, RulesetError,
     RulesetStatus, path_beneath_rules,
@@ -49,6 +48,33 @@ pub enum Enforcement {
     Partial,
     /// This kernel has no Landlock (or it is not enabled): nothing is restricted.
     Unsupported,
+}
+
+/// How far the daemon confines itself (its Landlock sandbox), as the stable word the
+/// `Confinement` property of `org.quire.Memory1.Control` carries. The words of
+/// [`Confinement::as_word`] are a public contract: the Settings app reads them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Confinement {
+    /// Every restriction of the policy is in force.
+    Confined,
+    /// The kernel's Landlock is older than the policy: part of it is in force.
+    Partial,
+    /// The kernel has no Landlock: nothing is restricted by the daemon.
+    NotAvailable,
+    /// A test build ran with the sandbox switched off. Never in a normal build.
+    Off,
+}
+
+impl Confinement {
+    /// The word the property carries.
+    pub const fn as_word(self) -> &'static str {
+        match self {
+            Confinement::Confined => "confined",
+            Confinement::Partial => "partial",
+            Confinement::NotAvailable => "not-available",
+            Confinement::Off => "off",
+        }
+    }
 }
 
 /// The word the bus carries for how the daemon started: `enforcement` is what `enforce` said,

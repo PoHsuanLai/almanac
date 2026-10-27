@@ -36,6 +36,7 @@ almanac-settings = { workspace = true }
 almanac-watch = { workspace = true }
 atomic-write-file = { workspace = true }
 almanac-dbus = { workspace = true }
+almanac-dbus-serve = { workspace = true }
 porter-core = { workspace = true }
 porter-daemon = { workspace = true }
 porter-dbus = { workspace = true }

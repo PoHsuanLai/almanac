@@ -6,7 +6,7 @@ use crate::support::bus::PrivateBus;
 use crate::support::{SharedKeys, TestBackend, connect, dirs_in, service, space};
 use almanac_client::{ClientError, DbusTransport, Memory};
 use almanac_core::*;
-use almanac_dbus::serve_on;
+use almanac_dbus_serve::{Signal, serve_on};
 use almanac_tidy::Change;
 use memoryd::{
     Daemon, Delivery, ProcPeers, caller_for, delivery_of, load_callers, table_from_toml,
@@ -353,7 +353,7 @@ fn what_a_change_makes_the_bus_say() {
     };
     assert!(matches!(
         delivery_of(recorded),
-        Some(Delivery::Emit(almanac_dbus::Signal::Recorded { space, kind, event_ref }))
+        Some(Delivery::Emit(Signal::Recorded { space, kind, event_ref }))
             if space == "work"
                 && kind == "thing.archived"
                 && event_ref == serde_json::to_string(&event).expect("json")
@@ -364,7 +364,7 @@ fn what_a_change_makes_the_bus_say() {
             space: space("work"),
             run
         }),
-        Some(Delivery::Emit(almanac_dbus::Signal::ConsolidationReady {
+        Some(Delivery::Emit(Signal::ConsolidationReady {
             space: "work".to_owned(),
             run: "c-0123456789abcdef0123".to_owned()
         }))

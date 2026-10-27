@@ -1,7 +1,8 @@
 //! The live objects declare the same interface as the frozen skeletons: the checked-in
 //! introspection file is the contract for both.
 
-use almanac_dbus::*;
+use almanac_dbus::{Call, MemoryError};
+use almanac_dbus_serve::*;
 use std::os::fd::OwnedFd;
 use std::sync::Arc;
 

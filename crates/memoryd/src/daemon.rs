@@ -4,6 +4,7 @@
 //! (`encode_reply`). After each request the daemon persists the files only it writes
 //! (`spaces.toml`, `memory.toml`) and tells the bus what changed.
 
+use crate::Confinement;
 use crate::consent::Consent;
 use crate::ledger::FileLedger;
 use crate::peers::Peers;
@@ -13,9 +14,8 @@ use almanac_core::{
     Caller, DesktopSpace, Dirs, MemoryReply, MemoryRequest, PlanToken, Refusal, Removal, SpaceId,
     SpaceKind,
 };
-use almanac_dbus::{
-    Call, Confinement, MemoryError, Serve, Signal, decode_request, emit_to, encode_reply,
-};
+use almanac_dbus::{Call, MemoryError, decode_request, encode_reply};
+use almanac_dbus_serve::{Serve, Signal, emit_to};
 use almanac_host::write_private_atomic;
 use almanac_service::{
     Allowed, Backend, MemoryService, ServiceEvent, SpacesFile, allowed, locked_status,
@@ -343,8 +343,8 @@ impl<B: Backend + 'static, P: Peers> Serve for Daemon<B, P> {
         self.serve_as(&caller, call, fd).await
     }
 
-    fn confinement(&self) -> Confinement {
-        self.confinement
+    fn confinement(&self) -> &'static str {
+        self.confinement.as_word()
     }
 }
 

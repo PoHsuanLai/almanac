@@ -7,7 +7,8 @@
 use crate::support::bus::PrivateBus;
 use crate::support::connect;
 use almanac_core::Refusal;
-use almanac_dbus::{Call, MemoryError, Serve, encode_request, introspection, invoke, serve_on};
+use almanac_dbus::{Call, MemoryError, encode_request, invoke};
+use almanac_dbus_serve::{Serve, introspection, serve_on};
 use std::collections::BTreeSet;
 use std::os::fd::OwnedFd;
 use std::sync::{Arc, Mutex};

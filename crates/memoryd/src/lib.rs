@@ -35,7 +35,8 @@ pub use porter_daemon::{ProcGate, ProcRoot};
 pub use registry::{REGISTRY_WAIT, SpaceRegistry};
 pub use run::{Env, PROC_GATE, PROC_ROOT_VAR, SYSTEM_CALLERS_VAR, StartError, start};
 pub use sandbox::{
-    Enforcement, Policy, SandboxError, bus_socket, confinement_of, enforce, policy_for, prepare,
+    Confinement, Enforcement, Policy, SandboxError, bus_socket, confinement_of, enforce,
+    policy_for, prepare,
 };
 pub use settings_watch::{DEBOUNCE, SettingsWatch, WatchState, apply, apply_next};
 pub use signals::{Delivery, delivery_of};

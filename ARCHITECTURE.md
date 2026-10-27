@@ -30,7 +30,8 @@ trait), section 5 (what is built), section 6 (copy the recipe).
 | `almanac-infer` | the inferd adapters over porter-client's `Transport`: `InferdEmbedder` (an `Embedder`), `InferdConsolidator` (a `Consolidator`) and their `Deadlines`. No daemon, so an app other than memoryd can use them | inferd, through the transport it is given |
 | `almanac-host` | the files memory keeps beside its Spaces: `Locator` (finds `$XDG_CONFIG_HOME/almanac/settings.toml`, then `$XDG_CONFIG_DIRS`; reads it through `almanac-settings` and keeps the confirmations store), `write_private_atomic`, `read_config`. Used by memoryd and `almanac-local` | the filesystem |
 | `almanac-watch` | `FileWatch`, `WatchError`, the pure `join` of observed changes and app-supplied reasons; `InotifyWatch` (notify 8.2) behind the `linux` feature | inotify (feature `linux`) |
-| `almanac-dbus` | `org.quire.Memory1` (`Record`, `Recall`, `Control`) as zbus proxies and skeletons (the introspection source), `MemoryError`, the argument codec (`encode_request`/`decode_request`, `encode_reply`/`decode_reply`), `invoke` (the caller's half) and the served objects over a `Serve` handler (the daemon's half) | zbus |
+| `almanac-dbus` | the caller's half of `org.quire.Memory1` (`Record`, `Recall`, `Control`): the zbus proxies, bus names, `MemoryError`, the argument codec (`encode_request`/`decode_request`, `encode_reply`/`decode_reply`) and `invoke` | zbus |
+| `almanac-dbus-serve` | the daemon's half: the objects served over a `Serve` handler, `Signal` with `emit`/`emit_to`, and the frozen skeletons whose introspection is checked against `dbus/org.quire.Memory1.xml`. Reaches `almanac-dbus`, never the other way | `almanac-dbus`, zbus |
 | `almanac-client` | the app-facing `Memory` over a `Transport`: `Absent` (no-op on other desktops), `DbusTransport` (feature `dbus`), `InProcess` (feature `in_process`, off by default: only it links `almanac-service`, which links no storage) | through its transport |
 | `almanac-local` | the portable on-disk `Backend` for an app that hosts its own memory: `LocalBackend` (SQLCipher log and index, sealed or plain files, `ProvidedKeys`, `SystemClock` (the one real `Clock`) or an app-passed clock, embedder and consolidator, `NoEmbedder`/`NoConsolidator` by default), `Root` (the one directory the app gives), `open`, `create_space`, `save_spaces` (`spaces.toml`); no XDG, bus, inotify or Landlock | none (seams are passed in) |
 | `almanac-fake` | test-only: `fake_service`, `FakeBackend`, `SteppedClock`, `SharedVault`, `ScriptedConsolidator`, `Scratch`, the five fixtures | none |
@@ -43,7 +44,7 @@ cross-platform, and the desktop's features are additive. For almanac:
 
 | Portable core (builds with `--no-default-features`) | Desktop extra |
 | --- | --- |
-| `almanac-core`, `almanac-seal` (`ProvidedKeys`), `almanac-store`, `eventlog`, `memfiles`, `recall`, `almanac-tidy`, `almanac-service`, `almanac-local` (the app's disk `Backend`), `almanac-client` with `in_process`, `almanac-watch`'s seam and `join` | `almanac-dbus`, `memoryd` (the one shared memory daemon: Secret Service keys, Landlock, the bus, file watching, the nightly timer), `almanac-client`'s `dbus` feature, `almanac-seal`'s `oo7` feature, `almanac-watch`'s `linux` feature (`InotifyWatch`) |
+| `almanac-core`, `almanac-seal` (`ProvidedKeys`), `almanac-store`, `eventlog`, `memfiles`, `recall`, `almanac-tidy`, `almanac-service`, `almanac-local` (the app's disk `Backend`), `almanac-client` with `in_process`, `almanac-watch`'s seam and `join` | `almanac-dbus`, `almanac-dbus-serve`, `memoryd` (the one shared memory daemon: Secret Service keys, Landlock, the bus, file watching, the nightly timer), `almanac-client`'s `dbus` feature, `almanac-seal`'s `oo7` feature, `almanac-watch`'s `linux` feature (`InotifyWatch`) |
 | test helpers: `almanac-fake` | |
 
 An app on another desktop hosts the service itself: `Memory::over(InProcess::new(service,
@@ -59,7 +60,7 @@ keys), plus `in_process` (hosting the service in the app; off by default, though
 or OpenSSL: the app's `Backend` does). An **app-level desktop switch** says "this app is on the Quire desktop" and is
 `quire-desktop`; it is declared only by a crate that holds a D-Bus client, by implication, never as a
 rename: `almanac-client` `quire-desktop = ["dbus"]`, default on. No other almanac crate needs the
-alias: `almanac-dbus`, `memoryd` are the desktop itself, `almanac-watch` and `almanac-seal` hold no
+alias: `almanac-dbus`, `almanac-dbus-serve`, `memoryd` are the desktop itself, `almanac-watch` and `almanac-seal` hold no
 D-Bus client (their platform features are what a non-Linux OS lacks). An app on macOS or Windows
 depends on `almanac-client` with `default-features = false, features = ["in_process"]`. Default
 builds are unchanged. `scripts/check-portable.sh` checks the left column (including
@@ -79,7 +80,7 @@ A crate depends on its own tier or a lower one (P < C < A), never up; `dev-depen
 | Tier | Crates |
 | --- | --- |
 | P | `almanac-core`, `almanac-seal`, `almanac-store`, `memfiles-format`, `almanac-settings`, `almanac-tidy`, `almanac-service` |
-| C | `almanac-keyfile`, `almanac-host`, `eventlog`, `memfiles`, `recall`, `almanac-watch`, `almanac-infer`, `almanac-dbus`, `almanac-client`, `almanac-fake`, `almanac-local` |
+| C | `almanac-keyfile`, `almanac-host`, `eventlog`, `memfiles`, `recall`, `almanac-watch`, `almanac-infer`, `almanac-dbus`, `almanac-dbus-serve`, `almanac-client`, `almanac-fake`, `almanac-local` |
 | A | `memoryd` |
 
 The script also reports source files over 500 lines (`--long-files`, report only) and seeds one violation per tier to prove the bans fire (`--self-test`). The `KNOWN` list names each violation that exists today and the plan lane (`~/rs-wt/agent-layers/PLAN.md`) that removes it; a row whose violation is gone fails, so the list only shrinks. It is empty today.
@@ -93,7 +94,7 @@ External boundaries (default features): `almanac-core` never reaches `zbus zvari
 reqwest hyper oo7 ort fastembed rusqlite notify toml`; `almanac-seal`, `memfiles`, `memfiles-format`: the same
 minus `toml`/with `rusqlite` forbidden; `eventlog`, `recall`, `almanac-fake`,
 `almanac-client` (default features) never reach the effect list (`zbus ... fastembed`) or `notify`; `almanac-store`, `almanac-tidy` and `almanac-service` also never reach `rusqlite`, `libsqlite3-sys` (SQLCipher), `openssl-sys` or `openssl`; `almanac-infer` reaches no bus, HTTP client, keyring, embedding runtime or storage (inferd is behind the `Transport` it is given); `almanac-watch`
-may reach `notify` and never `rusqlite`; `almanac-dbus` reaches `tokio` only through zbus's
+may reach `notify` and never `rusqlite`; `almanac-dbus` and `almanac-dbus-serve` reach `tokio` only through zbus's
 `tokio` feature. `oo7` is behind `almanac-seal`'s `oo7` feature only; `zbus` behind
 `almanac-client`'s `dbus` feature only; `almanac-client` with `in_process` reaches no `rusqlite` or `openssl-sys` either.
 
@@ -114,7 +115,8 @@ may reach `notify` and never `rusqlite`; `almanac-dbus` reaches `tokio` only thr
 | `almanac-settings` | `keys`, `loosen` < `read` < `confirm` |
 | `almanac-host` | `files` < `locate` |
 | `almanac-watch` | `observed` < `join` < `inotify` |
-| `almanac-dbus` | `names`, `error`, `record`, `recall`, `control` (skeletons and proxies), `codec` (`request`, `reply`), `invoke`, `serve`, `introspect` |
+| `almanac-dbus` | `names`, `error`, `record`, `recall`, `control` (proxies), `codec` (`request`, `reply`), `invoke` |
+| `almanac-dbus-serve` | `skeleton` (`record`, `recall`, `control`), `introspect`, `serve` (`record`, `recall`, `control`, `signal`) |
 | `almanac-client` | `transport` < `memory` |
 | `almanac-fake` | `clock`, `consolidator`, `fixtures`, `scratch` < `backend` |
 | `memoryd` | `xdg`, `peers`, `signals` (`Change` to bus signal), `ledger` (`FileLedger`: `removals.toml` through `atomic-write-file`), `sandbox`, `settings_watch`, `consent`, `keysel` < `backend` < `daemon` < `main` |
@@ -144,7 +146,7 @@ may reach `notify` and never `rusqlite`; `almanac-dbus` reaches `tokio` only thr
 | what memoryd may touch (Landlock) | `memoryd::sandbox` |
 | the export layout and event lines | `almanac-service::export` |
 | the file-why join | `almanac-watch::join` |
-| D-Bus names, members, error names | `almanac-dbus::{names, record, recall, control, error}` |
+| D-Bus names, members, error names | `almanac-dbus::{names, record, recall, control, error}` (proxies); the served objects and skeletons in `almanac-dbus-serve` |
 | the system clock | `almanac-local` (`clock.rs`) |
 | the environment | `memoryd` (`main.rs`) |
 
@@ -235,7 +237,7 @@ interface other work builds on; a change is a format bump (section 6) or a SPEC 
 | `plan_forget`, `check_draft`, `MemoryService` | built |
 | the file-why `join`, `InotifyWatch` | built |
 | D-Bus skeletons, proxies, `dbus/org.quire.Memory1.xml`, `MemoryError` | frozen, introspection tested (the skeletons and the served objects both) |
-| D-Bus codec, `invoke`, the served objects, `DbusTransport` | built; `almanac-dbus/tests/it/codec.rs` (every wire sample, both directions) |
+| D-Bus codec, `invoke`, the served objects, `DbusTransport` | built; `almanac-dbus/tests/it/codec.rs` (every wire sample, both directions), `almanac-dbus-serve/tests/it/served.rs` |
 | `Memory`, `Absent`, `InProcess` | built, tested |
 | `fake_service`, fixtures, scratch dirs | built |
 | `SystemBackend`, XDG roots, `inferd_link`, and `almanac-infer`'s `InferdEmbedder` and `InferdConsolidator` | built; the models are tested over a scripted inferd session and over a fake inferd on a private bus |
@@ -291,7 +293,7 @@ pending/**.md` plain, `rules.toml`. Never the index, never the keys. Golden:
 `partial`, `not-available` or, in a test build only, `off`: how far memoryd's Landlock sandbox is in
 force); bodies are the serde JSON of
 `almanac-core` types in `s` arguments; errors `org.quire.Memory1.Error.<Refusal variant>`.
-`dbus/org.quire.Memory1.xml` is checked against the skeletons by `almanac-dbus`'s
+`dbus/org.quire.Memory1.xml` is checked against the skeletons by `almanac-dbus-serve`'s
 introspection test; the failure prints the new text.
 
 ## 7. Recipes
@@ -348,7 +350,7 @@ and every fact; `Recent`, `Entries`, `Timeline` and export return it. The member
 
 **Add a request**: the variant in `MemoryRequest` and its reply in `MemoryReply`; its arm in
 `MemoryRequest::space`, in `allowed` (the match is exhaustive) and in `MemoryService::handle`;
-the D-Bus member in `almanac-dbus` (proxy, skeleton and served object), then regenerate and review
+the D-Bus member in `almanac-dbus` (proxy) and `almanac-dbus-serve` (skeleton and served object), then regenerate and review
 `dbus/org.quire.Memory1.xml`; a method on `Memory`; the arms of `encode_request`, `decode_request`,
 `decode_reply`, `encode_reply` and `invoke`; the sample in `almanac-core/tests/it/support/samples.rs`
 (the wire and codec tests read it); its queue claim in `almanac_service::claim_of`.
@@ -401,7 +403,7 @@ the fakes.
   git dependencies at a pinned rev, so a plain clone builds with no sibling checkout.
 - **The wire is serde.** Every stored or wire type has a round-trip test; enums with data are
   adjacently tagged (`kind`/`v`).
-- **D-Bus signatures change with their XML.** `almanac-dbus/tests/it/introspection.rs` fails until
+- **D-Bus signatures change with their XML.** `almanac-dbus-serve/tests/it/introspection.rs` fails until
   `dbus/org.quire.Memory1.xml` equals the skeletons' introspection, and `tests/it/served.rs` until
   the served objects (what memoryd runs) introspect the same.
 - **Keys and bodies never cross a transport in the clear.** No wire type holds a `SpaceKey`;

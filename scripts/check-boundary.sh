@@ -38,6 +38,7 @@ LAYERS=(
   "almanac-watch: C"
   "almanac-infer: C"
   "almanac-dbus: C"
+  "almanac-dbus-serve: C"
   "almanac-client: C"
   "almanac-fake: C"
   "almanac-local: C"
@@ -74,7 +75,7 @@ BANS=(
 # their storage), but never to almanac-core, almanac-seal, memfiles or memfiles-format; notify only to
 # almanac-watch (the Space roots) and memoryd (the directory watch on the person's settings file). almanac-seal reaches oo7 only through its `oo7` feature, almanac-client reaches
 # zbus only through its `dbus` feature, and links no rusqlite or openssl-sys (SQLCipher, vendored
-# OpenSSL) even with its `in_process` feature (the service is generic over the store seams), and almanac-dbus reaches tokio only through zbus's
+# OpenSSL) even with its `in_process` feature (the service is generic over the store seams), and almanac-dbus and almanac-dbus-serve reach tokio only through zbus's
 # `tokio` feature. almanac-store (the seam traits and types the service stands on) and
 # almanac-service reach no storage at all: no rusqlite, no SQLCipher (libsqlite3-sys), no OpenSSL,
 # no runtime, no bus. memoryd is the place that reaches the daemon's runtime, so it has no rule.
@@ -105,6 +106,7 @@ RULES=(
   # keyring, no embedding runtime and no storage, so an app other than memoryd can use them.
   "almanac-infer: zbus zvariant reqwest hyper oo7 ort fastembed $STORAGE notify"
   "almanac-dbus: reqwest hyper oo7 ort fastembed rusqlite notify"
+  "almanac-dbus-serve: reqwest hyper oo7 ort fastembed rusqlite notify"
   "almanac-client: $EFFECTS rusqlite openssl-sys notify"
   "almanac-fake: $EFFECTS notify"
   "almanac-local: $EFFECTS notify"

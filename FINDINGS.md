@@ -19,7 +19,7 @@ eventlog (header bytes golden, chain, `verify_chain`, `MemoryLog`, schema as SQL
 almanac-tidy (the fact and consolidation machines, the prompt and its parse, the removal notes, `Change`),
 almanac-service (the authorisation matrix, the Space and plan machines,
 `Plan::digest`, retention, the export writer and event lines, the config files, timeline rows),
-almanac-watch (`join`), almanac-dbus (skeletons, proxies, introspection XML, `MemoryError`),
+almanac-watch (`join`), almanac-dbus (proxies, `MemoryError`), almanac-dbus-serve (skeletons, introspection XML),
 almanac-client (`Memory`, `Absent`, `InProcess`), almanac-fake, memoryd (`xdg`).
 
 ## The companion amendment (2026-10-03)
@@ -265,8 +265,8 @@ Decisions the fill made where the frozen text left room:
 
 **The bus.** `almanac-dbus` has one member table, both ways: `encode_request`/`decode_request` and
 `decode_reply`/`encode_reply` (`codec/`), `invoke` (the caller's half, over the proxies) and the
-served objects (`serve.rs`, the daemon's half, over a `Serve` handler). The frozen unit-struct
-skeletons stay as the introspection source; `tests/it/served.rs` pins that the objects memoryd
+served objects (`almanac-dbus-serve`'s `serve/`, the daemon's half, over a `Serve` handler). The frozen unit-struct
+skeletons stay as the introspection source; `almanac-dbus-serve/tests/it/served.rs` pins that the objects memoryd
 serves introspect the same, and both equal `dbus/org.quire.Memory1.xml`. The XML gained `Control.Sweep`
 (30 methods became 31). Conventions the codec fixes: a Space argument is its plain id and every other
 typed argument is JSON; a Space argument that differs from the Space inside the body is `Invalid`;
@@ -954,9 +954,10 @@ rewrite of both databases and the sealed files under a fresh key.
 
 `memoryd::sandbox::enforce` returns `Enforcement { Full, Partial, Unsupported }`; `run.rs` still
 writes it to standard error (the journal keeps "this kernel has no Landlock"), and now also keeps
-it: `memoryd::confinement_of` turns it into `almanac_dbus::Confinement`, which `start` hands to
-`Daemon::with_confinement`; the served `Control` object asks its handler (`Serve::confinement`)
-and returns the word. The read-only property is `org.quire.Memory1.Control.Confinement`, type `s`,
+it: `memoryd::confinement_of` turns it into `memoryd::Confinement`, which `start` hands to
+`Daemon::with_confinement`; the served `Control` object asks its handler (`Serve::confinement`,
+which answers the word)
+and returns it. The read-only property is `org.quire.Memory1.Control.Confinement`, type `s`,
 next to `Version`. Its words are a public contract (`Confinement::as_word`, pinned by a test):
 
 - `confined`: every restriction of the policy is in force (`Enforcement::Full`);
@@ -993,3 +994,13 @@ builds; show nothing for it (or treat any unknown word the same way). Not done: 
   leftovers are `why_of`, `count_of`, `merged` and the trust mapping, about 60 lines. Cutting a
   crate needs the readers to take a narrow view of a Space first (a reader trait over the log,
   the index and the stored facts); that is a design change, not a move.
+
+## Layering lane A3.4 (2026-10-28)
+- `almanac-dbus` is the caller's half: proxies, bus names, `MemoryError`, the codec and `invoke`.
+  `almanac-dbus-serve` (tier C, depends on `almanac-dbus`) is the daemon's half: the served
+  objects, `Serve`, `Signal` with `emit`/`emit_to`, and the frozen skeletons with `introspection`.
+  Only `memoryd` uses it. `serve.rs` (795 lines) became `serve/{mod,record,recall,control,signal}.rs`.
+- `Confinement` moved to `memoryd::sandbox` (a Landlock concept). `Serve::confinement` now
+  answers the wire word (`&'static str`, default `CONFINEMENT_OFF`); the words stay in the XML
+  contract. The `as_word` test in `almanac-dbus` went: `memoryd`'s sandbox and bus tests pin the
+  same four words.

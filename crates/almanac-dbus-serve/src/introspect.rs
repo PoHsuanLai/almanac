@@ -1,9 +1,7 @@
-//! The introspection XML of `org.quire.Memory1`, from the skeletons: the checked-in
+//! The introspection XML of `org.quire.Memory1`, from the frozen skeletons: the checked-in
 //! `dbus/org.quire.Memory1.xml` must equal it.
 
-use crate::control::ControlSkeleton;
-use crate::recall::RecallSkeleton;
-use crate::record::RecordSkeleton;
+use crate::skeleton::{ControlSkeleton, RecallSkeleton, RecordSkeleton};
 use zbus::fdo;
 use zbus::object_server::Interface;
 

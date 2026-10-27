@@ -3,7 +3,7 @@
 //! signals carry).
 
 use almanac_core::SpaceId;
-use almanac_dbus::Signal;
+use almanac_dbus_serve::Signal;
 use almanac_tidy::Change;
 
 /// How the bus is told of a [`Change`].

@@ -2,10 +2,9 @@
 //! signature changes the file in the same commit.
 
 use crate::support::*;
-use almanac_core::Refusal;
-use almanac_dbus::*;
+use almanac_dbus::encode_request;
+use almanac_dbus_serve::*;
 use std::path::PathBuf;
-use zbus::DBusError;
 
 #[test]
 fn checked_in_introspection_matches_the_interfaces() {
@@ -114,58 +113,4 @@ fn the_multi_value_members_return_two_out_arguments() {
         xml[export..].contains("type=\"h\""),
         "the export fd travels as h"
     );
-}
-
-#[test]
-fn refusals_map_one_to_one_to_error_names() {
-    let refusals = [
-        (Refusal::NotAllowed, "NotAllowed"),
-        (Refusal::SpaceLocked, "SpaceLocked"),
-        (Refusal::SpaceUnknown, "SpaceUnknown"),
-        (Refusal::OutsideSpace, "OutsideSpace"),
-        (Refusal::PlanStale, "PlanStale"),
-        (Refusal::PlanExpired, "PlanExpired"),
-        (Refusal::NoSuchFact, "NoSuchFact"),
-        (Refusal::NotPending, "NotPending"),
-        (Refusal::Busy, "Busy"),
-        (Refusal::SpaceFull, "SpaceFull"),
-        (Refusal::Unavailable, "Unavailable"),
-        (
-            Refusal::NotKept(almanac_core::DropReason::Paused),
-            "NotKept",
-        ),
-        (Refusal::Invalid("x".into()), "Invalid"),
-    ];
-    let mut names = std::collections::BTreeSet::new();
-    for (refusal, variant) in refusals {
-        let error = MemoryError::from(&refusal);
-        let name = error.name().to_string();
-        assert_eq!(name, format!("{ERROR_PREFIX}.{variant}"));
-        assert_eq!(error.refusal(), Some(refusal));
-        names.insert(name);
-    }
-    assert_eq!(names.len(), 13);
-}
-
-#[test]
-fn names_are_the_documented_ones() {
-    assert_eq!(MEMORY_BUS, "org.quire.Memory1");
-    assert_eq!(MEMORY_PATH, "/org/quire/Memory1");
-    assert!(zbus::zvariant::ObjectPath::try_from(MEMORY_PATH).is_ok());
-    for interface in [RECORD_INTERFACE, RECALL_INTERFACE, CONTROL_INTERFACE] {
-        assert!(interface.starts_with(MEMORY_BUS));
-    }
-}
-
-#[test]
-fn the_confinement_words_are_a_public_contract() {
-    let rows = [
-        (Confinement::Confined, "confined"),
-        (Confinement::Partial, "partial"),
-        (Confinement::NotAvailable, "not-available"),
-        (Confinement::Off, "off"),
-    ];
-    for (confinement, word) in rows {
-        assert_eq!(confinement.as_word(), word, "{confinement:?}");
-    }
 }

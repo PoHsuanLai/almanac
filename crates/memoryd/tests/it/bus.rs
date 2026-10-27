@@ -561,7 +561,7 @@ async fn an_app_hears_no_signals_about_memory() {
 
 #[tokio::test]
 async fn the_confinement_property_reads_what_the_daemon_started_with() {
-    use almanac_dbus::Confinement;
+    use memoryd::Confinement;
     let rows = [
         (Confinement::Confined, "confined"),
         (Confinement::Partial, "partial"),

@@ -60,6 +60,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "almanac-dbus-serve"
+version = "0.1.0"
+dependencies = [
+ "almanac-core",
+ "almanac-dbus",
+ "serde",
+ "serde_json",
+ "zbus",
+]
+
+[[package]]
 name = "almanac-fake"
 version = "0.1.0"
 dependencies = [
@@ -1105,6 +1116,7 @@ dependencies = [
  "almanac-client",
  "almanac-core",
  "almanac-dbus",
+ "almanac-dbus-serve",
  "almanac-fake",
  "almanac-host",
  "almanac-infer",

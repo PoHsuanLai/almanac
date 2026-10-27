@@ -16,6 +16,7 @@ members = [
   "crates/almanac-host",
   "crates/almanac-watch",
   "crates/almanac-dbus",
+  "crates/almanac-dbus-serve",
   "crates/almanac-client",
   "crates/almanac-local",
   "crates/almanac-fake",
@@ -47,6 +48,7 @@ almanac-infer   = { path = "crates/almanac-infer" }
 almanac-host    = { path = "crates/almanac-host" }
 almanac-watch   = { path = "crates/almanac-watch" }
 almanac-dbus    = { path = "crates/almanac-dbus" }
+almanac-dbus-serve = { path = "crates/almanac-dbus-serve" }
 almanac-client  = { path = "crates/almanac-client", default-features = false }
 almanac-local   = { path = "crates/almanac-local" }
 almanac-fake    = { path = "crates/almanac-fake" }

@@ -4,13 +4,13 @@
 
 use crate::keysel::{AnyKeys, KEYS_VAR, SANDBOX_VAR, Sandbox, TestKeys, sandbox_choice, select};
 use crate::{
-    CallerFileError, Consent, Daemon, Enforcement, KeysError, LockChanges, ProcGate, ProcPeers,
-    SHELL_APP, SandboxError, SettingsWatch, SpaceRegistry, SystemBackend, WatchState, XdgError,
-    apply, apply_next, confinement_of, default_card, dirs_from, enforce, inferd_link, load_callers,
-    policy_for, prepare,
+    CallerFileError, Confinement, Consent, Daemon, Enforcement, KeysError, LockChanges, ProcGate,
+    ProcPeers, SHELL_APP, SandboxError, SettingsWatch, SpaceRegistry, SystemBackend, WatchState,
+    XdgError, apply, apply_next, confinement_of, default_card, dirs_from, enforce, inferd_link,
+    load_callers, policy_for, prepare,
 };
 use almanac_core::{Dirs, RuleSet};
-use almanac_dbus::{Confinement, serve_on};
+use almanac_dbus_serve::serve_on;
 use almanac_host::{Locator, read_config};
 use almanac_infer::{InferdConsolidator, InferdEmbedder};
 use almanac_service::{ConfigError, MemoryService, rules_from_toml, spaces_from_toml};
