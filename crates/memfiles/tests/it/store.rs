@@ -2,7 +2,7 @@
 //! cascade and journal rollups. Every test runs over memory and over a scratch directory.
 
 use almanac_core::*;
-use jiff::tz::TimeZone;
+use chrono::{Offset, Utc};
 use memfiles::*;
 use std::collections::BTreeSet;
 
@@ -57,7 +57,7 @@ fn receipt() -> ConfirmReceipt {
 }
 
 fn store_over<V: Vault>(vault: V) -> Store<V> {
-    Store::new(vault, SpaceId::parse("work").expect("space"), TimeZone::UTC)
+    Store::new(vault, SpaceId::parse("work").expect("space"), Utc.fix())
 }
 
 /// Either vault behind one type.

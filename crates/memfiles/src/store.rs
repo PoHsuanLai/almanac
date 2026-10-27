@@ -6,7 +6,7 @@ use crate::vault::{FACTS_DIR, Vault, VaultError, VaultPath};
 use almanac_core::{
     Count, Fact, FactId, Integrity, Settlement, Source, SpaceId, TopicPath, UserText,
 };
-use jiff::tz::TimeZone;
+use chrono::FixedOffset;
 use std::collections::BTreeSet;
 
 /// Why a store operation failed.
@@ -74,12 +74,12 @@ impl Primer {
 pub struct Store<V: Vault> {
     vault: V,
     space: SpaceId,
-    tz: TimeZone,
+    tz: FixedOffset,
 }
 
 impl<V: Vault> Store<V> {
     /// A store over `vault` for `space`; dated headings use `tz`.
-    pub fn new(vault: V, space: SpaceId, tz: TimeZone) -> Self {
+    pub fn new(vault: V, space: SpaceId, tz: FixedOffset) -> Self {
         Self { vault, space, tz }
     }
 
@@ -94,7 +94,7 @@ impl<V: Vault> Store<V> {
     }
 
     /// The time zone of the headings.
-    pub fn tz(&self) -> &TimeZone {
+    pub fn tz(&self) -> &FixedOffset {
         &self.tz
     }
 

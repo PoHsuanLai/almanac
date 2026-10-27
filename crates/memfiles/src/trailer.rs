@@ -12,7 +12,7 @@
 //! refused, not interpreted. Parsing is strict.
 
 use almanac_core::{Actor, Fact, FactId, FactText, Label, Link, UnixSeconds, Validity};
-use jiff::Timestamp;
+use chrono::{DateTime, SecondsFormat, Utc};
 
 const OPEN: &str = "  <!-- ";
 const CLOSE: &str = " -->";
@@ -52,19 +52,27 @@ fn unescape(text: &str) -> String {
         .replace("%25", "%")
 }
 
-const MIN_SECONDS: i64 = -377_705_023_201;
-const MAX_SECONDS: i64 = 253_402_207_200;
+/// 0000-01-01T00:00:00Z, the first instant RFC 3339 can print (four-digit years).
+const MIN_SECONDS: i64 = -62_167_219_200;
+/// 9999-12-31T23:59:59Z, the last one.
+const MAX_SECONDS: i64 = 253_402_300_799;
 
-/// The instant, clamped into the range the calendar can print.
-pub(crate) fn timestamp(at: UnixSeconds) -> Timestamp {
-    Timestamp::from_second(at.0.clamp(MIN_SECONDS, MAX_SECONDS)).unwrap_or(Timestamp::UNIX_EPOCH)
+/// The instant, clamped into the range RFC 3339 can print.
+pub(crate) fn timestamp(at: UnixSeconds) -> DateTime<Utc> {
+    DateTime::from_timestamp(at.0.clamp(MIN_SECONDS, MAX_SECONDS), 0)
+        .unwrap_or(DateTime::UNIX_EPOCH)
+}
+
+/// The instant as the trailer writes it: UTC, whole seconds, `Z`.
+fn render_at(at: DateTime<Utc>) -> String {
+    at.to_rfc3339_opts(SecondsFormat::Secs, true)
 }
 
 /// The trailer line (without a newline) for `fact`.
 pub fn render_trailer(fact: &Fact) -> String {
     let mut parts = vec![
         format!("fact: {}", fact.id),
-        format!("at: {}", timestamp(fact.recorded)),
+        format!("at: {}", render_at(timestamp(fact.recorded))),
         format!("by: {}", escaped_json(&fact.by)),
         format!("label: {}", escaped_json(&fact.label)),
     ];
@@ -125,8 +133,10 @@ impl Fields {
         let id =
             FactId::parse(&need(self.id, "fact")?).map_err(|_| TrailerFault::BadValue("fact"))?;
         let at = need(self.at, "at")?;
-        let parsed: Timestamp = at.parse().map_err(|_| TrailerFault::BadValue("at"))?;
-        if parsed.to_string() != at {
+        let parsed = DateTime::parse_from_rfc3339(&at)
+            .map_err(|_| TrailerFault::BadValue("at"))?
+            .with_timezone(&Utc);
+        if render_at(parsed) != at {
             return Err(TrailerFault::BadValue("at"));
         }
         let by: Actor = from_json(&need(self.by, "by")?, "by")?;
@@ -140,7 +150,7 @@ impl Fields {
         Ok(Fact {
             id,
             text,
-            recorded: UnixSeconds(parsed.as_second()),
+            recorded: UnixSeconds(parsed.timestamp()),
             by,
             label,
             links,

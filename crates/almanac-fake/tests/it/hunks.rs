@@ -4,7 +4,7 @@
 use almanac_core::*;
 use almanac_fake::*;
 use almanac_service::{ConsolidateError, Draft, MemoryService};
-use jiff::tz::TimeZone;
+use chrono::{Offset, Utc};
 use memfiles::{Block, TopicFile, Vault, VaultPath, render_topic};
 
 fn work() -> SpaceId {
@@ -35,7 +35,7 @@ fn fact(n: u8, text: &str) -> Fact {
 }
 
 fn render(file: &TopicFile) -> String {
-    render_topic(file, &TimeZone::UTC)
+    render_topic(file, &Utc.fix())
 }
 
 fn file_of(name: &str, blocks: Vec<Block>) -> TopicFile {

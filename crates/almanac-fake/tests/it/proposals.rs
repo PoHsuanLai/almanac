@@ -7,7 +7,7 @@ use almanac_fake::*;
 use almanac_service::{
     ConsolidateApply, ConsolidateError, Draft, MemoryService, MemorySettings, ServiceEvent,
 };
-use jiff::tz::TimeZone;
+use chrono::{Offset, Utc};
 use memfiles::{Block, TopicFile, Vault, VaultPath, render_topic};
 
 type Service = MemoryService<FakeBackend>;
@@ -65,7 +65,7 @@ fn render_with(name: &str, fact: Fact) -> String {
             title: name.to_owned(),
             blocks: vec![Block::Fact(fact)],
         },
-        &TimeZone::UTC,
+        &Utc.fix(),
     )
 }
 

@@ -1,7 +1,7 @@
 //! The topic file format: golden bytes, round trips, strictness.
 
 use almanac_core::*;
-use jiff::tz::{self, TimeZone};
+use chrono::{FixedOffset, Offset, Utc};
 use memfiles::*;
 use std::collections::BTreeSet;
 
@@ -107,7 +107,7 @@ fn sample() -> TopicFile {
 
 #[test]
 fn topic_round_trip_golden() {
-    let rendered = render_topic(&sample(), &TimeZone::UTC);
+    let rendered = render_topic(&sample(), &Utc.fix());
     assert_eq!(
         rendered,
         include_str!("../golden/people-sam-lee.md"),
@@ -115,15 +115,15 @@ fn topic_round_trip_golden() {
     );
     let parsed = parse_topic(&rendered).expect("parse");
     assert_eq!(parsed, sample());
-    assert_eq!(render_topic(&parsed, &TimeZone::UTC), rendered);
+    assert_eq!(render_topic(&parsed, &Utc.fix()), rendered);
 }
 
 #[test]
 fn render_after_parse_is_the_identity_for_every_time_zone() {
     for tz in [
-        TimeZone::UTC,
-        TimeZone::fixed(tz::offset(-8)),
-        TimeZone::fixed(tz::offset(9)),
+        Utc.fix(),
+        FixedOffset::west_opt(8 * 3600).expect("offset"),
+        FixedOffset::east_opt(9 * 3600).expect("offset"),
     ] {
         let rendered = render_topic(&sample(), &tz);
         assert_eq!(
@@ -135,15 +135,15 @@ fn render_after_parse_is_the_identity_for_every_time_zone() {
 
 #[test]
 fn headings_follow_the_local_day() {
-    let utc = render_topic(&sample(), &TimeZone::UTC);
+    let utc = render_topic(&sample(), &Utc.fix());
     assert_eq!(utc.matches("\n## 2026-10-01\n").count(), 1);
     assert_eq!(utc.matches("\n## 2026-10-02\n").count(), 1);
     // 09:12Z and 11:02Z on the 1st are both still the 1st in UTC-8 morning? 01:12 and 03:02: yes;
     // 08:00Z on the 2nd is 00:00 on the 2nd.
-    let west = render_topic(&sample(), &TimeZone::fixed(tz::offset(-8)));
+    let west = render_topic(&sample(), &FixedOffset::west_opt(8 * 3600).expect("offset"));
     assert_eq!(west.matches("\n## 2026-10-01\n").count(), 1);
     // In UTC+9 the first two facts are 18:12 and 20:02 on the 1st; the third is 17:00 on the 2nd.
-    let east = render_topic(&sample(), &TimeZone::fixed(tz::offset(9)));
+    let east = render_topic(&sample(), &FixedOffset::east_opt(9 * 3600).expect("offset"));
     assert_eq!(east.matches("\n## 2026-10-02\n").count(), 1);
 }
 
@@ -291,10 +291,10 @@ fn an_empty_title_and_no_blocks_round_trip() {
         title: String::new(),
         blocks: vec![],
     };
-    let text = render_topic(&file, &TimeZone::UTC);
+    let text = render_topic(&file, &Utc.fix());
     assert_eq!(parse_topic(&text).expect("parse"), file);
     assert_eq!(
-        render_topic(&parse_topic(&text).expect("parse"), &TimeZone::UTC),
+        render_topic(&parse_topic(&text).expect("parse"), &Utc.fix()),
         text
     );
 }

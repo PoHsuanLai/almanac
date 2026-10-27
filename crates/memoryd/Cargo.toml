@@ -25,6 +25,7 @@ almanac-seal = { workspace = true, features = ["oo7"] }
 eventlog = { workspace = true }
 memfiles = { workspace = true }
 recall = { workspace = true }
+almanac-local = { workspace = true }
 almanac-service = { workspace = true }
 almanac-watch = { workspace = true }
 almanac-dbus = { workspace = true }
@@ -48,7 +49,7 @@ blake3 = { workspace = true }
 [dev-dependencies]
 # The tests present their processes as a fixture tree, which porter reads only in a test build.
 memoryd = { path = ".", features = ["test-proc-root"] }
-jiff = { workspace = true }
+chrono = { workspace = true }
 almanac-client = { workspace = true, features = ["dbus"] }
 almanac-fake = { workspace = true }
 almanac-seal = { workspace = true, features = ["testing", "oo7"] }

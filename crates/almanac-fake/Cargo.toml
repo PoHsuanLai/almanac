@@ -1,6 +1,6 @@
 [package]
 name = "almanac-fake"
-description = "Test-only: a fake MemoryService over in-memory seams, a fixed clock, a scripted consolidator and fixtures."
+description = "Test-only: a fake MemoryService over in-memory seams, a stepped clock, a scripted consolidator and fixtures."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -20,7 +20,7 @@ tempfile = { workspace = true }
 serde_json = { workspace = true }
 
 [dev-dependencies]
-jiff = { workspace = true }
+chrono = { workspace = true }
 tokio = { workspace = true }
 tar = { workspace = true }
 toml = { workspace = true }

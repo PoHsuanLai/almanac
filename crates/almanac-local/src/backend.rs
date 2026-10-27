@@ -19,7 +19,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 /// use almanac_client::{InProcess, Memory, Recorded};
 /// use almanac_core::{AppId, Caller, Isolation, RuleSet, SpaceId, VaultKind};
 /// use almanac_fake::{mail, mail_thread_archived};
-/// use almanac_local::{LocalBackend, Root, WallClock, create_space, open};
+/// use almanac_local::{LocalBackend, Root, SystemClock, create_space, open};
 /// use almanac_seal::{ProvidedKeys, SpaceKey};
 /// use std::sync::Arc;
 ///
@@ -27,7 +27,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 /// # tokio::runtime::Builder::new_current_thread().build()?.block_on(async {
 /// let dir = tempfile::tempdir()?;
 /// let keys = ProvidedKeys::new(SpaceKey::from_bytes([7; 32]));
-/// let backend = LocalBackend::new(Root::new(dir.path()), keys, WallClock);
+/// let backend = LocalBackend::new(Root::new(dir.path()), keys, SystemClock);
 /// let service = Arc::new(open(backend, RuleSet::standard())?);
 /// create_space(&service, SpaceId::parse("work")?, VaultKind::Sealed)?;
 ///

@@ -19,7 +19,7 @@ eventlog (header bytes golden, chain, `verify_chain`, `MemoryLog`, schema as SQL
 almanac-service (the authorisation matrix, the Space, fact, plan and consolidation machines,
 `Plan::digest`, retention, the export writer and event lines, the config files, timeline rows),
 almanac-watch (`join`), almanac-dbus (skeletons, proxies, introspection XML, `MemoryError`),
-almanac-client (`Memory`, `Absent`, `InProcess`), almanac-fake, memoryd (`xdg`, `SystemClock`).
+almanac-client (`Memory`, `Absent`, `InProcess`), almanac-fake, memoryd (`xdg`).
 
 ## The companion amendment (2026-10-03)
 
@@ -721,10 +721,10 @@ What an app must provide:
   run. A different one is not an error at open: the first request on a Space answers `Refusal::SpaceLocked`
   (`LogError::Locked` underneath, mapped by the service's `backend_refusal` as is a locked key store; a sealed file read is `VaultError::Sealed`). `ProvidedKeys` persists nothing, so
   erasing a Space for good is the app discarding the key it provided (`destroy` bars it only for this process).
-- **A clock** (`almanac_service::Clock`): `almanac_local::WallClock` (one `SystemTime::now`) is the ready-made
-  one; `LocalBackend` takes the clock as a parameter, so tests pass a stepped one and only `WallClock`'s own
-  smoke test reads the time. It lives here, not in `almanac-service`, which stays free of ambient reads
-  (`almanac-local` already reads OS randomness for ids); memoryd keeps its own `SystemClock`.
+- **A clock** (`almanac_service::Clock`): `almanac_local::SystemClock` (one `SystemTime::now`) is the only real
+  one, and memoryd uses it too; `LocalBackend` takes the clock as a parameter, so tests pass a stepped one and only
+  `SystemClock`'s own doc test reads the time. It lives here, not in `almanac-service`, which stays free of ambient
+  reads (`almanac-local` already reads OS randomness for ids).
 - **Optionally an embedder** (`with_embedder`; a generic parameter, not a trait object, because `Embedder`
   returns `impl Future`). The default `NoEmbedder` always answers `Unavailable`, so the index stays lexical-only
   (FTS5 keyword search) and the exact scan has nothing to scan. The embedder's card names the vector space; a
@@ -743,7 +743,7 @@ check it (the same note as `eventlog`; `check-portable.sh` reports it).
 
 Closed asks (almanac-local follow-ups): a locked log or key store opening a Space is `Refusal::SpaceLocked`
 (it was `Invalid("event log: the event log is locked")`; the wire text changes only for that case, the
-`SpaceLocked` error name already exists in memoryd's codec), and the portable `WallClock`.
+`SpaceLocked` error name already exists in memoryd's codec), and the portable `SystemClock` (once `WallClock`).
 
 ## Recent bodies: an Area payload is the owner's form (fixed)
 

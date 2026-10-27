@@ -6,7 +6,7 @@
 use almanac_core::*;
 use almanac_fake::*;
 use almanac_service::MemoryService;
-use jiff::tz::TimeZone;
+use chrono::{Offset, Utc};
 use memfiles::Store;
 use std::collections::BTreeSet;
 
@@ -28,11 +28,7 @@ fn home_of(name: &str) -> SpaceId {
 }
 
 fn store(service: &Service, space: &SpaceId) -> Store<SharedVault> {
-    Store::new(
-        service.backend().vault_of(space),
-        space.clone(),
-        TimeZone::UTC,
-    )
+    Store::new(service.backend().vault_of(space), space.clone(), Utc.fix())
 }
 
 fn fact(n: u8, by: Actor, label: Label) -> Fact {

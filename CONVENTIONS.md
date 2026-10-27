@@ -26,7 +26,7 @@ What almanac adds or decides differently, each with its reason:
 4. **Nothing ambient below the daemons.** The clock (`almanac_service::Clock`), the key store
    (`KeyStore`), the vault (`Vault`), the embedder, the consolidator, the nonce
    (`almanac_seal::Nonce`), the random bits of a fact id and every directory (`Dirs`) are passed
-   in; only `memoryd` reads the system clock, the environment or the bus. Tests never touch
+   in; only `almanac_local::SystemClock` reads the system clock, and only `memoryd` reads the environment or the bus. Tests never touch
    a bus, a keyring, the network or the real XDG directories: scratch directories
    (`almanac-fake::Scratch`) and in-memory seams.
 5. **Everything stored or sent is a pinned form.** A format (the event header bytes, the

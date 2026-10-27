@@ -24,7 +24,6 @@ almanac-client = { workspace = true, default-features = false, features = ["in_p
 almanac-fake = { workspace = true }
 tempfile = { workspace = true }
 tokio = { workspace = true }
-jiff = { workspace = true }
 
 [lints]
 workspace = true

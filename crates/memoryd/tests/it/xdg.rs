@@ -64,9 +64,3 @@ fn missing_roots_are_errors_not_guesses() {
         Err(XdgError::NoRuntimeDir)
     );
 }
-
-#[test]
-fn the_system_clock_is_after_the_fixture_epoch() {
-    use almanac_service::Clock;
-    assert!(SystemClock.now().0 > 1_790_000_000 - 100_000_000);
-}

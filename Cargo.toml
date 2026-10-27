@@ -61,7 +61,7 @@ serde_json = "1"
 zbus = { version = "5.19", default-features = false, features = ["tokio"] }  # shell repos only; they also enable ds-settings/tokio. quire itself builds zbus with its async-io default so app consumers keep their own executor.
 toml = "1"
 clap = { version = "4", features = ["derive"] }
-jiff = "0.2"
+chrono = { version = "0.4", default-features = false, features = ["std"] }
 notify = "8.2"
 blake3 = "1"
 # almanac-seal.

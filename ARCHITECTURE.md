@@ -27,9 +27,9 @@ trait), section 5 (what is built), section 6 (copy the recipe).
 | `almanac-watch` | `FileWatch`, `WatchError`, the pure `join` of observed changes and app-supplied reasons; `InotifyWatch` (notify 8.2) behind the `linux` feature | inotify (feature `linux`) |
 | `almanac-dbus` | `org.quire.Memory1` (`Record`, `Recall`, `Control`) as zbus proxies and skeletons (the introspection source), `MemoryError`, the argument codec (`encode_request`/`decode_request`, `encode_reply`/`decode_reply`), `invoke` (the caller's half) and the served objects over a `Serve` handler (the daemon's half) | zbus |
 | `almanac-client` | the app-facing `Memory` over a `Transport`: `Absent` (no-op on other desktops), `DbusTransport` (feature `dbus`), `InProcess` (feature `in_process`, off by default: only it links `almanac-service`, which links no storage) | through its transport |
-| `almanac-local` | the portable on-disk `Backend` for an app that hosts its own memory: `LocalBackend` (SQLCipher log and index, sealed or plain files, `ProvidedKeys`, an app-passed clock, embedder and consolidator, `NoEmbedder`/`NoConsolidator` by default), `Root` (the one directory the app gives), `open`, `create_space`, `save_spaces` (`spaces.toml`); no XDG, bus, inotify or Landlock | none (seams are passed in) |
-| `almanac-fake` | test-only: `fake_service`, `FakeBackend`, `FixedClock`, `SteppedClock`, `SharedVault`, `ScriptedConsolidator`, `Scratch`, the five fixtures | none |
-| `memoryd` | the daemon and its library: `SystemBackend` (over any key store, embedder and consolidator), `SystemClock`, `InferdEmbedder`, `InferdConsolidator`, the XDG roots, `Serialised` (a queue per Space), `Peers` (who is calling), `Daemon` (the bus handler), the Landlock `sandbox` policy, `keysel` (which key store: the Secret Service, or with the test-only `test-keys` feature a sealed file named by `MEMORYD_KEYS=file:<path>`; the same feature lets `MEMORYD_SANDBOX=off` skip Landlock, see FINDINGS; `PROC_GATE` and porter-daemon's `ProcRoot`: the test-only `test-proc-root` feature's `MEMORYD_PROC_ROOT=<dir>`, a fixture `/proc` for callers); `callers` (the callers file and porter's caller mapped onto almanac's); the binary applies the sandbox, then serves the session bus; `SettingsWatch` (the directory watch on `almanac/settings.toml`; `apply_next` puts each change in force on the service), `Consent` (the person's confirmations of loosened settings, `Memory1.ConfirmSettings`, kept in `confirmed-settings.toml` in memoryd's own data directory, which the agent sandbox cannot write; the Settings app's alone; `Consent::waiting` answers `Memory1.PendingSettings`, the Settings app's and the shell's), the nightly consolidation timer, `Policy.read_dirs`, `--write-schema` | everything |
+| `almanac-local` | the portable on-disk `Backend` for an app that hosts its own memory: `LocalBackend` (SQLCipher log and index, sealed or plain files, `ProvidedKeys`, `SystemClock` (the one real `Clock`) or an app-passed clock, embedder and consolidator, `NoEmbedder`/`NoConsolidator` by default), `Root` (the one directory the app gives), `open`, `create_space`, `save_spaces` (`spaces.toml`); no XDG, bus, inotify or Landlock | none (seams are passed in) |
+| `almanac-fake` | test-only: `fake_service`, `FakeBackend`, `SteppedClock`, `SharedVault`, `ScriptedConsolidator`, `Scratch`, the five fixtures | none |
+| `memoryd` | the daemon and its library: `SystemBackend` (over any key store, embedder and consolidator), `InferdEmbedder`, `InferdConsolidator`, the XDG roots, `Serialised` (a queue per Space), `Peers` (who is calling), `Daemon` (the bus handler), the Landlock `sandbox` policy, `keysel` (which key store: the Secret Service, or with the test-only `test-keys` feature a sealed file named by `MEMORYD_KEYS=file:<path>`; the same feature lets `MEMORYD_SANDBOX=off` skip Landlock, see FINDINGS; `PROC_GATE` and porter-daemon's `ProcRoot`: the test-only `test-proc-root` feature's `MEMORYD_PROC_ROOT=<dir>`, a fixture `/proc` for callers); `callers` (the callers file and porter's caller mapped onto almanac's); the binary applies the sandbox, then serves the session bus; `SettingsWatch` (the directory watch on `almanac/settings.toml`; `apply_next` puts each change in force on the service), `Consent` (the person's confirmations of loosened settings, `Memory1.ConfirmSettings`, kept in `confirmed-settings.toml` in memoryd's own data directory, which the agent sandbox cannot write; the Settings app's alone; `Consent::waiting` answers `Memory1.PendingSettings`, the Settings app's and the shell's), the nightly consolidation timer, `Policy.read_dirs`, `--write-schema` | everything |
 
 ## 1a. Portable core and desktop extras
 
@@ -107,7 +107,7 @@ may reach `notify` and never `rusqlite`; `almanac-dbus` reaches `tokio` only thr
 | `almanac-dbus` | `names`, `error`, `record`, `recall`, `control` (skeletons and proxies), `codec` (`request`, `reply`), `invoke`, `serve`, `introspect` |
 | `almanac-client` | `transport` < `memory` |
 | `almanac-fake` | `clock`, `consolidator`, `fixtures`, `scratch` < `backend` |
-| `memoryd` | `xdg`, `clock`, `infer` (`embed`, `consolidate`, `prompt`), `peers`, `signals`, `sandbox`, `settings_watch`, `consent`, `keysel` < `backend`, `queue` < `daemon` < `main` |
+| `memoryd` | `xdg`, `infer` (`embed`, `consolidate`, `prompt`), `peers`, `signals`, `sandbox`, `settings_watch`, `consent`, `keysel` < `backend`, `queue` < `daemon` < `main` |
 
 ## 3. One home per concept
 
@@ -135,7 +135,8 @@ may reach `notify` and never `rusqlite`; `almanac-dbus` reaches `tokio` only thr
 | the export layout and event lines | `almanac-service::export` |
 | the file-why join | `almanac-watch::join` |
 | D-Bus names, members, error names | `almanac-dbus::{names, record, recall, control, error}` |
-| the system clock, the environment | `memoryd` (`clock.rs`, `xdg.rs`) |
+| the system clock | `almanac-local` (`clock.rs`) |
+| the environment | `memoryd` (`xdg.rs`) |
 
 ## 4. Traits (the seams) and closed enums
 
@@ -183,7 +184,7 @@ pub trait Embedder: Send + Sync {
 // recall: ExactScan now; a sqlite-vec backend later (only if the no-unsafe rule is relaxed).
 pub trait VectorIndex: Send { fn card(&self) -> &EmbedderCard; fn upsert(..); fn remove(..); fn nearest(..); fn clear(..); }
 
-// almanac-service: ScriptedConsolidator, memoryd's InferdConsolidator; the system or a fixed clock.
+// almanac-service: ScriptedConsolidator, memoryd's InferdConsolidator; `almanac_local::SystemClock` or the stepped test clock.
 pub trait Consolidator: Send + Sync {
     fn draft(&self, input: ConsolidationInput) -> impl Future<Output = Result<Draft, ConsolidateError>> + Send;
 }
@@ -227,7 +228,7 @@ interface other work builds on; a change is a format bump (section 6) or a SPEC 
 | D-Bus codec, `invoke`, the served objects, `DbusTransport` | built; `almanac-dbus/tests/it/codec.rs` (every wire sample, both directions) |
 | `Memory`, `Absent`, `InProcess` | built, tested |
 | `fake_service`, fixtures, scratch dirs | built |
-| `SystemBackend`, `SystemClock`, XDG roots, `InferdEmbedder`, `InferdConsolidator`, `inferd_link` | built; the models are tested over a scripted inferd session and over a fake inferd on a private bus |
+| `SystemBackend`, XDG roots, `InferdEmbedder`, `InferdConsolidator`, `inferd_link` | built; the models are tested over a scripted inferd session and over a fake inferd on a private bus |
 | `Serialised`, `Peers`, `Daemon`, the `memoryd` binary | built; `memoryd/tests/it/bus.rs` is the end-to-end test on a private bus |
 | the baseline and `ExternalEdit` hunks, topic text in `ConsolidationInput`, flags in `FactView`, `ServiceEvent`, `check_keys`, the Landlock sandbox, adopting an index at start | built; `almanac-fake/tests/it/edits.rs`, `recall/tests/it/adopt.rs`, `memoryd/tests/it/{restart,sandbox,bus}.rs` |
 
@@ -359,7 +360,7 @@ in the opener, the golden updated in the same commit (review the diff of the gol
 
 `almanac-fake` is the harness: `fake_service(ScriptedConsolidator::default())` builds a
 `MemoryService` over `MemoryKeys`, `MemoryLog`, `MemoryVault`, an `Index<ExactScan>` over
-in-memory SQLite, `FakeEmbedder` and `FixedClock(NOW)`; `Scratch` gives scratch XDG roots;
+in-memory SQLite, `FakeEmbedder` and `SteppedClock` (at `NOW`); `Scratch` gives scratch XDG roots;
 `mail_thread_archived`, `file_saved_from_attachment`, `companion_forwarded`, `cua_run_step` and
 `policy_ask` are the fixtures; `FakeBackend::vault_of` and `advance_clock` let a test edit files
 behind the service's back and move time. Tests never touch the real session bus, a keyring, the

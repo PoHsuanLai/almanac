@@ -432,7 +432,7 @@ fn topic_text() -> String {
             Block::Unstamped("Ana likes tea".to_owned()),
         ],
     };
-    render_topic(&file, &jiff::tz::TimeZone::UTC)
+    render_topic(&file, &chrono::Offset::fix(&chrono::Utc))
 }
 
 fn event_link(seq: u64) -> String {

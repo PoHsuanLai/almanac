@@ -21,7 +21,7 @@
 
 use crate::trailer::{TrailerFault, parse_trailer, render_trailer, timestamp};
 use almanac_core::{Fact, FactText, TopicPath};
-use jiff::tz::TimeZone;
+use chrono::FixedOffset;
 
 /// What the first front matter line must say.
 pub const FORMAT_LINE: &str = "quire-memory 1";
@@ -163,7 +163,7 @@ pub fn parse_topic(text: &str) -> Result<TopicFile, ParseError> {
 }
 
 /// Renders a topic file; dated headings use `tz`.
-pub fn render_topic(file: &TopicFile, tz: &TimeZone) -> String {
+pub fn render_topic(file: &TopicFile, tz: &FixedOffset) -> String {
     let mut out = format!(
         "---\nformat: {FORMAT_LINE}\ntopic: {}\ntitle: {}\n---\n\n",
         file.topic, file.title
@@ -173,8 +173,8 @@ pub fn render_topic(file: &TopicFile, tz: &TimeZone) -> String {
         match block {
             Block::Fact(fact) => {
                 let date = timestamp(fact.recorded)
-                    .to_zoned(tz.clone())
-                    .date()
+                    .with_timezone(tz)
+                    .date_naive()
                     .to_string();
                 if heading.as_deref() != Some(date.as_str()) {
                     if index > 0 {

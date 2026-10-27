@@ -40,7 +40,21 @@ pub struct Memory<T: Transport> {
 }
 
 impl<T: Transport> Memory<T> {
-    /// Memory over `transport`.
+    /// Memory over `transport`. Over `Absent` a write is a no-op the app can ignore:
+    ///
+    /// ```
+    /// use almanac_client::{Absent, Memory, Recorded};
+    /// use almanac_fake::mail_thread_archived;
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # tokio::runtime::Builder::new_current_thread().build()?.block_on(async {
+    /// let memory = Memory::over(Absent);
+    /// let record = mail_thread_archived().ok_or("fixture")?;
+    /// assert!(matches!(memory.record(record).await?, Recorded::NoMemory));
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// # })
+    /// # }
+    /// ```
     pub fn over(transport: T) -> Self {
         Self { transport }
     }

@@ -5,7 +5,7 @@
 use almanac_core::*;
 use almanac_fake::*;
 use almanac_service::{ConsolidateApply, ConsolidateError, Draft, MemoryService, MemorySettings};
-use jiff::tz::TimeZone;
+use chrono::{Offset, Utc};
 use memfiles::{Block, TopicFile, Vault, VaultPath, render_topic};
 
 type Service = MemoryService<FakeBackend>;
@@ -38,7 +38,7 @@ fn fact(n: u8, text: &str, links: Vec<Link>) -> Fact {
 }
 
 fn render(file: &TopicFile) -> String {
-    render_topic(file, &TimeZone::UTC)
+    render_topic(file, &Utc.fix())
 }
 
 fn ana(text: &str) -> TopicFile {

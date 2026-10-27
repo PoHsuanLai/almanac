@@ -1,12 +1,12 @@
 //! `SystemBackend`: the real seams. The key store is the Secret Service, the log is SQLCipher,
 //! the vault is sealed or plain per Space, the models are inferd's.
 
-use crate::clock::SystemClock;
 use crate::infer::{InferdConsolidator, InferdEmbedder};
 use crate::registry::SpaceRegistry;
 use almanac_core::{Dirs, ReplicaId, SpaceId, SpaceMeta, VaultKind};
+use almanac_local::SystemClock;
 use almanac_seal::{DbKey, KeyStore, Oo7Keys, Purpose, SpaceKey, derive};
-use almanac_service::{Backend, BackendError, Consolidator, Listing, RegistryError};
+use almanac_service::{Backend, BackendError, Clock, Consolidator, Listing, RegistryError};
 use eventlog::SqliteLog;
 use memfiles::{PlainDir, SealedDir, Vault, VaultError, VaultPath};
 use porter_client::AnyTransport;
@@ -15,6 +15,7 @@ use rusqlite::Connection;
 use std::future::Future;
 use std::path::Path;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 /// A Space's vault: sealed or plain, by the Space's choice. A closed set, so an enum.
 #[derive(Debug)]
@@ -150,11 +151,10 @@ fn open_index_file<E: Embedder>(
 fn random_bytes() -> [u8; 16] {
     let mut out = [0u8; 16];
     if getrandom::fill(&mut out).is_err() {
-        let nanos = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map_or(0, |d| d.as_nanos());
+        static DRAWS: AtomicU64 = AtomicU64::new(0);
         let mut hasher = blake3::Hasher::new();
-        hasher.update(&nanos.to_be_bytes());
+        hasher.update(&SystemClock.now().0.to_be_bytes());
+        hasher.update(&DRAWS.fetch_add(1, Ordering::Relaxed).to_be_bytes());
         hasher.update(&std::process::id().to_be_bytes());
         out.copy_from_slice(&hasher.finalize().as_bytes()[..16]);
     }

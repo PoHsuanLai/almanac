@@ -1,4 +1,4 @@
-//! memoryd's library half: the real seams (`SystemBackend`, `SystemClock`, the inferd-backed
+//! memoryd's library half: the real seams (`SystemBackend`, the inferd-backed
 //! `InferdEmbedder` and `InferdConsolidator`), the XDG roots, the per-Space queues, the caller
 //! identities and the bus handler (`Daemon`), so every module is testable on a private bus. `start` builds
 //! these over the real system and serves the session bus; the binary (`main.rs`) is arguments and
@@ -6,7 +6,6 @@
 
 mod backend;
 mod callers;
-mod clock;
 mod consent;
 mod daemon;
 mod infer;
@@ -28,7 +27,6 @@ pub use callers::{
     CallerFileError, ROUTER_APP, SETTINGS_APP, SHELL_APP, caller_for, load_callers,
     table_from_file, table_from_toml,
 };
-pub use clock::SystemClock;
 pub use consent::Consent;
 pub use daemon::Daemon;
 pub use infer::{
