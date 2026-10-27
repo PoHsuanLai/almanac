@@ -1,6 +1,7 @@
 //! The vault contract, and the path grammar.
 
 use almanac_core::{FactId, TopicPath};
+use almanac_store::{Vault, VaultError, VaultPath};
 use memfiles::*;
 
 fn p(text: &str) -> VaultPath {
@@ -152,19 +153,4 @@ fn plain_dir_leaves_no_temporaries_and_hides_nothing_else() {
         vault.list(&p("facts")).expect("list"),
         vec![p("facts/a.md")]
     );
-}
-
-#[test]
-fn the_primer_is_capped_and_linked() {
-    let entry = |n: usize| PrimerEntry {
-        topic: TopicPath::parse(&format!("t{n}")).expect("topic"),
-        title: format!("Topic {n}").into(),
-        summary: "about it".into(),
-    };
-    let primer = Primer {
-        entries: (0..300).map(entry).collect(),
-    };
-    let text = primer.render();
-    assert_eq!(text.lines().count(), PRIMER_MAX_LINES);
-    assert!(text.starts_with("# Memory\n\n- [Topic 0](t0.md): about it\n"));
 }

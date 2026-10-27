@@ -7,8 +7,9 @@ use almanac_fake::*;
 use almanac_service::{
     ConsolidateApply, ConsolidateError, Draft, MemoryService, MemorySettings, ServiceEvent,
 };
+use almanac_store::{Vault, VaultPath};
 use chrono::{Offset, Utc};
-use memfiles::{Block, TopicFile, Vault, VaultPath, render_topic};
+use memfiles_format::{Block, TopicFile, render_topic};
 
 type Service = MemoryService<FakeBackend>;
 

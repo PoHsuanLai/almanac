@@ -7,7 +7,7 @@ use almanac_core::*;
 use almanac_fake::*;
 use almanac_service::MemoryService;
 use chrono::{Offset, Utc};
-use memfiles::Store;
+use memfiles_format::Store;
 use std::collections::BTreeSet;
 
 type Service = MemoryService<FakeBackend>;
@@ -172,7 +172,7 @@ fn fact_ids(store: &Store<SharedVault>) -> Vec<FactId> {
         .iter()
         .flat_map(|t| store.read(t).expect("read").blocks)
         .filter_map(|b| match b {
-            memfiles::Block::Fact(f) => Some(f.id),
+            memfiles_format::Block::Fact(f) => Some(f.id),
             _ => None,
         })
         .chain(
@@ -336,7 +336,7 @@ fn cited_link(service: &Service) -> Vec<Link> {
         .blocks
         .into_iter()
         .find_map(|b| match b {
-            memfiles::Block::Fact(f) => Some(f.links),
+            memfiles_format::Block::Fact(f) => Some(f.links),
             _ => None,
         })
         .expect("the cited fact moved")

@@ -17,6 +17,7 @@ CORE=(
   "almanac-store"
   "eventlog"
   "memfiles"
+  "memfiles-format"
   "recall"
   "almanac-service"
   "almanac-watch"

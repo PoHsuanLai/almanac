@@ -15,7 +15,7 @@ use almanac_core::{
 use almanac_seal::{KeyError, SubKey};
 use almanac_store::{BodyState, Entry, LogError, LogRead, LogWrite, NewHeader, Vault, VaultPath};
 use almanac_store::{Doc, DocId, IndexFailure, SearchIndex};
-use memfiles::{Block, MemfilesError};
+use memfiles_format::{Block, MemfilesError};
 use std::collections::{BTreeMap, BTreeSet};
 
 /// What one request runs against: the seams, the rules as they are now and who is asking.

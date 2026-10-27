@@ -11,7 +11,7 @@ cd "$(dirname "$0")/.."
 # RULES: what a crate reaches through ANY path (transitive, default features). The portable
 # crates never reach a bus, a runtime, an HTTP client, a keyring, an ONNX runtime or an
 # embedding library. rusqlite is allowed to eventlog, recall and everything above them (it is
-# their storage), but never to almanac-core, almanac-seal or memfiles; notify only to
+# their storage), but never to almanac-core, almanac-seal, memfiles or memfiles-format; notify only to
 # almanac-watch (the Space roots) and memoryd (the directory watch on the person's settings file). almanac-seal reaches oo7 only through its `oo7` feature, almanac-client reaches
 # zbus only through its `dbus` feature, and links no rusqlite or openssl-sys (SQLCipher, vendored
 # OpenSSL) even with its `in_process` feature (the service is generic over the store seams), and almanac-dbus reaches tokio only through zbus's
@@ -32,6 +32,7 @@ RULES=(
   "almanac-store: $EFFECTS $STORAGE notify"
   "eventlog: $EFFECTS notify"
   "memfiles: $EFFECTS rusqlite notify"
+  "memfiles-format: $EFFECTS $STORAGE notify"
   "recall: $EFFECTS notify"
   "almanac-service: $EFFECTS $STORAGE notify"
   "almanac-watch: $EFFECTS rusqlite"
@@ -83,15 +84,16 @@ EDGES=(
   "almanac-store: almanac-core almanac-seal"
   "eventlog: almanac-core almanac-seal almanac-store"
   "memfiles: almanac-core almanac-seal almanac-store"
+  "memfiles-format: almanac-core almanac-store"
   "recall: almanac-store"
   "recall-fastembed: recall"
-  "almanac-service: almanac-core almanac-seal almanac-store memfiles"
+  "almanac-service: almanac-core almanac-seal almanac-store memfiles-format"
   "almanac-watch: almanac-core"
   "almanac-dbus: almanac-core"
   "almanac-client: almanac-core almanac-dbus almanac-service"
-  "almanac-fake: almanac-core almanac-seal eventlog memfiles recall almanac-service"
-  "almanac-local: almanac-core almanac-seal eventlog memfiles recall almanac-service"
-  "memoryd: almanac-core almanac-seal almanac-local eventlog memfiles recall almanac-service almanac-watch almanac-dbus porter-core porter-daemon porter-dbus porter-infer porter-client"
+  "almanac-fake: almanac-core almanac-seal almanac-store eventlog memfiles recall almanac-service"
+  "almanac-local: almanac-core almanac-seal almanac-store eventlog memfiles recall almanac-service"
+  "memoryd: almanac-core almanac-seal almanac-store almanac-local eventlog memfiles recall almanac-service almanac-watch almanac-dbus porter-core porter-daemon porter-dbus porter-infer porter-client"
 )
 for edge in "${EDGES[@]}"; do
   crate="${edge%%:*}"

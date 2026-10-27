@@ -14,7 +14,7 @@ almanac-seal = { workspace = true }
 blake3 = { workspace = true }
 chrono = { workspace = true }
 almanac-store = { workspace = true }
-memfiles = { workspace = true }
+memfiles-format = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tar = { workspace = true }

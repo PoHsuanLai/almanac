@@ -6,7 +6,7 @@ use almanac_fake::{mail_label, trusted_label};
 use almanac_service::{
     ConsolidateError, ConsolidationInput, Consolidator, InputEvent, InputTopic, check_draft,
 };
-use memfiles::{Block, TopicFile, render_topic};
+use memfiles_format::{Block, TopicFile, render_topic};
 use memoryd::{
     Deadlines, InferdConsolidator, InferdEmbedder, class_of, parse_draft, render_prompt,
 };

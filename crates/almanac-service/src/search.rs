@@ -435,14 +435,14 @@ impl<B: Backend> Open<B> {
                             })
                             .map(|s| s.fact.text.as_str().to_owned())
                             .unwrap_or_default();
-                        memfiles::PrimerEntry {
+                        memfiles_format::PrimerEntry {
                             title: UserText::new(topic.to_string()),
                             summary: UserText::new(summary),
                             topic,
                         }
                     })
                     .collect();
-                memfiles::Primer { entries }.render()
+                memfiles_format::Primer { entries }.render()
             }
         };
         self.audit_by(cx, ReadScope::Primer, Vec::new(), 0)?;

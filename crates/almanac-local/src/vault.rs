@@ -1,6 +1,7 @@
 //! A Space's vault: sealed or plain, by the Space's choice.
 
-use memfiles::{PlainDir, SealedDir, Vault, VaultError, VaultPath};
+use almanac_store::{Vault, VaultError, VaultPath};
+use memfiles::{PlainDir, SealedDir};
 
 /// Sealed per file (the default) or plain markdown. A closed set, so an enum.
 #[derive(Debug)]

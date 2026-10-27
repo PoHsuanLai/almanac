@@ -2,7 +2,7 @@
 
 use almanac_core::*;
 use chrono::{FixedOffset, Offset, Utc};
-use memfiles::*;
+use memfiles_format::*;
 use std::collections::BTreeSet;
 
 fn app(name: &str) -> AppName {

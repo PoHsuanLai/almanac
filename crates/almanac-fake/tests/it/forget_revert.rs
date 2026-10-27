@@ -4,8 +4,9 @@
 use almanac_core::*;
 use almanac_fake::*;
 use almanac_service::{ConsolidateError, Draft, MemoryService};
+use almanac_store::{Vault, VaultPath};
 use chrono::{Offset, Utc};
-use memfiles::{Block, TopicFile, Vault, VaultPath, render_topic};
+use memfiles_format::{Block, TopicFile, render_topic};
 
 fn work() -> SpaceId {
     SpaceId::parse("work").expect("space")

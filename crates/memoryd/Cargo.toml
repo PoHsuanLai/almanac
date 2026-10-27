@@ -23,6 +23,7 @@ test-proc-root = ["porter-dbus/test-proc-root"]
 almanac-core = { workspace = true }
 almanac-seal = { workspace = true, features = ["oo7"] }
 eventlog = { workspace = true }
+almanac-store = { workspace = true }
 memfiles = { workspace = true }
 recall = { workspace = true }
 almanac-local = { workspace = true }
@@ -47,6 +48,7 @@ serde_json = { workspace = true }
 blake3 = { workspace = true }
 
 [dev-dependencies]
+memfiles-format = { workspace = true }
 # The tests present their processes as a fixture tree, which porter reads only in a test build.
 memoryd = { path = ".", features = ["test-proc-root"] }
 chrono = { workspace = true }

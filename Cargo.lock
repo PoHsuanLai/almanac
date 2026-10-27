@@ -119,9 +119,11 @@ dependencies = [
  "almanac-core",
  "almanac-seal",
  "almanac-service",
+ "almanac-store",
  "chrono",
  "eventlog",
  "memfiles",
+ "memfiles-format",
  "recall",
  "rusqlite",
  "serde_json",
@@ -140,6 +142,7 @@ dependencies = [
  "almanac-fake",
  "almanac-seal",
  "almanac-service",
+ "almanac-store",
  "eventlog",
  "getrandom 0.3.4",
  "memfiles",
@@ -177,7 +180,7 @@ dependencies = [
  "blake3",
  "chrono",
  "eventlog",
- "memfiles",
+ "memfiles-format",
  "serde",
  "serde_json",
  "tar",
@@ -2082,6 +2085,16 @@ dependencies = [
  "almanac-core",
  "almanac-seal",
  "almanac-store",
+ "memfiles",
+ "tempfile",
+]
+
+[[package]]
+name = "memfiles-format"
+version = "0.1.0"
+dependencies = [
+ "almanac-core",
+ "almanac-store",
  "chrono",
  "memfiles",
  "proptest",
@@ -2111,6 +2124,7 @@ dependencies = [
  "almanac-local",
  "almanac-seal",
  "almanac-service",
+ "almanac-store",
  "almanac-watch",
  "blake3",
  "chrono",
@@ -2119,6 +2133,7 @@ dependencies = [
  "getrandom 0.3.4",
  "landlock",
  "memfiles",
+ "memfiles-format",
  "memoryd",
  "porter-client",
  "porter-core",

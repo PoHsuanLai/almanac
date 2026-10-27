@@ -1,6 +1,6 @@
 //! `MemoryVault`: files in a map, for tests and almanac-fake.
 
-use crate::vault::{Vault, VaultError, VaultPath};
+use almanac_store::{Vault, VaultError, VaultPath};
 use std::collections::BTreeMap;
 use std::sync::Mutex;
 

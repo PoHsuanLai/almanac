@@ -4,8 +4,8 @@ use crate::support::*;
 use almanac_core::*;
 use almanac_seal::{Purpose, SpaceKey, derive};
 use almanac_service::*;
+use almanac_store::VaultPath;
 use eventlog::{LogRead, LogWrite, MemoryLog, NewHeader};
-use memfiles::VaultPath;
 use std::io::Read;
 
 #[test]

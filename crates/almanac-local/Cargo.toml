@@ -13,6 +13,7 @@ almanac-core = { workspace = true }
 almanac-seal = { workspace = true }
 almanac-service = { workspace = true }
 eventlog = { workspace = true }
+almanac-store = { workspace = true }
 memfiles = { workspace = true }
 recall = { workspace = true }
 rusqlite = { workspace = true }

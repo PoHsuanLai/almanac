@@ -9,7 +9,7 @@
 
 use almanac_core::{FactId, TopicPath};
 use almanac_store::{Vault, VaultError, VaultPath};
-use memfiles::{Block, parse_topic, render_topic};
+use memfiles_format::{Block, parse_topic, render_topic};
 use std::collections::BTreeMap;
 
 fn path() -> Option<VaultPath> {

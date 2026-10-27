@@ -22,7 +22,7 @@ use almanac_core::{
 use almanac_seal::{KeyError, KeyStore, Purpose, derive};
 use almanac_store::SearchIndex;
 use chrono::{Offset, Utc};
-use memfiles::Store;
+use memfiles_format::Store;
 use std::collections::{BTreeMap, BTreeSet};
 use std::future::Future;
 use std::io::Write;

@@ -5,8 +5,8 @@ use crate::support::*;
 use almanac_local::LocalVault;
 use almanac_seal::KeyStore;
 use almanac_service::{Backend, BackendError};
+use almanac_store::{Vault, VaultError, VaultPath};
 use eventlog::LogError;
-use memfiles::{Vault, VaultError, VaultPath};
 use std::path::Path;
 
 const NEEDLE: &str = "zebracorp";

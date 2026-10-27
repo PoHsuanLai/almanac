@@ -2,8 +2,10 @@
 //! cascade and journal rollups. Every test runs over memory and over a scratch directory.
 
 use almanac_core::*;
+use almanac_store::{Vault, VaultError, VaultPath};
 use chrono::{Offset, Utc};
-use memfiles::*;
+use memfiles::{MemoryVault, PlainDir};
+use memfiles_format::*;
 use std::collections::BTreeSet;
 
 fn id(n: u32) -> FactId {
@@ -299,4 +301,19 @@ mod props {
             prop_assert_eq!(store.remove(&ids), Ok(Count(count)));
         }
     }
+}
+
+#[test]
+fn the_primer_is_capped_and_linked() {
+    let entry = |n: usize| PrimerEntry {
+        topic: TopicPath::parse(&format!("t{n}")).expect("topic"),
+        title: format!("Topic {n}").into(),
+        summary: "about it".into(),
+    };
+    let primer = Primer {
+        entries: (0..300).map(entry).collect(),
+    };
+    let text = primer.render();
+    assert_eq!(text.lines().count(), PRIMER_MAX_LINES);
+    assert!(text.starts_with("# Memory\n\n- [Topic 0](t0.md): about it\n"));
 }

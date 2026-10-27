@@ -6,7 +6,7 @@ use crate::consolidation::InputTopic;
 use crate::docs::fact_doc_id;
 use crate::open::{Open, files_refusal};
 use almanac_core::{Hunk, Refusal, TopicPath, UserText};
-use memfiles::render_topic;
+use memfiles_format::render_topic;
 use std::collections::BTreeMap;
 
 impl<B: Backend> Open<B> {

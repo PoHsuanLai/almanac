@@ -1,0 +1,25 @@
+[package]
+name = "memfiles-format"
+description = "almanac's agent memory file format: parse and render of topic files and trailers, and the fact store over a vault seam. No file IO."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+almanac-core = { workspace = true }
+almanac-store = { workspace = true }
+chrono = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+memfiles = { workspace = true, features = ["testing"] }
+tempfile = { workspace = true }
+proptest = { workspace = true }
+
+[lints]
+workspace = true

@@ -1,9 +1,9 @@
 //! `PlainDir` and `SealedDir`: the vaults on disk. Writes are a temporary file beside the
 //! target, fsync, then rename, so a crash never leaves half a file.
 
-use crate::vault::{Vault, VaultError, VaultPath};
 use almanac_core::SpaceId;
 use almanac_seal::{Aad, Nonce, SubKey, seal, unseal};
+use almanac_store::{Vault, VaultError, VaultPath};
 use std::fs::File;
 use std::io::{ErrorKind, Write};
 use std::path::{Path, PathBuf};

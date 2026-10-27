@@ -1,5 +1,3 @@
-mod store;
-mod topic;
 mod vault;
 
 /// Fails if a file or directory beside this one is not reached by a `mod`, or if a stray

@@ -12,7 +12,7 @@ use almanac_core::{
     RunId, TidyHunk, TopicPath, UnixSeconds, UserText, Validity,
 };
 use almanac_store::{Vault, VaultPath};
-use memfiles::{Block, TopicFile, parse_topic, render_topic};
+use memfiles_format::{Block, TopicFile, parse_topic, render_topic};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
