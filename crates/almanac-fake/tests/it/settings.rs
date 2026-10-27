@@ -45,24 +45,13 @@ async fn waiting(service: &Service) -> usize {
 }
 
 #[tokio::test]
-async fn a_pending_fact_waits_as_long_as_the_persons_settings_say_and_a_change_applies_at_once() {
-    let service = fake_service(ScriptedConsolidator::default());
-    service.apply_settings(settings(|s| s.pending_ttl = DayCount(3)));
-    propose_pending(&service).await;
-    service.backend().advance_clock(2 * 86_400);
-    assert_eq!(waiting(&service).await, 1, "two days is inside three");
-
-    // The person shortens the wait: the very next request ages the fact out.
-    service.apply_settings(settings(|s| s.pending_ttl = DayCount(1)));
-    assert_eq!(waiting(&service).await, 0, "two days is past one");
-}
-
-#[tokio::test]
-async fn the_shipped_wait_is_fourteen_days_until_the_settings_say_otherwise() {
+async fn a_pending_fact_waits_fourteen_days() {
     let service = fake_service(ScriptedConsolidator::default());
     propose_pending(&service).await;
     service.backend().advance_clock(10 * 86_400);
     assert_eq!(waiting(&service).await, 1);
+    service.backend().advance_clock(5 * 86_400);
+    assert_eq!(waiting(&service).await, 0);
 }
 
 async fn record_in(service: &Service, space: &str) {
@@ -105,29 +94,20 @@ async fn sweep_bodies(service: &Service) -> u32 {
 }
 
 #[tokio::test]
-async fn the_retention_the_settings_give_is_what_the_sweep_keeps() {
-    // An audit event (`policy.ruled`) keeps its body 90 days unless the person says less.
-    let kept = fake_service(ScriptedConsolidator::default());
-    kept.handle(
-        &Caller::Router,
-        MemoryRequest::Record(policy_ask().expect("fixture")),
-    )
-    .await;
-    kept.backend().advance_clock(11 * 86_400);
-    assert_eq!(sweep_bodies(&kept).await, 0);
-
-    let shorter = fake_service(ScriptedConsolidator::default());
-    shorter.apply_settings(settings(|s| s.retention.audit_body = DayCount(10)));
-    shorter
+async fn an_audit_event_keeps_its_body_ninety_days() {
+    let service = fake_service(ScriptedConsolidator::default());
+    service
         .handle(
             &Caller::Router,
             MemoryRequest::Record(policy_ask().expect("fixture")),
         )
         .await;
-    shorter.backend().advance_clock(11 * 86_400);
-    assert_eq!(sweep_bodies(&shorter).await, 1);
+    service.backend().advance_clock(89 * 86_400);
+    assert_eq!(sweep_bodies(&service).await, 0);
+    service.backend().advance_clock(2 * 86_400);
+    assert_eq!(sweep_bodies(&service).await, 1);
     // The rules the person's `SetRule` made are not changed by it: memoryd persists those.
-    assert_eq!(shorter.rules(), RuleSet::standard());
+    assert_eq!(service.rules(), RuleSet::standard());
 }
 
 #[tokio::test]

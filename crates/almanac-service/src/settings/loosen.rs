@@ -23,36 +23,16 @@ struct Days {
     restore: fn(&mut MemorySettings, &MemorySettings),
 }
 
-const DAY_KEYS: [Days; 6] = [
+const DAY_KEYS: [Days; 2] = [
     Days {
         key: "memory.retention.search_days",
         of: |s| s.retention.search,
         restore: |s, o| s.retention.search = o.retention.search,
     },
     Days {
-        key: "memory.retention.file_unexplained_days",
-        of: |s| s.retention.file_unexplained,
-        restore: |s, o| s.retention.file_unexplained = o.retention.file_unexplained,
-    },
-    Days {
         key: "memory.retention.session_days",
         of: |s| s.retention.session,
         restore: |s, o| s.retention.session = o.retention.session,
-    },
-    Days {
-        key: "memory.retention.audit_body_days",
-        of: |s| s.retention.audit_body,
-        restore: |s, o| s.retention.audit_body = o.retention.audit_body,
-    },
-    Days {
-        key: "memory.retention.audit_header_days",
-        of: |s| s.retention.audit_header,
-        restore: |s, o| s.retention.audit_header = o.retention.audit_header,
-    },
-    Days {
-        key: "memory.pending_ttl_days",
-        of: |s| s.pending_ttl,
-        restore: |s, o| s.pending_ttl = o.pending_ttl,
     },
 ];
 

@@ -18,7 +18,7 @@ mod read;
 #[cfg(test)]
 mod tests;
 
-use almanac_core::{DayCount, RetentionDays, VaultKind};
+use almanac_core::{RetentionDays, VaultKind};
 
 pub use confirm::{CONFIRMED_FILE, ConfirmError, Confirmations};
 pub use locate::Locator;
@@ -57,10 +57,8 @@ pub struct MemorySettings {
     /// `memory.files.at_rest`: how a new Space's files are held. A Space that exists keeps the
     /// way it was made (its entry in `spaces.toml`).
     pub at_rest: VaultKind,
-    /// `memory.retention.*`.
+    /// `memory.retention.search_days` and `session_days`.
     pub retention: RetentionDays,
-    /// `memory.pending_ttl_days`: how long a pending fact waits for the person.
-    pub pending_ttl: DayCount,
     /// `memory.consolidation.when`.
     pub consolidate: ConsolidateWhen,
     /// `memory.consolidation.apply`.
@@ -72,7 +70,6 @@ impl Default for MemorySettings {
         Self {
             at_rest: VaultKind::Sealed,
             retention: RetentionDays::default(),
-            pending_ttl: almanac_core::PENDING_TTL_DAYS,
             consolidate: ConsolidateWhen::Nightly,
             apply: ConsolidateApply::Auto,
         }

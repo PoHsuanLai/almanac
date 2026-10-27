@@ -7,7 +7,7 @@ use crate::space::{SpaceEffect, SpaceEvent, step};
 use almanac_core::{
     Admission, Caller, Confidentiality, Count, DataClass, DropReason, EventBody, EventRef,
     FileChange, FileView, FileWhy, FileWhyClaim, IndexPart, Integrity, KindPattern, Label,
-    MarkKind, MarkRequest, Record, Refusal, Source, Verb, admit_with, withheld,
+    MarkKind, MarkRequest, Record, Refusal, Source, Verb, admit, withheld,
 };
 use almanac_store::{BodyState, LogRead};
 use std::collections::BTreeSet;
@@ -71,13 +71,7 @@ impl<B: Backend> Open<B> {
         let cost = cx.quota.fields.check(&record.body)?;
         self.tick(cx)?;
         let now = cx.now();
-        let (body, header_only) = match admit_with(
-            &record,
-            &cx.rules,
-            &self.rt.state,
-            &self.rt.marks,
-            cx.settings.retention.file_unexplained,
-        ) {
+        let (body, header_only) = match admit(&record, &cx.rules, &self.rt.state, &self.rt.marks) {
             Admission::Drop(why) => return Ok(Stored::Dropped(why)),
             Admission::Keep { .. } => (Some(record.body.clone()), false),
             Admission::HeaderOnly { .. } => (None, true),

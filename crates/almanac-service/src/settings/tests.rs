@@ -227,23 +227,7 @@ fn each_key_lands_in_the_typed_value_the_design_names() {
     );
     let r = |p| read_one(p, int(11)).retention;
     assert_eq!(r("memory.retention.search_days").search, DayCount(11));
-    assert_eq!(
-        r("memory.retention.file_unexplained_days").file_unexplained,
-        DayCount(11)
-    );
     assert_eq!(r("memory.retention.session_days").session, DayCount(11));
-    assert_eq!(
-        r("memory.retention.audit_body_days").audit_body,
-        DayCount(11)
-    );
-    assert_eq!(
-        r("memory.retention.audit_header_days").audit_header,
-        DayCount(11)
-    );
-    assert_eq!(
-        read_one("memory.pending_ttl_days", int(3)).pending_ttl,
-        DayCount(3)
-    );
 }
 
 #[test]
@@ -265,16 +249,16 @@ fn a_bad_value_falls_back_for_that_key_alone() {
         };
         for value in bad {
             // A second, good key in the same file still applies.
-            let other = if p == "memory.pending_ttl_days" {
+            let other = if p == "memory.retention.session_days" {
                 "memory.retention.search_days"
             } else {
-                "memory.pending_ttl_days"
+                "memory.retention.session_days"
             };
             let text = merged(&[(p, value.clone()), (other, toml::Value::Integer(3))]);
             let loaded = read(&text, MemorySettings::default());
             let mut want = MemorySettings::default();
-            if other == "memory.pending_ttl_days" {
-                want.pending_ttl = DayCount(3);
+            if other == "memory.retention.session_days" {
+                want.retention.session = DayCount(3);
             } else {
                 want.retention.search = DayCount(3);
             }
@@ -287,17 +271,15 @@ fn a_bad_value_falls_back_for_that_key_alone() {
 
 #[test]
 fn a_fallback_is_the_base_value_not_the_default() {
-    let base = MemorySettings {
-        pending_ttl: DayCount(5),
-        ..MemorySettings::default()
-    };
-    let loaded = read("[memory]\npending_ttl_days = 0\n", base);
+    let mut base = MemorySettings::default();
+    base.retention.search = DayCount(5);
+    let loaded = read("[memory.retention]\nsearch_days = 0\n", base);
     assert_eq!(loaded.value, base);
     assert_eq!(
         loaded.fallbacks,
         vec![Fallback {
-            key: "memory.pending_ttl_days".into(),
-            why: Why::OutOfRange { min: 1, max: 365 },
+            key: "memory.retention.search_days".into(),
+            why: Why::OutOfRange { min: 1, max: 3650 },
         }]
     );
 }
@@ -325,11 +307,8 @@ fn the_locator_reads_the_first_file_of_the_configuration_directories() {
     let home = tempfile::tempdir().unwrap();
     let etc = tempfile::tempdir().unwrap();
     for (dir, text) in [
-        (&home, "[memory]\npending_ttl_days = 5\n"),
-        (
-            &etc,
-            "[memory]\npending_ttl_days = 9\n[memory.retention]\nsearch_days = 3\n",
-        ),
+        (&home, "[memory.retention]\nsearch_days = 5\n"),
+        (&etc, "[memory.retention]\nsession_days = 3\n"),
     ] {
         std::fs::create_dir_all(dir.path().join("almanac")).unwrap();
         std::fs::write(dir.path().join(SETTINGS_FILE), text).unwrap();
@@ -342,13 +321,13 @@ fn the_locator_reads_the_first_file_of_the_configuration_directories() {
     let store = home.path().join(CONFIRMED_FILE);
     let locator = Locator::from_env(&env).confirming(store);
     locator
-        .confirm(&pairs(&[("memory.pending_ttl_days", "5")]))
+        .confirm(&pairs(&[("memory.retention.search_days", "5")]))
         .unwrap();
     assert_eq!(locator.watch_dir(), Some(home.path().join("almanac")));
     let value = locator.read(MemorySettings::default()).value;
-    assert_eq!(value.pending_ttl, DayCount(5));
+    assert_eq!(value.retention.search, DayCount(5));
     // The first file wins whole: the later directory's other keys are not merged in.
-    assert_eq!(value.retention.search, DayCount(30));
+    assert_eq!(value.retention.session, DayCount(30));
     let none = Locator::from_env(&|_: &str| None::<String>);
     assert_eq!(
         none.read(MemorySettings::default()),
@@ -360,10 +339,10 @@ fn the_locator_reads_the_first_file_of_the_configuration_directories() {
 fn what_the_file_loosens_below_the_shipped_defaults_is_named() {
     let table: [(&str, usize); 4] = [
         ("", 0),
-        ("[memory]\npending_ttl_days = 14\n", 0),
-        ("[memory]\npending_ttl_days = 1\n", 1),
+        ("[memory.retention]\nsearch_days = 30\n", 0),
+        ("[memory.retention]\nsearch_days = 1\n", 1),
         (
-            "[memory]\npending_ttl_days = 1\n[memory.retention]\nsearch_days = 2\n[memory.files]\nat_rest = \"plain\"\n",
+            "[memory.retention]\nsearch_days = 1\nsession_days = 2\n[memory.files]\nat_rest = \"plain\"\n",
             3,
         ),
     ];
@@ -401,7 +380,7 @@ fn locator_with(dir: &std::path::Path, text: &str) -> Locator {
 #[test]
 fn a_loosened_value_applies_only_once_the_person_confirmed_exactly_it() {
     let dir = tempfile::tempdir().unwrap();
-    let file = "[memory]\npending_ttl_days = 3\n[memory.files]\nat_rest = \"plain\"\n";
+    let file = "[memory.retention]\nsearch_days = 3\n[memory.files]\nat_rest = \"plain\"\n";
     let locator = locator_with(dir.path(), file);
     let shipped = MemorySettings::default();
 
@@ -412,7 +391,7 @@ fn a_loosened_value_applies_only_once_the_person_confirmed_exactly_it() {
         loaded.fallbacks,
         [
             Fallback {
-                key: "memory.pending_ttl_days".to_owned(),
+                key: "memory.retention.search_days".to_owned(),
                 why: Why::NotConfirmed {
                     value: "3".to_owned()
                 },
@@ -427,7 +406,7 @@ fn a_loosened_value_applies_only_once_the_person_confirmed_exactly_it() {
     );
     assert!(
         loaded.lines("memoryd").contains(
-            &"memoryd: settings: memory.pending_ttl_days: 3 waits for you to confirm it in Settings"
+            &"memoryd: settings: memory.retention.search_days: 3 waits for you to confirm it in Settings"
                 .to_owned()
         ),
         "{:?}",
@@ -436,10 +415,10 @@ fn a_loosened_value_applies_only_once_the_person_confirmed_exactly_it() {
 
     // One confirmed: that one applies (and is still audited), the other still waits.
     locator
-        .confirm(&pairs(&[("memory.pending_ttl_days", "3")]))
+        .confirm(&pairs(&[("memory.retention.search_days", "3")]))
         .unwrap();
     let loaded = locator.read(shipped);
-    assert_eq!(loaded.value.pending_ttl, DayCount(3));
+    assert_eq!(loaded.value.retention.search, DayCount(3));
     assert_eq!(loaded.value.at_rest, VaultKind::Sealed);
     assert_eq!(loaded.fallbacks.len(), 1);
     assert_eq!(
@@ -454,7 +433,7 @@ fn a_loosened_value_applies_only_once_the_person_confirmed_exactly_it() {
     // The file changes to another loose value: the old confirmation does not carry over.
     std::fs::write(
         dir.path().join(SETTINGS_FILE),
-        "[memory]\npending_ttl_days = 2\n",
+        "[memory.retention]\nsearch_days = 2\n",
     )
     .unwrap();
     assert_eq!(locator.read(shipped).value, shipped);
@@ -462,23 +441,23 @@ fn a_loosened_value_applies_only_once_the_person_confirmed_exactly_it() {
     // A value that is not looser needs nothing, and a confirmation the file no longer uses is kept.
     std::fs::write(
         dir.path().join(SETTINGS_FILE),
-        "[memory]\npending_ttl_days = 20\n",
+        "[memory.retention]\nsearch_days = 40\n",
     )
     .unwrap();
     let loaded = locator.read(shipped);
-    assert_eq!(loaded.value.pending_ttl, DayCount(20));
+    assert_eq!(loaded.value.retention.search, DayCount(40));
     assert_eq!(loaded.fallbacks, vec![]);
     assert!(
         std::fs::read_to_string(dir.path().join(CONFIRMED_FILE))
             .unwrap()
-            .contains("memory.pending_ttl_days")
+            .contains("memory.retention.search_days")
     );
 }
 
 #[test]
 fn the_waiting_list_is_the_unconfirmed_loose_values_in_key_order() {
     let dir = tempfile::tempdir().unwrap();
-    let file = "[memory]\npending_ttl_days = 3\n[memory.files]\nat_rest = \"plain\"\n";
+    let file = "[memory.retention]\nsearch_days = 3\n[memory.files]\nat_rest = \"plain\"\n";
     let locator = locator_with(dir.path(), file);
     let waiting = |key: &str, waiting: &str, shipped: &str| almanac_core::WaitingSetting {
         key: key.to_owned(),
@@ -489,7 +468,7 @@ fn the_waiting_list_is_the_unconfirmed_loose_values_in_key_order() {
         locator.waiting(),
         [
             waiting("memory.files.at_rest", "plain", "sealed"),
-            waiting("memory.pending_ttl_days", "3", "14"),
+            waiting("memory.retention.search_days", "3", "30"),
         ]
     );
 
@@ -499,17 +478,17 @@ fn the_waiting_list_is_the_unconfirmed_loose_values_in_key_order() {
         .unwrap();
     assert_eq!(
         locator.waiting(),
-        [waiting("memory.pending_ttl_days", "3", "14")]
+        [waiting("memory.retention.search_days", "3", "30")]
     );
     locator
-        .confirm(&pairs(&[("memory.pending_ttl_days", "3")]))
+        .confirm(&pairs(&[("memory.retention.search_days", "3")]))
         .unwrap();
     assert_eq!(locator.waiting(), vec![]);
 
     // A value that is not looser, or not valid, never waits.
     std::fs::write(
         dir.path().join(SETTINGS_FILE),
-        "[memory]\npending_ttl_days = 20\n[memory.retention]\nsearch_days = 0\n",
+        "[memory.retention]\nsearch_days = 40\nsession_days = 0\n",
     )
     .unwrap();
     assert_eq!(locator.waiting(), vec![]);
@@ -520,11 +499,11 @@ fn a_confirmation_names_a_loosenable_key_and_a_value_it_takes_or_none_is_kept() 
     let dir = tempfile::tempdir().unwrap();
     let locator = locator_with(dir.path(), "");
     let table: [(&[(&str, &str)], bool); 6] = [
-        (&[("memory.pending_ttl_days", "3")], true),
+        (&[("memory.retention.search_days", "3")], true),
         (&[("memory.consolidation.apply", "review")], true),
         (&[("memory.consolidation.when", "never")], false),
         (&[("memory.nonsense", "1")], false),
-        (&[("memory.pending_ttl_days", "0")], false),
+        (&[("memory.retention.search_days", "0")], false),
         (
             &[
                 ("memory.files.at_rest", "plain"),
@@ -545,7 +524,7 @@ fn a_confirmation_names_a_loosenable_key_and_a_value_it_takes_or_none_is_kept() 
     let nowhere = Locator::from_env(&|_: &str| None::<String>);
     assert!(
         nowhere
-            .confirm(&pairs(&[("memory.pending_ttl_days", "3")]))
+            .confirm(&pairs(&[("memory.retention.search_days", "3")]))
             .is_err()
     );
 }

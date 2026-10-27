@@ -14,7 +14,7 @@ version = 1
 path = "memory.files.at_rest"
 default = "sealed"
 label = "Memory files"
-help = "Private keeps memory files encrypted, readable only through memory. Readable by apps keeps ordinary files that any app on this computer can read. Spaces already made keep their setting."
+help = "Private keeps memory files encrypted. Readable by apps leaves them as plain files. Existing Spaces keep theirs."
 section = "Memory"
 exposure = "basic"
 
@@ -35,7 +35,7 @@ plain = "Readable by apps"
 path = "memory.consolidation.when"
 default = "nightly"
 label = "Tidy memory"
-help = "Reads what happened, proposes facts and tidies the memory files. You can undo any run. Nightly is the default."
+help = "When memory sorts what it learned and tidies its files. You can undo any run."
 section = "Memory"
 exposure = "basic"
 
@@ -57,7 +57,7 @@ never = "Never"
 path = "memory.consolidation.apply"
 default = "auto"
 label = "Apply tidying"
-help = "Right away applies each run as soon as it is drafted, and you can undo it. After I review waits for you to approve."
+help = "Apply each tidy-up right away, or wait for your approval."
 section = "Memory"
 exposure = "advanced"
 
@@ -77,27 +77,8 @@ review = "After I review"
 [[key]]
 path = "memory.retention.search_days"
 default = 30
-label = "Search history"
-help = "How long searches and selections are remembered."
-section = "History"
-exposure = "advanced"
-
-[key.kind]
-kind = "bounded"
-
-[key.kind.v]
-min = 1
-max = 3650
-unit = "days"
-
-[key.page]
-kind = "intelligence"
-
-[[key]]
-path = "memory.retention.file_unexplained_days"
-default = 7
-label = "Unexplained edits"
-help = "How long a file change that no app explained is remembered."
+label = "Keep search history"
+help = "How long searches are remembered."
 section = "History"
 exposure = "advanced"
 
@@ -115,8 +96,8 @@ kind = "intelligence"
 [[key]]
 path = "memory.retention.session_days"
 default = 30
-label = "Task history"
-help = "How long the assistant's tasks and computer-use runs are remembered."
+label = "Keep task history"
+help = "How long the assistant's tasks are remembered."
 section = "History"
 exposure = "advanced"
 
@@ -126,63 +107,6 @@ kind = "bounded"
 [key.kind.v]
 min = 1
 max = 3650
-unit = "days"
-
-[key.page]
-kind = "intelligence"
-
-[[key]]
-path = "memory.retention.audit_body_days"
-default = 90
-label = "Activity details"
-help = "How long the details of permission and memory events are kept."
-section = "History"
-exposure = "advanced"
-
-[key.kind]
-kind = "bounded"
-
-[key.kind.v]
-min = 1
-max = 3650
-unit = "days"
-
-[key.page]
-kind = "intelligence"
-
-[[key]]
-path = "memory.retention.audit_header_days"
-default = 365
-label = "Activity records"
-help = "How long the bare record of those events is kept after their details are gone."
-section = "History"
-exposure = "advanced"
-
-[key.kind]
-kind = "bounded"
-
-[key.kind.v]
-min = 1
-max = 3650
-unit = "days"
-
-[key.page]
-kind = "intelligence"
-
-[[key]]
-path = "memory.pending_ttl_days"
-default = 14
-label = "Unsure facts"
-help = "How long a fact the assistant is unsure of waits for you to accept or discard it before it is dropped."
-section = "History"
-exposure = "advanced"
-
-[key.kind]
-kind = "bounded"
-
-[key.kind.v]
-min = 1
-max = 365
 unit = "days"
 
 [key.page]

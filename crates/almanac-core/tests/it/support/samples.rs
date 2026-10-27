@@ -192,7 +192,7 @@ pub fn requests() -> Vec<MemoryRequest> {
             },
         ),
         MemoryRequest::ConfirmSettings(
-            [("memory.pending_ttl_days".to_owned(), "3".to_owned())].into(),
+            [("memory.retention.search_days".to_owned(), "3".to_owned())].into(),
         ),
         MemoryRequest::PendingSettings,
         MemoryRequest::ApplyConsolidation(RunId::parse("run-1").expect("run")),

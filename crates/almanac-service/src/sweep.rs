@@ -5,7 +5,7 @@
 use crate::backend::Backend;
 use crate::docs::{indexed_docs, newest_episodes};
 use crate::open::{Cx, Open, log_refusal};
-use crate::retention::{SourceState, Sweep, header_expired_after, sweep_body};
+use crate::retention::{SourceState, Sweep, header_expired, sweep_body};
 use almanac_core::{
     Count, EventBody, FileChange, MemoryOp, Record, Refusal, Retention, Seq, SpacePath, SpaceState,
     SweepReport, ThingRef, Verb,
@@ -102,20 +102,12 @@ impl<B: Backend> Open<B> {
         };
         let marks = almanac_core::Marks::default();
         Some(
-            match almanac_core::admit_with(
-                &record,
-                &cx.rules,
-                &SpaceState::Open,
-                &marks,
-                cx.settings.retention.file_unexplained,
-            ) {
+            match almanac_core::admit(&record, &cx.rules, &SpaceState::Open, &marks) {
                 almanac_core::Admission::Keep { retention }
                 | almanac_core::Admission::HeaderOnly { retention } => retention,
-                almanac_core::Admission::Drop(_) => almanac_core::default_retention_with(
-                    &record,
-                    &cx.rules,
-                    cx.settings.retention.file_unexplained,
-                ),
+                almanac_core::Admission::Drop(_) => {
+                    almanac_core::default_retention(&record, &cx.rules)
+                }
             },
         )
     }
@@ -123,7 +115,7 @@ impl<B: Backend> Open<B> {
     /// Erases the bodies that have expired and prunes the headers that have too.
     pub(crate) fn sweep(&mut self, cx: &Cx<'_, B>) -> Result<SweepReport, Refusal> {
         let now = cx.now();
-        self.age_pending(now, cx.settings.pending_ttl)?;
+        self.age_pending(now)?;
         let entries = self.entries()?;
         let deletions = Deletions::of(&entries);
         let expired: Vec<(Seq, &Entry)> = entries
@@ -157,8 +149,7 @@ impl<B: Backend> Open<B> {
             // What the Space holds changed: its usage is counted afresh at the next record.
             self.usage = None;
         }
-        let headers =
-            self.prune_expired_headers(now, cx.settings.retention.audit_header, &entries, &seqs)?;
+        let headers = self.prune_expired_headers(now, &entries, &seqs)?;
         Ok(SweepReport {
             bodies: count(seqs.len()),
             headers,
@@ -170,7 +161,6 @@ impl<B: Backend> Open<B> {
     fn prune_expired_headers(
         &mut self,
         now: almanac_core::UnixSeconds,
-        header_days: almanac_core::DayCount,
         entries: &[Entry],
         just_erased: &[Seq],
     ) -> Result<Count, Refusal> {
@@ -179,7 +169,7 @@ impl<B: Backend> Open<B> {
             .take_while(|e| {
                 let gone =
                     matches!(e.body, BodyState::Erased) || just_erased.contains(&e.header.seq);
-                gone && header_expired_after(header_days, e.header.occurred, now)
+                gone && header_expired(e.header.occurred, now)
             })
             .collect();
         let Some(last) = prefix.last() else {

@@ -46,7 +46,7 @@ async fn a_change_in_the_file_applies_to_the_service_without_a_restart() {
     locator
         .confirm(&pairs(&[
             ("memory.files.at_rest", "plain"),
-            ("memory.pending_ttl_days", "3"),
+            ("memory.retention.search_days", "3"),
         ]))
         .unwrap();
     let mut watch = SettingsWatch::start(locator, MemorySettings::default());
@@ -56,7 +56,7 @@ async fn a_change_in_the_file_applies_to_the_service_without_a_restart() {
 
     write_atomically(
         home.path(),
-        "[memory.files]\nat_rest = \"plain\"\n[memory]\npending_ttl_days = 3\n[memory.consolidation]\nwhen = \"never\"\n",
+        "[memory.files]\nat_rest = \"plain\"\n[memory.retention]\nsearch_days = 3\n[memory.consolidation]\nwhen = \"never\"\n",
     );
     while service.settings().consolidate == ConsolidateWhen::Nightly {
         let loaded = apply_next(&service, &mut watch)
@@ -66,12 +66,12 @@ async fn a_change_in_the_file_applies_to_the_service_without_a_restart() {
     }
     let now = service.settings();
     assert_eq!(now.at_rest, VaultKind::Plain);
-    assert_eq!(now.pending_ttl, DayCount(3));
+    assert_eq!(now.retention.search, DayCount(3));
 
     // A bad value falls back to the value in force, and the good one beside it still applies.
     write_atomically(
         home.path(),
-        "[memory]\npending_ttl_days = 0\n[memory.consolidation]\nwhen = \"manual\"\n",
+        "[memory.retention]\nsearch_days = 0\n[memory.consolidation]\nwhen = \"manual\"\n",
     );
     while service.settings().consolidate != ConsolidateWhen::Manual {
         apply_next(&service, &mut watch)
@@ -80,8 +80,8 @@ async fn a_change_in_the_file_applies_to_the_service_without_a_restart() {
     }
     let now = service.settings();
     assert_eq!(
-        now.pending_ttl,
-        DayCount(14),
+        now.retention.search,
+        DayCount(30),
         "the bad value fell back to the base, not the old file"
     );
     assert_eq!(
@@ -119,7 +119,7 @@ async fn a_loosened_value_waits_until_the_settings_app_confirms_it_over_the_bus(
     let bus = PrivateBus::start(scratch.path());
     let dirs = dirs_in(&scratch.path().join("home"));
     let config = scratch.path().join("config");
-    write_atomically(&config, "[memory]\npending_ttl_days = 3\n");
+    write_atomically(&config, "[memory.retention]\nsearch_days = 3\n");
     let nothing = scratch.path().join("no-xdg-dirs");
     let env = |key: &str| match key {
         "XDG_CONFIG_HOME" => Some(config.display().to_string()),
@@ -137,13 +137,13 @@ async fn a_loosened_value_waits_until_the_settings_app_confirms_it_over_the_bus(
     let service = world.daemon.queue().service();
     apply(service, &locator.read(MemorySettings::default()));
     assert_eq!(
-        service.settings().pending_ttl,
-        MemorySettings::default().pending_ttl,
+        service.settings().retention.search,
+        MemorySettings::default().retention.search,
         "unconfirmed, the shipped wait stays"
     );
 
     // Nobody but the Settings app may confirm: not an app, not the router, not even the shell.
-    let one = [("memory.pending_ttl_days", "3")];
+    let one = [("memory.retention.search_days", "3")];
     let app = Caller::App(AppId {
         name: mail(),
         isolation: Isolation::Unsandboxed,
@@ -168,9 +168,9 @@ async fn a_loosened_value_waits_until_the_settings_app_confirms_it_over_the_bus(
         );
     }
     let waiting = vec![WaitingSetting {
-        key: "memory.pending_ttl_days".to_owned(),
+        key: "memory.retention.search_days".to_owned(),
         waiting: "3".to_owned(),
-        shipped: MemorySettings::default().pending_ttl.0.to_string(),
+        shipped: MemorySettings::default().retention.search.0.to_string(),
     }];
     let shell = world.client(Caller::ShellUi).await;
     assert_eq!(pending_over_bus(&shell).await, Ok(waiting.clone()));
@@ -181,9 +181,9 @@ async fn a_loosened_value_waits_until_the_settings_app_confirms_it_over_the_bus(
     for bad in [
         vec![("memory.nonsense", "1")],
         vec![("memory.consolidation.when", "never")],
-        vec![("memory.pending_ttl_days", "0")],
+        vec![("memory.retention.search_days", "0")],
         vec![
-            ("memory.pending_ttl_days", "3"),
+            ("memory.retention.search_days", "3"),
             ("memory.files.at_rest", "open"),
         ],
     ] {
@@ -195,18 +195,18 @@ async fn a_loosened_value_waits_until_the_settings_app_confirms_it_over_the_bus(
     }
     assert!(!dirs.confirmed_settings_toml().exists());
     assert_eq!(
-        service.settings().pending_ttl,
-        MemorySettings::default().pending_ttl
+        service.settings().retention.search,
+        MemorySettings::default().retention.search
     );
 
     // The Settings app confirms: the very next request sees the value, and it is on disk.
     assert_eq!(pending_over_bus(&settings).await, Ok(waiting));
     assert_eq!(confirm_over_bus(&settings, &one).await, None);
     assert_eq!(pending_over_bus(&settings).await, Ok(vec![]));
-    assert_eq!(service.settings().pending_ttl, DayCount(3));
+    assert_eq!(service.settings().retention.search, DayCount(3));
     assert!(
         std::fs::read_to_string(dirs.confirmed_settings_toml())
             .expect("the store")
-            .contains("memory.pending_ttl_days")
+            .contains("memory.retention.search_days")
     );
 }

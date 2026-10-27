@@ -3,7 +3,6 @@
 
 use crate::event::{EventBody, Record};
 use crate::file::{FileView, FileWhy};
-use crate::ids::DayCount;
 use crate::rules::{
     Admission, DropReason, FALLBACK_DAYS, Marks, RememberMode, RememberRule, Retention, RuleScope,
     RuleSet, UNEXPLAINED_FILE_DAYS,
@@ -40,20 +39,8 @@ pub fn is_audit_class(record: &Record) -> bool {
 /// pause, marks and rules apply; the most specific scope wins (`Thing > Path > Kind > App >
 /// Actor > Space`) and at equal specificity the strictest mode (`Never > HeaderOnly > Full`).
 pub fn admit(record: &Record, rules: &RuleSet, state: &SpaceState, marks: &Marks) -> Admission {
-    admit_with(record, rules, state, marks, UNEXPLAINED_FILE_DAYS)
-}
-
-/// [`admit`] with the person's keep for unexplained file changes (`memory.retention.
-/// file_unexplained_days`) in place of the shipped 7 days.
-pub fn admit_with(
-    record: &Record,
-    rules: &RuleSet,
-    state: &SpaceState,
-    marks: &Marks,
-    unexplained: DayCount,
-) -> Admission {
     let audit = is_audit_class(record);
-    let retention = default_retention_with(record, rules, unexplained);
+    let retention = default_retention(record, rules);
     let refuse = |reason: DropReason| {
         if audit {
             Admission::HeaderOnly { retention }
@@ -126,15 +113,6 @@ pub fn withheld(
 /// How long the record's body is kept when no rule says: unexplained file changes 7 days,
 /// otherwise the narrowest matching default, otherwise 30 days.
 pub fn default_retention(record: &Record, rules: &RuleSet) -> Retention {
-    default_retention_with(record, rules, UNEXPLAINED_FILE_DAYS)
-}
-
-/// [`default_retention`] with the person's keep for unexplained file changes.
-pub fn default_retention_with(
-    record: &Record,
-    rules: &RuleSet,
-    unexplained: DayCount,
-) -> Retention {
     if matches!(
         record.body,
         EventBody::File {
@@ -142,7 +120,7 @@ pub fn default_retention_with(
             ..
         }
     ) {
-        return Retention::Days(unexplained);
+        return Retention::Days(UNEXPLAINED_FILE_DAYS);
     }
     let kind = record.body.kind();
     rules

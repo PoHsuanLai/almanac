@@ -536,11 +536,12 @@ The Settings app (detent) builds its Intelligence page from the schema each daem
 section 9.2). almanac's covers the `memory.*` keys of section 3.28 that memoryd reads, and memoryd
 reads them.
 
-1. **`dist/settings/almanac.settings.toml` has 9 rows**, none `agent = "settable"` (`memory.*` is never
+1. **`dist/settings/almanac.settings.toml` has 5 rows**, none `agent = "settable"` (`memory.*` is never
    agent-settable). **On the Intelligence page** (section 5, Memory): `memory.files.at_rest` (toggle),
    `memory.consolidation.when` (segmented: nightly, manual, never), `memory.consolidation.apply` (toggle: auto, review). **Advanced:** `memory.retention.
-   {search,file_unexplained,session,audit_body,audit_header}_days` (1..=3650) and `memory.pending_ttl_days`
-   (1..=365).
+   {search,session}_days` (1..=3650). The unexplained-file keep (7 days), audit body (90), audit header (365)
+   and pending-fact wait (14) are constants in `almanac-core` `rules.rs`, not settings (settings prune
+   2026-10-27); a file that still sets them has the keys listed as unknown and ignored.
 2. **Left out of the schema, because nothing could read it:**
    - ~~`memory.consolidation.apply`~~ is built (see "consolidate-apply" below).
    - **`memory.join_window_ms`** (Advanced). memoryd does not run the file watch yet (`Watcher` is exported,
@@ -549,8 +550,8 @@ reads them.
 3. **The reader is `almanac_service::settings`** (`read(text, base)`, `Locator`, `MemorySettings`). The file is
    `$XDG_CONFIG_HOME/almanac/settings.toml` (then `$XDG_CONFIG_DIRS`; the first file that reads wins whole). A
    value of the wrong type, out of range or not a word of its key falls back **to the base value of that key**
-   (`MemorySettings::default()`, the shipped defaults) and is logged (`memoryd: settings: memory.pending_ttl_days:
-   outside 1..=365; using the previous value`). A file that is not TOML keeps every base value; a key the file
+   (`MemorySettings::default()`, the shipped defaults) and is logged (`memoryd: settings: memory.retention.search_days:
+   outside 1..=3650; using the previous value`). A file that is not TOML keeps every base value; a key the file
    stops setting is its base again. Unknown keys (including `memory.join_window_ms`) are listed and ignored.
 4. **memoryd follows the file live** (`settings_watch.rs`: a `notify` watch on `$XDG_CONFIG_HOME/almanac`, 30 ms
    debounce, the whole file read again, `MemoryService::apply_settings`). Every request builds its `Cx` from the
@@ -558,12 +559,10 @@ reads them.
    - retention: `RuleSet::with_retention(&RetentionDays)` lays the person's days over the rules' defaults
      (`search.*`; `session.*` and `cua.*`; `policy.*`, `consent.*` and `memory.*`) **for the request only**:
      `service.rules()`, which memoryd writes to `memory.toml`, is still what `SetRule` made it, so the settings
-     never become sticky in `memory.toml`. Unexplained file changes: `admit_with` and `default_retention_with`
-     take the days (the old `admit` and `default_retention` pass the shipped 7). Audit headers:
-     `header_expired_after(days, ..)` (the old `header_expired` passes 365). The `companion.*`, `thing.*` and
+     never become sticky in `memory.toml`. Unexplained file changes (7 days), audit bodies (90) and audit headers
+     (365) are the constants `UNEXPLAINED_FILE_DAYS`, `AUDIT_BODY_DAYS` and `HEADER_DAYS`. The `companion.*`, `thing.*` and
      `file.*` defaults are not settings and are untouched.
-   - `memory.pending_ttl_days`: `age_pending(now, ttl)` compares the fact's age with it. The fact machine's own
-     `Age` arm still says 14 days (its table test stands); the service no longer asks it.
+   - Pending facts: `age_pending(now)` compares the fact's age with `PENDING_TTL_DAYS` (14).
    - `memory.files.at_rest`: the vault of a Space made **after** the change. A Space that exists keeps the way
      it was made (its `spaces.toml` entry); design/22 says "per Space", and a per-Space override is not built.
    - `memory.consolidation.when`: `Never` makes `RunConsolidation` answer `Invalid("consolidation is turned

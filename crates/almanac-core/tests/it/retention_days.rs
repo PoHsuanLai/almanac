@@ -23,10 +23,7 @@ fn the_default_retention_days_are_the_shipped_defaults() {
 fn each_class_changes_its_own_patterns_and_nothing_else() {
     let days = RetentionDays {
         search: DayCount(1),
-        file_unexplained: DayCount(2),
         session: DayCount(3),
-        audit_body: DayCount(4),
-        audit_header: DayCount(5),
     };
     let rules = RuleSet::standard().with_retention(&days);
     let keep = |n: u32| Some(Retention::Days(DayCount(n)));
@@ -34,9 +31,9 @@ fn each_class_changes_its_own_patterns_and_nothing_else() {
         ("search.*", keep(1)),
         ("session.*", keep(3)),
         ("cua.*", keep(3)),
-        ("policy.*", keep(4)),
-        ("consent.*", keep(4)),
-        ("memory.*", keep(4)),
+        ("policy.*", keep(90)),
+        ("consent.*", keep(90)),
+        ("memory.*", keep(90)),
         // Not part of any class the settings name.
         ("companion.*", keep(30)),
         ("thing.*", Some(Retention::WhileSourceExists)),

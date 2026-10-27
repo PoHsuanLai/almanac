@@ -94,7 +94,7 @@ pub use forget::{
 pub use hunks::tidy_is_acceptable;
 pub use quota::{ByteCap, EventCap, FieldLimits, Quota};
 pub use registry::{Listing, RegistryError};
-pub use retention::{SourceState, Sweep, header_expired, header_expired_after, sweep_body};
+pub use retention::{SourceState, Sweep, header_expired, sweep_body};
 pub use service::{MemoryService, SpaceRuntime};
 pub use settings::{
     CONFIRMED_FILE, ConfirmError, Confirmations, ConsolidateApply, ConsolidateWhen, Fallback,

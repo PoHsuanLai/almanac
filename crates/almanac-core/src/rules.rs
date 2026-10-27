@@ -99,6 +99,8 @@ pub struct RuleSet {
 
 /// Unexplained file changes are kept this long (header and body).
 pub const UNEXPLAINED_FILE_DAYS: DayCount = DayCount(7);
+/// Bodies of policy, consent and memory audit events are kept this long.
+pub const AUDIT_BODY_DAYS: DayCount = DayCount(90);
 /// Headers of audit events outlive their bodies by this long.
 pub const HEADER_DAYS: DayCount = DayCount(365);
 /// A proposed fact nobody settled is removed after this long.
@@ -106,30 +108,22 @@ pub const PENDING_TTL_DAYS: DayCount = DayCount(14);
 /// Used when no default matches.
 pub const FALLBACK_DAYS: DayCount = DayCount(30);
 
-/// How many days each class of record is kept: design/22 `memory.retention.*`, the values the
-/// person's settings give over the shipped defaults.
+/// How many days each class of record is kept that the person can change: design/22
+/// `memory.retention.search_days` and `session_days`, over the shipped defaults. The other
+/// classes (unexplained file changes, audit bodies and headers) are the constants above.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct RetentionDays {
     /// Searches and selections (`search.*`): 30.
     pub search: DayCount,
-    /// File changes no app explained, header and body: 7.
-    pub file_unexplained: DayCount,
     /// Session and computer-use records (`session.*`, `cua.*`): 30.
     pub session: DayCount,
-    /// Bodies of policy, consent and memory audit events (`policy.*`, `consent.*`, `memory.*`): 90.
-    pub audit_body: DayCount,
-    /// Their headers, once the body is gone: 365.
-    pub audit_header: DayCount,
 }
 
 impl Default for RetentionDays {
     fn default() -> Self {
         Self {
             search: DayCount(30),
-            file_unexplained: UNEXPLAINED_FILE_DAYS,
             session: DayCount(30),
-            audit_body: DayCount(90),
-            audit_header: HEADER_DAYS,
         }
     }
 }
@@ -142,7 +136,7 @@ impl RuleSet {
         let classes = [
             (&["search.*"][..], days.search),
             (&["session.*", "cua.*"][..], days.session),
-            (&["policy.*", "consent.*", "memory.*"][..], days.audit_body),
+            (&["policy.*", "consent.*", "memory.*"][..], AUDIT_BODY_DAYS),
         ];
         for (patterns, keep) in classes {
             for text in patterns {

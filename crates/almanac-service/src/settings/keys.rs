@@ -74,24 +74,8 @@ pub(crate) fn table() -> Vec<Key> {
         num("memory.retention.search_days", 1..=3650, |s, v| {
             s.retention.search = days(v)
         }),
-        num(
-            "memory.retention.file_unexplained_days",
-            1..=3650,
-            |s, v| {
-                s.retention.file_unexplained = days(v);
-            },
-        ),
         num("memory.retention.session_days", 1..=3650, |s, v| {
             s.retention.session = days(v)
-        }),
-        num("memory.retention.audit_body_days", 1..=3650, |s, v| {
-            s.retention.audit_body = days(v);
-        }),
-        num("memory.retention.audit_header_days", 1..=3650, |s, v| {
-            s.retention.audit_header = days(v);
-        }),
-        num("memory.pending_ttl_days", 1..=365, |s, v| {
-            s.pending_ttl = days(v)
         }),
     ]
 }

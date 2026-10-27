@@ -34,10 +34,7 @@ mod thing;
 mod timeline;
 mod views;
 
-pub use admit::{
-    admit, admit_with, default_retention, default_retention_with, glob_matches, is_audit_class,
-    withheld,
-};
+pub use admit::{admit, default_retention, glob_matches, is_audit_class, withheld};
 pub use area::{AreaPayload, AreaTag};
 pub use caller::Caller;
 pub use chain::{Break, ChainReport, Checkpoint, Head};
@@ -71,9 +68,9 @@ pub use reply::{
 };
 pub use request::{ForgetScope, MemoryRequest};
 pub use rules::{
-    ActorClass, Admission, DropReason, FALLBACK_DAYS, HEADER_DAYS, KindRetention, Marks,
-    PENDING_TTL_DAYS, RememberMode, RememberRule, Retention, RetentionDays, RuleScope, RuleSet,
-    UNEXPLAINED_FILE_DAYS,
+    AUDIT_BODY_DAYS, ActorClass, Admission, DropReason, FALLBACK_DAYS, HEADER_DAYS, KindRetention,
+    Marks, PENDING_TTL_DAYS, RememberMode, RememberRule, Retention, RetentionDays, RuleScope,
+    RuleSet, UNEXPLAINED_FILE_DAYS,
 };
 pub use space::{
     ChainHealth, DegradedWhy, IndexView, SpaceMeta, SpaceState, SpaceStatus, SpaceSummary,

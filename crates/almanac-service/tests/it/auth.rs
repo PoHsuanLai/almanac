@@ -244,7 +244,9 @@ fn reading_proposing_and_planning_belong_to_the_router_and_the_shell() {
 }
 
 fn confirm() -> MemoryRequest {
-    MemoryRequest::ConfirmSettings([("memory.pending_ttl_days".to_owned(), "3".to_owned())].into())
+    MemoryRequest::ConfirmSettings(
+        [("memory.retention.search_days".to_owned(), "3".to_owned())].into(),
+    )
 }
 
 #[test]

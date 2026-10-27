@@ -47,11 +47,5 @@ pub fn sweep_body(
 
 /// Whether a header (of an audit event whose body is gone) may now be pruned: a year on.
 pub fn header_expired(occurred: UnixSeconds, now: UnixSeconds) -> bool {
-    header_expired_after(HEADER_DAYS, occurred, now)
-}
-
-/// [`header_expired`] with the person's keep (`memory.retention.audit_header_days`) in place of
-/// the year.
-pub fn header_expired_after(days: DayCount, occurred: UnixSeconds, now: UnixSeconds) -> bool {
-    older_than(days, occurred, now)
+    older_than(HEADER_DAYS, occurred, now)
 }
