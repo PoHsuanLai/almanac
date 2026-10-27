@@ -16,13 +16,13 @@ almanac-store = { workspace = true }
 memfiles = { workspace = true, features = ["testing"] }
 recall = { workspace = true, features = ["testing"] }
 almanac-service = { workspace = true }
+memfiles-format = { workspace = true }
+chrono = { workspace = true }
 rusqlite = { workspace = true }
 tempfile = { workspace = true }
 serde_json = { workspace = true }
 
 [dev-dependencies]
-memfiles-format = { workspace = true }
-chrono = { workspace = true }
 tokio = { workspace = true }
 tar = { workspace = true }
 toml = { workspace = true }

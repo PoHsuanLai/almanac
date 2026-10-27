@@ -2,11 +2,8 @@
 //! and what they make of every answer.
 
 use almanac_core::*;
-use almanac_fake::{mail_label, trusted_label};
-use almanac_service::{
-    ConsolidateError, ConsolidationInput, Consolidator, InputEvent, InputTopic, render_prompt,
-};
-use memfiles_format::{Block, TopicFile, render_topic};
+use almanac_fake::{consolidation_event_link, consolidation_input, trusted_label};
+use almanac_service::{ConsolidateError, Consolidator, render_prompt};
 use memoryd::{Deadlines, InferdConsolidator, InferdEmbedder, class_of};
 use porter_client::{Transport, TransportError};
 use porter_core::capability::{LlmFeature, Modality};
@@ -367,76 +364,6 @@ async fn a_caller_inferd_refuses_is_a_fatal_failure_with_the_daemons_text() {
 
 // --- the consolidator -------------------------------------------------------------------------
 
-fn run_id() -> RunId {
-    RunId::parse("c-0123456789abcdef0123").expect("run")
-}
-
-fn event(seq: u64) -> EventRef {
-    EventRef {
-        space: SpaceId::parse("work").expect("space"),
-        replica: ReplicaId([1; 16]),
-        seq: Seq(seq),
-    }
-}
-
-fn fact(n: u8, text: &str, label: Label) -> Fact {
-    Fact {
-        id: FactId::mint(u64::from(n), [n; 10]),
-        text: FactText::parse(text).expect("text"),
-        recorded: UnixSeconds(1_790_000_000),
-        by: Actor::Unknown,
-        label,
-        links: vec![],
-        supersedes: vec![],
-        valid: Validity::Unstated,
-    }
-}
-
-fn input() -> ConsolidationInput {
-    ConsolidationInput {
-        space: SpaceId::parse("work").expect("space"),
-        run: run_id(),
-        now: UnixSeconds(1_790_000_100),
-        facts: vec![fact(1, "Ana is the CFO.", trusted_label())],
-        events: vec![
-            InputEvent {
-                event: event(1),
-                kind: KindTag::parse("thing.archived").expect("kind"),
-                things: vec![],
-                label: trusted_label(),
-            },
-            InputEvent {
-                event: event(2),
-                kind: KindTag::parse("thing.archived").expect("kind"),
-                things: vec![],
-                label: mail_label(),
-            },
-        ],
-        topics: vec![InputTopic {
-            topic: TopicPath::parse("people/ana").expect("topic"),
-            text: UserText::new(topic_text()),
-        }],
-    }
-}
-
-/// `people/ana` as the service reads it back: Ana's fact with its trailer, and a bullet of the
-/// person's own.
-fn topic_text() -> String {
-    let file = TopicFile {
-        topic: TopicPath::parse("people/ana").expect("topic"),
-        title: "ana".to_owned(),
-        blocks: vec![
-            Block::Fact(fact(1, "Ana is the CFO.", trusted_label())),
-            Block::Unstamped("Ana likes tea".to_owned()),
-        ],
-    };
-    render_topic(&file, &chrono::Offset::fix(&chrono::Utc))
-}
-
-fn event_link(seq: u64) -> String {
-    serde_json::to_string(&Link::Event(event(seq))).expect("json")
-}
-
 fn chat(text: &str) -> InferReply {
     InferReply::Chat(ChatReply::new(
         text.to_owned(),
@@ -483,11 +410,14 @@ fn the_class_of_a_request_is_the_most_sensitive_of_its_labels() {
 async fn the_consolidator_sends_the_prompt_as_a_background_extract_task() {
     let answer = format!(
         r#"{{"hunks":[{{"kind":"promote","text":"Ana archived it.","from":[{}]}}]}}"#,
-        event_link(1)
+        consolidation_event_link(1)
     );
     let transport = Scripted::finishing(chat(&answer));
     let consolidator = InferdConsolidator::new(transport.clone());
-    let draft = consolidator.draft(input()).await.expect("draft");
+    let draft = consolidator
+        .draft(consolidation_input())
+        .await
+        .expect("draft");
     assert_eq!(draft.hunks.len(), 1);
 
     let opened = transport.opened();
@@ -507,12 +437,12 @@ async fn the_consolidator_sends_the_prompt_as_a_background_extract_task() {
     assert_eq!(task.task, Task::Extract);
     assert_eq!(task.usage, Usage::Background);
     assert_eq!(task.class, DataClass::Mail);
-    assert_eq!(task.input, render_prompt(&input()));
+    assert_eq!(task.input, render_prompt(&consolidation_input()));
 }
 
 async fn consolidation_error(reply: InferReply) -> ConsolidateError {
     InferdConsolidator::new(Scripted::finishing(reply))
-        .draft(input())
+        .draft(consolidation_input())
         .await
         .expect_err("an error")
 }
@@ -555,7 +485,7 @@ async fn the_consolidator_maps_every_refusal_and_failure() {
         "an answer that is not the object"
     );
     let down = InferdConsolidator::new(Scripted::down());
-    assert_eq!(down.draft(input()).await, Err(Unavailable));
+    assert_eq!(down.draft(consolidation_input()).await, Err(Unavailable));
 }
 
 #[test]
@@ -614,7 +544,7 @@ async fn a_session_that_never_answers_is_given_up_at_its_deadline() {
     assert_eq!(embedded, Err(EmbedError::Unavailable));
     let drafted = InferdConsolidator::new(Scripted::hanging())
         .with_deadlines(quick)
-        .draft(input())
+        .draft(consolidation_input())
         .await;
     assert_eq!(
         drafted.expect_err("gives up"),
