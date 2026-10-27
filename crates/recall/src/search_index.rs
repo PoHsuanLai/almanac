@@ -4,11 +4,9 @@
 use crate::doc::{Allow, Doc, DocId, Ranked, TopK, TrustTier};
 use crate::embed::Embedder;
 use crate::exact::VectorIndex;
-use crate::fuse::RrfK;
 use crate::index::{Index, SearchQuery};
 use crate::state::IndexState;
-use crate::vector::{EmbedderCard, Vector};
-use almanac_store::{IndexFailure, SearchIndex};
+use almanac_store::{EmbedderCard, IndexFailure, RrfK, SearchIndex, Vector};
 
 impl<V: VectorIndex> SearchIndex for Index<V> {
     fn state(&self) -> IndexState {

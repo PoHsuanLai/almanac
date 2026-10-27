@@ -59,16 +59,16 @@ pub fn inferd_link(connection: &zbus::Connection) -> Arc<AnyTransport> {
 /// The card of the embedding model the default inferd tier maps (nomic-embed-text v1.5): 768
 /// numbers, asymmetric prefixes. It must match what inferd serves, or the vector index refuses
 /// the answers (their length differs) and search stays lexical.
-pub(crate) fn default_card() -> recall::EmbedderCard {
-    recall::EmbedderCard {
+pub(crate) fn default_card() -> almanac_store::EmbedderCard {
+    almanac_store::EmbedderCard {
         model: "nomic-embed-text-v1.5".to_owned(),
         dims: 768,
         max_tokens: 2048,
-        max_batch: recall::MaxBatch(32),
-        prompts: recall::PromptPrefixes {
+        max_batch: almanac_store::MaxBatch(32),
+        prompts: almanac_store::PromptPrefixes {
             query: "search_query: ".to_owned(),
             document: "search_document: ".to_owned(),
         },
-        metric: recall::Metric::Cosine,
+        metric: almanac_store::Metric::Cosine,
     }
 }

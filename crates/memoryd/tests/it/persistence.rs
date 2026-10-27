@@ -429,7 +429,7 @@ async fn the_index_file_is_created_with_its_schema_and_keeps_what_was_put_in_it(
         text: "Lisbon".into(),
         k: TopK(5),
         allow: recall::Allow::Everything,
-        urgency: recall::Urgency::Interactive,
+        urgency: almanac_store::Urgency::Interactive,
     };
     let lexical = index.lexical(&query).expect("lexical");
     assert_eq!(lexical.first().map(|r| r.id.0.as_str()), Some("f:1"));

@@ -22,7 +22,7 @@ trait), section 5 (what is built), section 6 (copy the recipe).
 | `eventlog` | `SqliteLog` (SQLCipher), `MemoryLog` (feature `testing`), the schema; re-exports the log seam from `almanac-store` | rusqlite |
 | `memfiles-format` | pure: the topic file format (`parse_topic`, `render_topic`, the trailer), `Store` over a `Vault` (from `almanac-store`), `Primer`, `MemfilesError`. No file IO | none |
 | `memfiles` | the vaults on disk: `PlainDir`, `SealedDir`, and `MemoryVault` (feature `testing`). The `Vault` seam and `VaultPath` are in `almanac-store` | the filesystem |
-| `recall` | generic: `VectorIndex`, `Fts5`, `ExactScan`, `Index` (implements `SearchIndex`), `FakeEmbedder` (feature `testing`); re-exports the `Embedder`, document, fusion and index-state types from `almanac-store`. Knows nothing of almanac's domain | rusqlite |
+| `recall` | generic: `VectorIndex`, `Fts5`, `ExactScan`, `Index` (implements `SearchIndex`), `FakeEmbedder` (feature `testing`); re-exports the `Embedder` and document types from `almanac-store`; the vector, card and fusion code (`Vector`, `EmbedderCard`, `fuse_rrf`, `chunk`, `nearest_exact`) lives only there. Knows nothing of almanac's domain | rusqlite |
 | `almanac-service` | memoryd's core over seams: `allowed`, the Space, fact, forget-plan and consolidation machines (with the consolidation prompt and the parse of the model's draft), `changes` (what a reply changed, as the pure `Change` events the daemon turns into bus signals), the removal notes (`Removals` over the `RemovalLedger` seam and the `removals.toml` format), retention, timeline rows, the export writer, the config files, `MemorySettings` and the lenient settings reader (`settings`: the key table held to `dist/settings/almanac.settings.toml`, `Locator`, and the consent gate: `Confirmations` and `loosen` put back the shipped value of any looser-than-shipped value the person has not confirmed), `Backend` and `MemoryService`. Depends on `almanac-store` and `memfiles-format`, never on `eventlog` or `recall`, so it links no SQLite, SQLCipher or OpenSSL | none (seams are passed in) |
 | `almanac-watch` | `FileWatch`, `WatchError`, the pure `join` of observed changes and app-supplied reasons; `InotifyWatch` (notify 8.2) behind the `linux` feature | inotify (feature `linux`) |
 | `almanac-dbus` | `org.quire.Memory1` (`Record`, `Recall`, `Control`) as zbus proxies and skeletons (the introspection source), `MemoryError`, the argument codec (`encode_request`/`decode_request`, `encode_reply`/`decode_reply`), `invoke` (the caller's half) and the served objects over a `Serve` handler (the daemon's half) | zbus |
@@ -397,7 +397,7 @@ the fakes.
   the served objects (what memoryd runs) introspect the same.
 - **Keys and bodies never cross a transport in the clear.** No wire type holds a `SpaceKey`;
   the digest subkey leaves only in an export the person asked to include it in.
-- **Floats** appear only in `recall::Vector` (embeddings are floats end to end).
+- **Floats** appear only in `almanac_store::Vector` (embeddings are floats end to end).
 - **Physical erasure is a key operation.** Forgetting one item erases bodies and uses SQLite
   `secure_delete`; only destroying a Space's key guarantees the bytes are gone on
   copy-on-write storage, and the UI says so.

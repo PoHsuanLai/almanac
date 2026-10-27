@@ -175,7 +175,7 @@ Nothing below is built; the interfaces it will use are.
   - `ChainReport`, `Break`, `Head`, `Checkpoint` and `Link32`/`Digest32` live in `almanac-core`
     (not `eventlog`) because `MemoryReply::Verified` and `SpaceStatus` carry them; `eventlog` uses
     them. `SpaceStatus.index` is the wire form `IndexView`, mapped from `recall::IndexState`
-    (recall is generic and cannot name almanac-core); likewise `RecallWhy` vs `recall::HitWhy`.
+    (recall is generic and cannot name almanac-core); likewise `RecallWhy` vs `almanac_store::HitWhy`.
   - `seal` returns `Result<Vec<u8>, SealError>` (a new `TooLarge` variant) where memory.md writes
     `Vec<u8>`: the cipher can refuse a huge plaintext and `expect` is not allowed.
     `KeyError` gained `Exists`; `LogError` gained `BadDigest` and `NoSuchEntry`; `LogRead` gained

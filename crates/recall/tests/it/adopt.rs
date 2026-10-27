@@ -1,6 +1,7 @@
 //! A restart adopts the index file it finds (no embedding of what is already there), and a
 //! refused data class fails only its own documents.
 
+use almanac_store::{EmbedRole, EmbedderCard, HitWhy, SpaceCheck, Urgency, Vector};
 use recall::*;
 use std::collections::BTreeSet;
 use std::path::Path;

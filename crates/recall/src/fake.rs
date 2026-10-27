@@ -1,7 +1,7 @@
 //! `FakeEmbedder`: a deterministic embedder for tests and almanac-fake.
 
 use crate::embed::{EmbedError, Embedder};
-use crate::vector::{EmbedRole, EmbedderCard, MaxBatch, Metric, PromptPrefixes, Urgency, Vector};
+use almanac_store::{EmbedRole, EmbedderCard, MaxBatch, Metric, PromptPrefixes, Urgency, Vector};
 
 /// Whether the fake answers.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

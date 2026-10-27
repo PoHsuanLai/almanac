@@ -1,7 +1,7 @@
 //! The defaults for the two models an app may not have.
 
 use almanac_service::{ConsolidateError, ConsolidationInput, Consolidator, Draft};
-use recall::{
+use almanac_store::{
     EmbedError, EmbedRole, Embedder, EmbedderCard, MaxBatch, Metric, PromptPrefixes, Urgency,
     Vector,
 };

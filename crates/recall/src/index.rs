@@ -4,11 +4,11 @@ use crate::doc::{Allow, ClassTag, Count, Doc, DocId, Ranked, StoredDoc, TrustTie
 use crate::embed::{Classed, EmbedError, Embedder, RetryClass};
 use crate::exact::VectorIndex;
 use crate::fts::Fts5;
-use crate::fuse::{Fused, RrfK, chunk, fuse_rrf};
 use crate::state::{DegradedWhy, IndexEvent, IndexState, step};
-use crate::vector::{EmbedRole, SpaceCheck, Urgency, Vector};
-use almanac_store::IndexFailure;
 pub use almanac_store::SearchQuery;
+use almanac_store::{
+    EmbedRole, Fused, IndexFailure, RrfK, SpaceCheck, Urgency, Vector, chunk, fuse_rrf,
+};
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Mutex;
 

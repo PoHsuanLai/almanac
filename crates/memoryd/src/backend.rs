@@ -77,7 +77,7 @@ pub struct SystemBackend<
 
 impl SystemBackend {
     /// Over `dirs` and one inferd connection shared by the embedder and the consolidator.
-    pub fn new(dirs: Dirs, inferd: Arc<AnyTransport>, card: recall::EmbedderCard) -> Self {
+    pub fn new(dirs: Dirs, inferd: Arc<AnyTransport>, card: almanac_store::EmbedderCard) -> Self {
         Self::with(
             dirs,
             Oo7Keys,

@@ -1,5 +1,6 @@
 //! `Index` over `ExactScan` and `Fts5`: the contract the recall fill must meet.
 
+use almanac_store::{HitWhy, Urgency};
 use recall::*;
 
 fn id(s: &str) -> DocId {

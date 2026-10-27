@@ -2,6 +2,7 @@
 //! replacement by id (the newest event wins), separate documents with their own facets,
 //! allow-lists, chunked documents, batching to `max_batch` and card checks.
 
+use almanac_store::{EmbedRole, EmbedderCard, HitWhy, Urgency, Vector};
 use recall::*;
 use std::collections::BTreeSet;
 use std::sync::Mutex;

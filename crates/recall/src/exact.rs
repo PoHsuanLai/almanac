@@ -4,7 +4,7 @@
 use crate::doc::{Allow, DocId, Ranked, TopK};
 use crate::fts::SCHEMA_V1;
 use crate::index::IndexError;
-use crate::vector::{EmbedderCard, Vector, nearest_exact};
+use almanac_store::{EmbedderCard, Vector, nearest_exact};
 use std::collections::BTreeSet;
 
 /// What a vector index does.

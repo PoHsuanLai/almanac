@@ -1,5 +1,9 @@
 //! recall's pure parts and the contracts the fill must meet.
 
+use almanac_store::{
+    EmbedRole, EmbedderCard, HitWhy, MaxBatch, Metric, PromptPrefixes, RrfK, Urgency, Vector,
+    chunk, fuse_rrf, nearest_exact,
+};
 use recall::*;
 
 fn id(s: &str) -> DocId {

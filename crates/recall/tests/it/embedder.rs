@@ -1,5 +1,8 @@
 //! The embedder card and error contracts: prompt prefixes, batching, vector space, retry class.
 
+use almanac_store::{
+    EmbedRole, EmbedderCard, MaxBatch, Metric, PromptPrefixes, SpaceCheck, Urgency, Vector,
+};
 use recall::*;
 
 fn card(model: &str) -> EmbedderCard {

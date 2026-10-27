@@ -4,6 +4,7 @@
 use almanac_core::*;
 use almanac_fake::{consolidation_event_link, consolidation_input, trusted_label};
 use almanac_service::{ConsolidateError, Consolidator, render_prompt};
+use almanac_store::{EmbedRole, EmbedderCard, Urgency};
 use memoryd::{Deadlines, InferdConsolidator, InferdEmbedder, class_of};
 use porter_client::{Transport, TransportError};
 use porter_core::capability::{LlmFeature, Modality};
@@ -15,7 +16,7 @@ use porter_infer::{
     InferRequest, InferSession, ModelError, OpenOptions, ServedBy, SessionError, StopReason, Task,
     TokenUsage,
 };
-use recall::{EmbedError, EmbedRole, Embedder, EmbedderCard, FakeEmbedder, RetryClass, Urgency};
+use recall::{EmbedError, Embedder, FakeEmbedder, RetryClass};
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 

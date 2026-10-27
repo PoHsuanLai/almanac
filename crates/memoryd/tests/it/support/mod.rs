@@ -12,8 +12,9 @@ use almanac_dbus::{Confinement, serve_on};
 use almanac_fake::ScriptedConsolidator;
 use almanac_seal::{KeyError, KeyStore, MemoryKeys, SpaceKey};
 use almanac_service::MemoryService;
+use almanac_store::{EmbedRole, EmbedderCard, Urgency, Vector};
 use memoryd::{Consent, Daemon, SpaceRegistry, SystemBackend, TablePeers};
-use recall::{EmbedError, EmbedRole, Embedder, EmbedderCard, FakeEmbedder, Urgency, Vector};
+use recall::{EmbedError, Embedder, FakeEmbedder};
 use std::path::Path;
 use std::sync::Arc;
 

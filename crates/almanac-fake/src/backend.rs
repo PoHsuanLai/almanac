@@ -227,7 +227,9 @@ impl Backend for FakeBackend {
 }
 
 /// An empty index in private in-memory SQLite databases.
-fn in_memory_index(card: recall::EmbedderCard) -> Result<Index<ExactScan>, recall::IndexError> {
+fn in_memory_index(
+    card: almanac_store::EmbedderCard,
+) -> Result<Index<ExactScan>, recall::IndexError> {
     let fts = Fts5::new(rusqlite::Connection::open_in_memory()?);
     fts.create()?;
     let vectors = ExactScan::in_memory(card)?;

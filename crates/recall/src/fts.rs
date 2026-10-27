@@ -2,7 +2,7 @@
 
 use crate::doc::{Allow, Doc, DocId, Facets, Ranked, StoredDoc, TopK, TrustTier};
 use crate::index::IndexError;
-use crate::vector::EmbedderCard;
+use almanac_store::EmbedderCard;
 use std::collections::BTreeSet;
 
 /// The tables of `index.db` (SQLCipher, deletable and rebuilt from the files and the log).

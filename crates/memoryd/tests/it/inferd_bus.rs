@@ -8,8 +8,9 @@ use crate::support::{SharedKeys, bus::PrivateBus, connect, dirs_in, listed_space
 use almanac_core::*;
 use almanac_fake::{mail_label, mail_thread_archived};
 use almanac_service::{ConsolidateError, ConsolidationInput, Consolidator, MemoryService};
+use almanac_store::{EmbedRole, Urgency};
 use memoryd::{InferdConsolidator, InferdEmbedder, SystemBackend, inferd_link};
-use recall::{ClassTag, Classed, EmbedError, EmbedRole, Embedder, FakeEmbedder, Urgency};
+use recall::{ClassTag, Classed, EmbedError, Embedder, FakeEmbedder};
 use std::sync::{Arc, Mutex};
 
 type LiveBackend = SystemBackend<
