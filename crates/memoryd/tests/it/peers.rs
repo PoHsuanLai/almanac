@@ -7,7 +7,10 @@ use crate::support::{SharedKeys, TestBackend, connect, dirs_in, service, space};
 use almanac_client::{ClientError, DbusTransport, Memory};
 use almanac_core::*;
 use almanac_dbus::serve_on;
-use memoryd::{Daemon, FollowUp, ProcPeers, caller_for, follow_ups, load_callers, table_from_toml};
+use almanac_service::Change;
+use memoryd::{
+    Daemon, Delivery, ProcPeers, caller_for, delivery_of, load_callers, table_from_toml,
+};
 use porter_dbus::{CallerTable, ProcCallers};
 use std::path::Path;
 use std::sync::Arc;
@@ -337,55 +340,43 @@ async fn a_process_nothing_names_is_nobody() {
     );
 }
 
-fn recorded() -> (MemoryRequest, EventRef) {
-    let record = almanac_fake::mail_thread_archived().expect("fixture");
+#[test]
+fn what_a_change_makes_the_bus_say() {
     let event = EventRef {
         space: space("work"),
         replica: ReplicaId([1; 16]),
         seq: Seq(1),
     };
-    (MemoryRequest::Record(record), event)
-}
-
-#[test]
-fn what_a_reply_makes_the_bus_say() {
-    let (request, event) = recorded();
-    let follow = follow_ups(&request, &MemoryReply::Recorded(event.clone()));
-    assert_eq!(follow.len(), 1);
+    let recorded = Change::Recorded {
+        event: event.clone(),
+        kind: "thing.archived".to_owned(),
+    };
     assert!(matches!(
-        &follow[0],
-        FollowUp::Emit(almanac_dbus::Signal::Recorded { space, kind, .. })
-            if space == "work" && kind == "thing.archived"
+        delivery_of(recorded),
+        Some(Delivery::Emit(almanac_dbus::Signal::Recorded { space, kind, event_ref }))
+            if space == "work"
+                && kind == "thing.archived"
+                && event_ref == serde_json::to_string(&event).expect("json")
     ));
-    assert!(
-        follow_ups(&request, &MemoryReply::Ok).is_empty(),
-        "nothing stored, nothing to say"
-    );
-    assert!(follow_ups(&request, &MemoryReply::Refused(Refusal::Busy)).is_empty());
-    let pause = MemoryRequest::Pause(space("work"), UnixSeconds(1));
+    let run = RunId::parse("c-0123456789abcdef0123").expect("run");
     assert_eq!(
-        follow_ups(&pause, &MemoryReply::Ok),
-        vec![FollowUp::StatusChanged(space("work"))]
+        delivery_of(Change::ConsolidationReady {
+            space: space("work"),
+            run
+        }),
+        Some(Delivery::Emit(almanac_dbus::Signal::ConsolidationReady {
+            space: "work".to_owned(),
+            run: "c-0123456789abcdef0123".to_owned()
+        }))
     );
-    let propose = MemoryRequest::Propose(
-        space("work"),
-        FactDraft {
-            topic: TopicPath::parse("a").expect("topic"),
-            text: FactText::parse("x").expect("text"),
-            links: vec![],
-            supersedes: vec![],
-            on_behalf: None,
-        },
-    );
-    let fact = FactId::mint(1, [1; 10]);
     assert_eq!(
-        follow_ups(
-            &propose,
-            &MemoryReply::Proposed(fact.clone(), FactState::Pending)
-        ),
-        vec![FollowUp::PendingChanged(space("work"))]
+        delivery_of(Change::PendingChanged(space("work"))),
+        Some(Delivery::PendingChanged(space("work")))
     );
-    assert!(follow_ups(&propose, &MemoryReply::Proposed(fact, FactState::Active)).is_empty());
+    assert_eq!(
+        delivery_of(Change::StatusChanged(space("work"))),
+        Some(Delivery::StatusChanged(space("work")))
+    );
 }
 
 #[test]

@@ -11,10 +11,10 @@ mod daemon;
 mod infer;
 mod keyring;
 mod keysel;
+mod ledger;
 mod peers;
 mod queue;
 mod registry;
-mod removals;
 mod run;
 mod sandbox;
 mod settings_watch;
@@ -29,22 +29,20 @@ pub use callers::{
 };
 pub use consent::Consent;
 pub use daemon::Daemon;
-pub use infer::{
-    Deadlines, InferdConsolidator, InferdEmbedder, class_of, parse_draft, render_prompt,
-};
+pub use infer::{Deadlines, InferdConsolidator, InferdEmbedder, class_of};
 pub use keyring::{LockChanges, is_lock_change};
 pub use keysel::KeysError;
+pub use ledger::FileLedger;
 pub use peers::{Peers, ProcPeers, TablePeers};
 pub use porter_daemon::{ProcGate, ProcRoot};
 pub use queue::{Claim, Serialised, claim_for, claim_of};
 pub use registry::{REGISTRY_WAIT, SpaceRegistry};
-pub use removals::Removals;
 pub use run::{Env, PROC_GATE, PROC_ROOT_VAR, SYSTEM_CALLERS_VAR, StartError, start};
 pub use sandbox::{
     Enforcement, Policy, SandboxError, bus_socket, confinement_of, enforce, policy_for, prepare,
 };
 pub use settings_watch::{DEBOUNCE, SettingsWatch, WatchState, apply, apply_next};
-pub use signals::{FollowUp, follow_ups};
+pub use signals::{Delivery, delivery_of};
 pub use xdg::{XdgError, dirs_from, dirs_from_env};
 
 use porter_client::{AnyTransport, DbusTransport};

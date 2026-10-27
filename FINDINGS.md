@@ -850,7 +850,7 @@ app's own). What this adds, on porter 993c56b (`Spaces1`, `SpaceId::{kind, for_a
 - **Crash safety.** Events and facts are matched against what the destination already holds (an event by times, actor,
   kind, label and body digest; a fact by id), then the Space is deleted, so a repeat finishes a half move without
   duplicates; a key already destroyed with no Space entry left means only the directories remain, and they are
-  removed. memoryd writes `removals.toml` (`removed = [{ space, removal = { memories, history } }]`; a bare space name
+  removed. memoryd writes `removals.toml` (the logic is `almanac_service::Removals` over the `RemovalLedger` seam; `memoryd::FileLedger` keeps the file with `atomic-write-file`, which syncs the file and the directory, where the hand-written rename did not) (`removed = [{ space, removal = { memories, history } }]`; a bare space name
   from an older file reads as `KEEP_ALL`) before moving, for the shell's call as well as for the registry's, and
   strikes the Space out after; it finishes the open notes at start (`Daemon::resume_removals`) with the choice noted.
 - **Spaces the registry does not know.** At start, after subscribing, `Daemon::reconcile` settles every desktop-wide

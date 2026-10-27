@@ -24,7 +24,7 @@ trait), section 5 (what is built), section 6 (copy the recipe).
 | `memfiles` | the vaults on disk: `PlainDir`, `SealedDir`, and `MemoryVault` (feature `testing`). The `Vault` seam and `VaultPath` are in `almanac-store` | the filesystem |
 | `recall` | generic: `VectorIndex`, `Fts5`, `ExactScan`, `Index` (implements `SearchIndex`), `FakeEmbedder` (feature `testing`); re-exports the `Embedder`, document, fusion and index-state types from `almanac-store`. Knows nothing of almanac's domain | rusqlite |
 | `recall-fastembed` | `FastembedEmbedder` (in-process ONNX). Excluded from clippy and test: ort downloads binaries | ort through fastembed |
-| `almanac-service` | memoryd's core over seams: `allowed`, the Space, fact, forget-plan and consolidation machines, retention, timeline rows, the export writer, the config files, `MemorySettings` and the lenient settings reader (`settings`: the key table held to `dist/settings/almanac.settings.toml`, `Locator`, and the consent gate: `Confirmations` and `loosen` put back the shipped value of any looser-than-shipped value the person has not confirmed), `Backend` and `MemoryService`. Depends on `almanac-store` and `memfiles-format`, never on `eventlog` or `recall`, so it links no SQLite, SQLCipher or OpenSSL | none (seams are passed in) |
+| `almanac-service` | memoryd's core over seams: `allowed`, the Space, fact, forget-plan and consolidation machines (with the consolidation prompt and the parse of the model's draft), `changes` (what a reply changed, as the pure `Change` events the daemon turns into bus signals), the removal notes (`Removals` over the `RemovalLedger` seam and the `removals.toml` format), retention, timeline rows, the export writer, the config files, `MemorySettings` and the lenient settings reader (`settings`: the key table held to `dist/settings/almanac.settings.toml`, `Locator`, and the consent gate: `Confirmations` and `loosen` put back the shipped value of any looser-than-shipped value the person has not confirmed), `Backend` and `MemoryService`. Depends on `almanac-store` and `memfiles-format`, never on `eventlog` or `recall`, so it links no SQLite, SQLCipher or OpenSSL | none (seams are passed in) |
 | `almanac-watch` | `FileWatch`, `WatchError`, the pure `join` of observed changes and app-supplied reasons; `InotifyWatch` (notify 8.2) behind the `linux` feature | inotify (feature `linux`) |
 | `almanac-dbus` | `org.quire.Memory1` (`Record`, `Recall`, `Control`) as zbus proxies and skeletons (the introspection source), `MemoryError`, the argument codec (`encode_request`/`decode_request`, `encode_reply`/`decode_reply`), `invoke` (the caller's half) and the served objects over a `Serve` handler (the daemon's half) | zbus |
 | `almanac-client` | the app-facing `Memory` over a `Transport`: `Absent` (no-op on other desktops), `DbusTransport` (feature `dbus`), `InProcess` (feature `in_process`, off by default: only it links `almanac-service`, which links no storage) | through its transport |
@@ -105,12 +105,12 @@ may reach `notify` and never `rusqlite`; `almanac-dbus` reaches `tokio` only thr
 | `memfiles-format` | `trailer` < `topic` < `store` |
 | `memfiles` | `memory`, `dirs` |
 | `recall` | `doc`, `vector`, `fuse`, `state`, `embed` < `fts`, `exact`, `fake` < `index` |
-| `almanac-service` | `clock`, `auth`, `retention`, `space`, `fact`, `forget`, `consolidation`, `timeline`, `export`, `config`, `settings`, `marks`, `baseline`, `events` < `backend` < `service` < `open`, `record`, `facts`, `search`, `run`, `hunks`, `edits`, `sweep`, `erase`, `control`, `dispatch` |
+| `almanac-service` | `clock`, `auth`, `retention`, `space`, `fact`, `forget`, `consolidation`, `prompt`, `change`, `removals`, `timeline`, `export`, `config`, `settings`, `marks`, `baseline`, `events` < `backend` < `service` < `open`, `record`, `facts`, `search`, `run`, `hunks`, `edits`, `sweep`, `erase`, `control`, `dispatch` |
 | `almanac-watch` | `observed` < `join` < `inotify` |
 | `almanac-dbus` | `names`, `error`, `record`, `recall`, `control` (skeletons and proxies), `codec` (`request`, `reply`), `invoke`, `serve`, `introspect` |
 | `almanac-client` | `transport` < `memory` |
 | `almanac-fake` | `clock`, `consolidator`, `fixtures`, `scratch` < `backend` |
-| `memoryd` | `xdg`, `infer` (`embed`, `consolidate`, `prompt`), `peers`, `signals`, `sandbox`, `settings_watch`, `consent`, `keysel` < `backend`, `queue` < `daemon` < `main` |
+| `memoryd` | `xdg`, `infer` (`embed`, `consolidate`), `peers`, `signals` (`Change` to bus signal), `ledger` (`FileLedger`: `removals.toml` through `atomic-write-file`), `sandbox`, `settings_watch`, `consent`, `keysel` < `backend`, `queue` < `daemon` < `main` |
 
 ## 3. One home per concept
 
@@ -131,7 +131,7 @@ may reach `notify` and never `rusqlite`; `almanac-dbus` reaches `tokio` only thr
 | where files live in a Space | `almanac-store` (`VaultPath`) and `almanac-core::dirs` (`Dirs`) |
 | search, fusion, chunking, the index state, adopting an index file at start (`Index::sync`) | `recall` |
 | the Space, fact, plan and run machines | `almanac-service::{space, fact, forget, consolidation}` |
-| where a removed desktop-wide Space's memories and event history go (each person's choice, `Removal { memories, history }`), and who may reach an App Space | `almanac-service::{rehome, relocate, relocate_events}` and `auth::allowed`; the registry's removals and the note (with the choice) that finishes a crashed move are `memoryd::{Daemon, Removals}` |
+| where a removed desktop-wide Space's memories and event history go (each person's choice, `Removal { memories, history }`), and who may reach an App Space | `almanac-service::{rehome, relocate, relocate_events}` and `auth::allowed`; the registry's removals and the note (with the choice) that finishes a crashed move are `almanac_service::Removals` over `memoryd::{Daemon, FileLedger}` |
 | topic files edited outside the service (the baseline) | `almanac-service::{baseline, edits}` |
 | what the bus hears that no reply says (`ServiceEvent`) | `almanac-service::events`, drained by `Daemon::flush_events` |
 | what memoryd may touch (Landlock) | `memoryd::sandbox` |

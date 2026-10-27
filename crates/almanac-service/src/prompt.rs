@@ -2,16 +2,16 @@
 //!
 //! The model is asked for one JSON object of simple hunks (`promote`, `supersede`, `flag`, `tidy`)
 //! that cite what they come from (a `tidy` names a topic file it was shown and gives the whole file
-//! reworded, which must keep every fact's trailer: `almanac_service::tidy_is_acceptable`); memoryd builds the real `Hunk`s from them: the fact's id from the
+//! reworded, which must keep every fact's trailer: `tidy_is_acceptable`); the service builds the real `Hunk`s from them: the fact's id from the
 //! run and its text, its date from the run, its author as memory itself, and its label as the
-//! join of the labels of everything it cites (`almanac_service::cited_label`), which is also what
+//! join of the labels of everything it cites (`cited_label`), which is also what
 //! `check_draft` holds every promotion to. A hunk that cites nothing in the input, or whose text
 //! is not fact text, is dropped; an answer that is not the JSON object at all is `Unparseable`.
 
+use crate::{ConsolidateError, ConsolidationInput, Draft, cited_label};
 use almanac_core::{
     Actor, Fact, FactId, FactText, Hunk, Link, SystemPart, TidyHunk, TopicPath, UserText, Validity,
 };
-use almanac_service::{ConsolidateError, ConsolidationInput, Draft, cited_label};
 use serde::Deserialize;
 
 /// The most hunks one answer may hold; the rest are ignored.
@@ -200,7 +200,7 @@ fn hunk_from(input: &ConsolidationInput, index: usize, hunk: ModelHunk) -> Optio
     match hunk {
         ModelHunk::Promote { text, from } => {
             let fact = fact_from(input, index, &text, from, Vec::new())?;
-            let to = almanac_service::fact::lands(&fact.label);
+            let to = crate::fact::lands(&fact.label);
             Some(Hunk::Promote { fact, to })
         }
         ModelHunk::Supersede { old, text, from } => {
@@ -215,7 +215,7 @@ fn hunk_from(input: &ConsolidationInput, index: usize, hunk: ModelHunk) -> Optio
             let topic = TopicPath::parse(&topic).ok()?;
             let before = input.topics.iter().find(|t| t.topic == topic)?.text.clone();
             let worth = before.as_str().trim() != after.trim()
-                && almanac_service::tidy_is_acceptable(before.as_str(), &after);
+                && crate::tidy_is_acceptable(before.as_str(), &after);
             worth.then(|| {
                 Hunk::Tidy(TidyHunk {
                     topic,

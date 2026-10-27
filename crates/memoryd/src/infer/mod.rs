@@ -6,12 +6,10 @@
 
 mod consolidate;
 mod embed;
-mod prompt;
 
 pub use almanac_service::class_of;
 pub use consolidate::InferdConsolidator;
 pub use embed::InferdEmbedder;
-pub use prompt::{parse_draft, render_prompt};
 
 use porter_infer::{ClientFrame, InferEvent, InferReply, InferRequest, InferSession, SessionError};
 use std::future::Future;

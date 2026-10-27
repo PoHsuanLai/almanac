@@ -25,7 +25,9 @@ EFFECTS="zbus zvariant tokio reqwest hyper oo7 ort fastembed"
 # of them either.
 CUA_EFFECTS="hyper-util rustls pipewire wayland-client wayland-backend wayland-server reis atspi rmcp cedar-policy"
 # What a storage-free crate must never link: the SQL engine, SQLCipher's host crate and OpenSSL.
-STORAGE="rusqlite libsqlite3-sys openssl-sys openssl"
+# atomic-write-file is the file-replacing writer memoryd's FileLedger uses; the service keeps the
+# removal notes behind a seam instead (RemovalLedger), so it never reaches a file writer.
+STORAGE="rusqlite libsqlite3-sys openssl-sys openssl atomic-write-file"
 RULES=(
   "almanac-core: $EFFECTS rusqlite notify toml $CUA_EFFECTS"
   "almanac-seal: $EFFECTS rusqlite notify"

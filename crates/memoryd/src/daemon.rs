@@ -5,11 +5,11 @@
 //! (`spaces.toml`, `memory.toml`) and tells the bus what changed.
 
 use crate::consent::Consent;
+use crate::ledger::FileLedger;
 use crate::peers::Peers;
 use crate::queue::Serialised;
-use crate::removals::Removals;
 use crate::settings_watch::apply;
-use crate::signals::{FollowUp, follow_ups};
+use crate::signals::{Delivery, delivery_of};
 use almanac_core::{
     Caller, DesktopSpace, Dirs, MemoryReply, MemoryRequest, PlanToken, Refusal, Removal, SpaceId,
     SpaceKind,
@@ -18,8 +18,8 @@ use almanac_dbus::{
     Call, Confinement, MemoryError, Serve, Signal, decode_request, emit_to, encode_reply,
 };
 use almanac_service::{
-    Allowed, Backend, MemoryService, ServiceEvent, SpacesFile, allowed, locked_status,
-    rules_to_toml, spaces_to_toml, write_private_atomic,
+    Allowed, Backend, LedgerError, MemoryService, Removals, ServiceEvent, SpacesFile, allowed,
+    changes, locked_status, rules_to_toml, spaces_to_toml, write_private_atomic,
 };
 use porter_core::SpaceChange;
 use std::collections::{BTreeMap, BTreeSet};
@@ -36,7 +36,7 @@ pub struct Daemon<B: Backend, P: Peers> {
     plans: Mutex<BTreeMap<PlanToken, SpaceId>>,
     saved_spaces: Mutex<String>,
     saved_rules: Mutex<String>,
-    removals: Removals,
+    removals: Removals<FileLedger>,
     consent: Option<Consent>,
     confinement: Confinement,
 }
@@ -49,6 +49,14 @@ impl<B: Backend, P: Peers> std::fmt::Debug for Daemon<B, P> {
 
 fn locked<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
     m.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
+/// Logs a removal note that could not be kept; the settling goes on without it.
+fn logged(noted: Result<(), LedgerError>) {
+    if let Err(e) = noted {
+        // The daemon's one log path is standard error, prefixed with its name.
+        eprintln!("memoryd: {e}");
+    }
 }
 
 /// Writes `text` to `path` unless it is what the file already says (atomically, mode 0600, with
@@ -68,7 +76,7 @@ impl<B: Backend, P: Peers> Daemon<B, P> {
     /// A daemon over `service` in `dirs`. Nothing is on the bus until [`Daemon::attach`].
     pub fn new(service: MemoryService<B>, peers: P, dirs: Dirs) -> Self {
         Self {
-            removals: Removals::load(dirs.memory().join("removals.toml")),
+            removals: Removals::new(FileLedger::load(dirs.memory().join("removals.toml"))),
             queue: Serialised::new(service),
             peers,
             dirs,
@@ -185,11 +193,11 @@ impl<B: Backend, P: Peers> Daemon<B, P> {
             }
             _ => {}
         }
-        for step in follow_ups(request, reply) {
+        for step in changes(request, reply).into_iter().filter_map(delivery_of) {
             match step {
-                FollowUp::Emit(signal) => self.signal(signal).await,
-                FollowUp::PendingChanged(space) => self.pending_changed(space).await,
-                FollowUp::StatusChanged(space) => self.status_changed(space).await,
+                Delivery::Emit(signal) => self.signal(signal).await,
+                Delivery::PendingChanged(space) => self.pending_changed(space).await,
+                Delivery::StatusChanged(space) => self.status_changed(space).await,
             }
         }
         self.flush_events().await;
@@ -346,19 +354,20 @@ impl<B: Backend, P: Peers> Daemon<B, P> {
     /// stands, else the memories move to the App Space of the app that wrote them and the
     /// history to that of the app that recorded it ([`Removal::KEEP_ALL`]).
     pub async fn settle_removed(&self, space: &SpaceId) -> MemoryReply {
-        let removal = self.removals.begin_unasked(space);
+        let (removal, noted) = self.removals.begin_unasked(space);
+        logged(noted);
         self.settle(space, removal).await
     }
 
     /// Settles `space` as `removal` says. Noted first and struck out when done, so
     /// [`Daemon::resume_removals`] finishes what a crash or a busy Space interrupted.
     async fn settle(&self, space: &SpaceId, removal: Removal) -> MemoryReply {
-        self.removals.begin(space, removal);
+        logged(self.removals.begin(space, removal));
         let request = MemoryRequest::RemoveSpace(space.clone(), removal);
         let reply = self.queue.handle(&Caller::ShellUi, request.clone()).await;
         self.persist();
         if matches!(reply, MemoryReply::Relocated(_)) {
-            self.removals.finish(space);
+            logged(self.removals.finish(space));
         }
         self.follow(&request, &reply).await;
         reply
@@ -383,7 +392,7 @@ impl<B: Backend, P: Peers> Daemon<B, P> {
             let orphan =
                 matches!(meta.id.kind(), SpaceKind::Linked(_)) && !known.contains(&meta.id);
             if orphan {
-                self.removals.begin_unasked(&meta.id);
+                logged(self.removals.begin_unasked(&meta.id).1);
             }
         }
         self.resume_removals().await

@@ -29,6 +29,7 @@ recall = { workspace = true }
 almanac-local = { workspace = true }
 almanac-service = { workspace = true }
 almanac-watch = { workspace = true }
+atomic-write-file = { workspace = true }
 almanac-dbus = { workspace = true }
 porter-core = { workspace = true }
 porter-daemon = { workspace = true }

@@ -5,8 +5,8 @@
 use crate::support::{SharedKeys, TestBackend, dirs_in, service, space};
 use almanac_core::*;
 use almanac_fake::mail_thread_archived;
-use almanac_service::spaces_from_toml;
-use memoryd::{Daemon, Removals, SHELL_APP, TablePeers};
+use almanac_service::{RemovalLedger, Removals, spaces_from_toml};
+use memoryd::{Daemon, FileLedger, SHELL_APP, TablePeers};
 
 type TestDaemon = Daemon<TestBackend, TablePeers>;
 
@@ -79,6 +79,11 @@ async fn pending_in(daemon: &TestDaemon, space: SpaceId) -> usize {
     }
 }
 
+/// The notes the daemon keeps in `dirs`, read and written the way the daemon does.
+fn notes_in(dirs: &Dirs) -> Removals<FileLedger> {
+    Removals::new(FileLedger::load(dirs.memory().join("removals.toml")))
+}
+
 #[tokio::test]
 async fn a_daemon_that_died_mid_move_finishes_on_the_next_start() {
     let scratch = tempfile::tempdir().expect("scratch");
@@ -86,7 +91,9 @@ async fn a_daemon_that_died_mid_move_finishes_on_the_next_start() {
     let first = daemon(&dirs, &keys);
     fill_old(&first).await;
     // It noted the removal and died before moving anything.
-    Removals::load(dirs.memory().join("removals.toml")).begin(&space("old"), Removal::KEEP_ALL);
+    notes_in(&dirs)
+        .begin(&space("old"), Removal::KEEP_ALL)
+        .expect("note");
     drop(first);
     assert!(dirs.space(&space("old")).exists());
 
@@ -104,11 +111,7 @@ async fn a_daemon_that_died_mid_move_finishes_on_the_next_start() {
         })
     );
     assert!(!dirs.space(&space("old")).exists(), "the Space is gone");
-    assert!(
-        Removals::load(dirs.memory().join("removals.toml"))
-            .open()
-            .is_empty()
-    );
+    assert!(notes_in(&dirs).open().is_empty());
     assert_eq!(
         pending_in(&second, files_home()).await,
         1,
@@ -239,13 +242,15 @@ async fn a_choice_the_shell_noted_stands_when_the_registry_announces_the_removal
     record_in_old(&first).await;
     first.persist();
     // The shell asked to delete the history and the daemon died before it moved anything.
-    Removals::load(dirs.memory().join("removals.toml")).begin(
-        &space("old"),
-        Removal {
-            memories: MemoryFate::MoveToApps,
-            history: HistoryFate::Delete,
-        },
-    );
+    notes_in(&dirs)
+        .begin(
+            &space("old"),
+            Removal {
+                memories: MemoryFate::MoveToApps,
+                history: HistoryFate::Delete,
+            },
+        )
+        .expect("note");
     drop(first);
 
     let second = daemon(&dirs, &keys);
@@ -268,7 +273,7 @@ fn a_note_from_before_the_history_choice_reads_as_keep_everything() {
     let path = scratch.path().join("removals.toml");
     std::fs::write(&path, "removed = [\"old\"]\n").expect("write");
     assert_eq!(
-        Removals::load(path).open(),
+        FileLedger::load(path).open(),
         vec![(space("old"), Removal::KEEP_ALL)]
     );
 }

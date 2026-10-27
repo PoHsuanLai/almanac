@@ -31,6 +31,7 @@
 mod auth;
 mod backend;
 mod baseline;
+mod change;
 mod class;
 mod clock;
 mod config;
@@ -52,6 +53,7 @@ mod hunks;
 mod key_refusal;
 mod marks;
 mod open;
+mod prompt;
 mod proposals;
 mod quota;
 mod record;
@@ -59,6 +61,7 @@ mod registry;
 mod rehome;
 mod relocate;
 mod relocate_events;
+mod removals;
 mod retention;
 mod revert_guard;
 mod run;
@@ -72,6 +75,7 @@ mod timeline;
 
 pub use auth::{Allowed, allowed};
 pub use backend::{Backend, BackendError};
+pub use change::{Change, changes};
 pub use class::{class_from_tag, class_of, class_tag};
 pub use clock::Clock;
 pub use config::{
@@ -92,8 +96,10 @@ pub use forget::{
     plan_forget, plan_step, token_for,
 };
 pub use hunks::tidy_is_acceptable;
+pub use prompt::{parse_draft, render_prompt};
 pub use quota::{ByteCap, EventCap, FieldLimits, Quota};
 pub use registry::{Listing, RegistryError};
+pub use removals::{LedgerError, RemovalLedger, Removals, removals_from_toml, removals_to_toml};
 pub use retention::{SourceState, Sweep, header_expired, sweep_body};
 pub use service::{MemoryService, SpaceRuntime};
 pub use settings::{
