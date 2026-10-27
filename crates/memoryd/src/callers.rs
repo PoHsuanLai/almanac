@@ -1,6 +1,6 @@
 //! The caller table as files, and porter's caller mapped onto almanac's.
 //!
-//! The identification is porter's (`porter_dbus::ProcCallers`: the bus names the pid, the pid's
+//! The identification is porter's (`porter_dbus::callers::ProcCallers`: the bus names the pid, the pid's
 //! cgroup names the unit or the app scope). What is memoryd's own is the file and the mapping:
 //! `/etc/quire/memory-callers.toml` with the user's `<config>/quire/memory-callers.toml` laid
 //! over it, in porter's `[[caller]]` shape, and [`caller_for`] that turns a porter role into one
@@ -8,7 +8,7 @@
 //! callers; every other identified process is an app.
 
 use almanac_core::Caller;
-use porter_dbus::{CallerRole, CallerTable};
+use porter_dbus::callers::{CallerRole, CallerTable};
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
@@ -62,7 +62,7 @@ pub fn load_callers(system: &Path, user: &Path) -> Result<CallerTable, CallerFil
 /// app the `settings` role of [`SETTINGS_APP`]; any other
 /// row, or an app scope or Flatpak scope the table does not name, is that app. The fixed callers
 /// need the role as well as the app, so a row cannot make an app the router by naming it.
-pub fn caller_for(found: porter_dbus::Caller) -> Caller {
+pub fn caller_for(found: porter_dbus::callers::Caller) -> Caller {
     let name = found.app.name.as_str();
     match found.role {
         CallerRole::Cua => Caller::Cuad,

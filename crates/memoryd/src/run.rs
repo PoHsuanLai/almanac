@@ -16,7 +16,7 @@ use almanac_service::{ConfigError, MemoryService, rules_from_toml, spaces_from_t
 use almanac_settings::{ConsolidateWhen, MemorySettings};
 use porter_client::DbusTransport;
 use porter_daemon::ProcRoot;
-use porter_dbus::CallerTable;
+use porter_dbus::callers::CallerTable;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;

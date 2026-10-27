@@ -10,7 +10,7 @@ use almanac_service::{Backend, BackendError, Clock, Consolidator, Listing, Regis
 use almanac_store::{Vault, VaultError, VaultPath};
 use eventlog::SqliteLog;
 use memfiles::{PlainDir, SealedDir};
-use porter_client::AnyTransport;
+use porter_client::DbusTransport;
 use recall::{Embedder, ExactScan, Fts5, Index, IndexError};
 use rusqlite::Connection;
 use std::future::Future;
@@ -64,8 +64,8 @@ impl Vault for SpaceVault {
 #[derive(Debug)]
 pub struct SystemBackend<
     K = Oo7Keys,
-    E = InferdEmbedder<AnyTransport>,
-    C = InferdConsolidator<AnyTransport>,
+    E = InferdEmbedder<DbusTransport>,
+    C = InferdConsolidator<DbusTransport>,
 > {
     dirs: Dirs,
     keys: K,
@@ -77,7 +77,7 @@ pub struct SystemBackend<
 
 impl SystemBackend {
     /// Over `dirs` and one inferd connection shared by the embedder and the consolidator.
-    pub fn new(dirs: Dirs, inferd: Arc<AnyTransport>, card: almanac_store::EmbedderCard) -> Self {
+    pub fn new(dirs: Dirs, inferd: Arc<DbusTransport>, card: almanac_store::EmbedderCard) -> Self {
         Self::with(
             dirs,
             Oo7Keys,

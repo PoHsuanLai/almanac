@@ -11,7 +11,7 @@ use almanac_service::Change;
 use memoryd::{
     Daemon, Delivery, ProcPeers, caller_for, delivery_of, load_callers, table_from_toml,
 };
-use porter_dbus::{CallerTable, ProcCallers};
+use porter_dbus::callers::{CallerTable, ProcCallers};
 use std::path::Path;
 use std::sync::Arc;
 

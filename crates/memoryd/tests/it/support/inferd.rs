@@ -5,7 +5,8 @@
 
 use porter_core::wire::{FrameRead, decode_frame, encode_frame};
 use porter_core::{AccountId, Locality, ModelId, Tokens};
-use porter_dbus::{Details, INFERENCE_BUS, INFERENCE_PATH, NeedArg};
+use porter_dbus::names::{INFERENCE_BUS, INFERENCE_PATH};
+use porter_dbus::{Details, NeedArg};
 use porter_infer::{
     ChatReply, ClientFrame, EmbedReply, EmbedVector, InferEvent, InferRefusal, InferReply,
     InferRequest, ServedBy, StopReason, TokenUsage,
