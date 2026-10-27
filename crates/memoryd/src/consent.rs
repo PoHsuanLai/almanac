@@ -6,7 +6,8 @@
 //! settings again so the confirmed value applies at once.
 
 use almanac_core::{Refusal, WaitingSetting};
-use almanac_service::{ConfirmError, Loaded, Locator, MemorySettings};
+use almanac_host::Locator;
+use almanac_settings::{ConfirmError, Loaded, MemorySettings};
 use std::collections::BTreeMap;
 use std::sync::{Mutex, PoisonError};
 

@@ -1,0 +1,19 @@
+[package]
+name = "almanac-host"
+description = "The files memory keeps beside its Spaces: finding and reading the settings file and the confirmation store, and writing a private file whole. Client/IO; the service and the settings model read no file themselves."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+almanac-settings = { workspace = true }
+almanac-core = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

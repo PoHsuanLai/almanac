@@ -1,18 +1,18 @@
 //! The person's memory settings (design/22 section 3.28): the `memory.*` keys the Settings app
-//! writes to `$XDG_CONFIG_HOME/almanac/settings.toml`, the schema it draws them from, the lenient
-//! reader (a bad value falls back, per key, and is reported) and where the file is found. Reading
-//! is a pure function of text; only [`Locator::read`] touches the disk. The live watch is memoryd's.
+//! writes to `$XDG_CONFIG_HOME/almanac/settings.toml`, the schema it draws them from
+//! (`schema/almanac.settings.toml`, [`SCHEMA`]) and the lenient reader (a bad value falls back,
+//! per key, and is reported). Everything here is a pure function of text: finding and reading the
+//! files is `almanac-host`, the live watch is memoryd's.
 //!
 //! A value looser than the shipped default takes effect only once the person confirmed it
-//! (ALM-16): [`Locator::read`] puts back the shipped value of each one the confirmation store does
-//! not hold (`confirm.rs`, `loosen.rs`). [`read`] alone is the lenient reader, ungated.
+//! (ALM-16): [`gate`] puts back the shipped value of each one the confirmations do not hold
+//! (`confirm.rs`, `loosen.rs`). [`read`] alone is the lenient reader, ungated.
 //!
 //! The service holds a [`MemorySettings`] and every request reads it afresh, so a change applies
 //! to the next request (`MemoryService::apply_settings`).
 
 mod confirm;
 mod keys;
-mod locate;
 mod loosen;
 mod read;
 #[cfg(test)]
@@ -20,13 +20,12 @@ mod tests;
 
 use almanac_core::{RetentionDays, VaultKind};
 
-pub use confirm::{CONFIRMED_FILE, ConfirmError, Confirmations};
-pub use locate::Locator;
+pub use confirm::{CONFIRMED_FILE, ConfirmError, Confirmations, gate, waiting};
 pub use loosen::loosenings;
 pub use read::{Fallback, Loaded, Why, read};
 
 /// The schema almanac ships for its settings (design/22 section 9.2).
-pub const SCHEMA: &str = include_str!("../../../../dist/settings/almanac.settings.toml");
+pub const SCHEMA: &str = include_str!("../schema/almanac.settings.toml");
 
 /// The file the settings live in, under the configuration directory.
 pub const SETTINGS_FILE: &str = "almanac/settings.toml";

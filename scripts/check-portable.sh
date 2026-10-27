@@ -19,7 +19,9 @@ CORE=(
   "memfiles"
   "memfiles-format"
   "recall"
+  "almanac-settings"
   "almanac-service"
+  "almanac-host"
   "almanac-watch"
   "almanac-client:in_process"
   "almanac-local"
@@ -30,7 +32,7 @@ FORBIDDEN='zbus|zvariant|inotify|notify|landlock|oo7|secret-service'
 TARGETS=(x86_64-apple-darwin x86_64-pc-windows-gnu x86_64-pc-windows-msvc)
 # Crates without C dependencies check on every target; the SQLCipher ones need that target's C
 # toolchain (and OpenSSL's cross build), which a Linux box lacks, so they are only reported.
-PURE_RUST=(almanac-core almanac-seal almanac-store memfiles almanac-watch)
+PURE_RUST=(almanac-core almanac-seal almanac-store memfiles almanac-settings almanac-watch)
 # blake3 builds C and assembly SIMD for x86_64 targets, which needs the target's C compiler too;
 # its `pure` feature (through each crate's `pure-hash`) is a plain-Rust build for the check.
 declare -A PURE_HASH=(

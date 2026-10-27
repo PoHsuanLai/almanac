@@ -1,7 +1,7 @@
-//! The key table: every `memory.*` key of the schema (`dist/settings/almanac.settings.toml`), its
+//! The key table: every `memory.*` key of the schema (`schema/almanac.settings.toml`), its
 //! rule and where its value goes. The tests hold the schema and this table to each other.
 
-use super::{ConsolidateApply, ConsolidateWhen, MemorySettings};
+use crate::{ConsolidateApply, ConsolidateWhen, MemorySettings};
 use almanac_core::{DayCount, VaultKind};
 use std::ops::RangeInclusive;
 

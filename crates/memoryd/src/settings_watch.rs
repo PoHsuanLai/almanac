@@ -3,7 +3,9 @@
 //! the inode by rename), a 30 ms debounce, then the whole file is read again through the lenient
 //! reader.
 
-use almanac_service::{Backend, Loaded, Locator, MemoryService, MemorySettings, SETTINGS_FILE};
+use almanac_host::Locator;
+use almanac_service::{Backend, MemoryService};
+use almanac_settings::{Loaded, MemorySettings, SETTINGS_FILE};
 use porter_daemon::Watch;
 use std::time::Duration;
 use tokio::sync::{mpsc, watch};

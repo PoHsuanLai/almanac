@@ -9,7 +9,8 @@ use almanac_core::{
 };
 use almanac_dbus::{decode_reply, encode_request, invoke};
 use almanac_fake::{ScriptedConsolidator, fake_service, mail};
-use almanac_service::{ConsolidateWhen, Locator, MemorySettings};
+use almanac_host::Locator;
+use almanac_settings::{ConsolidateWhen, MemorySettings};
 use memoryd::{Consent, SettingsWatch, WatchState, apply, apply_next};
 use std::collections::BTreeMap;
 use std::path::Path;

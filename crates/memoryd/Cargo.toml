@@ -28,7 +28,9 @@ almanac-store = { workspace = true }
 memfiles = { workspace = true }
 recall = { workspace = true }
 almanac-local = { workspace = true }
+almanac-host = { workspace = true }
 almanac-service = { workspace = true }
+almanac-settings = { workspace = true }
 almanac-watch = { workspace = true }
 atomic-write-file = { workspace = true }
 almanac-dbus = { workspace = true }

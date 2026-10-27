@@ -7,7 +7,7 @@
 //! module finds the loose values; each is also reported by name on every read (at start and on
 //! each reload), confirmed or not.
 
-use super::{ConsolidateApply, MemorySettings};
+use crate::{ConsolidateApply, MemorySettings};
 use almanac_core::{DayCount, VaultKind};
 
 /// `memory.files.at_rest`.

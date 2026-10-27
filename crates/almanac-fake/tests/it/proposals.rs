@@ -4,9 +4,8 @@
 
 use almanac_core::*;
 use almanac_fake::*;
-use almanac_service::{
-    ConsolidateApply, ConsolidateError, Draft, MemoryService, MemorySettings, ServiceEvent,
-};
+use almanac_service::{ConsolidateError, Draft, MemoryService, ServiceEvent};
+use almanac_settings::{ConsolidateApply, MemorySettings};
 use almanac_store::{Vault, VaultPath};
 use chrono::{Offset, Utc};
 use memfiles_format::{Block, TopicFile, render_topic};

@@ -14,11 +14,11 @@ use crate::grounds::Grounds;
 use crate::hunks::PreImage;
 use crate::open::{Cx, LastRun, Open, failed, files_refusal};
 use crate::revert_guard::{self, RevertGuard};
-use crate::settings::{ConsolidateApply, ConsolidateWhen};
 use almanac_core::{
     DraftView, Fact, FactId, FactState, Hunk, Lands, MemoryOp, Refusal, RunId, RunState, Seq,
     SkipReason, SkippedHunk, TopicPath, hex_of,
 };
+use almanac_settings::{ConsolidateApply, ConsolidateWhen};
 use almanac_store::BodyState;
 
 /// Where promoted facts land: the model names no topic.

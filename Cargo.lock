@@ -66,6 +66,7 @@ dependencies = [
  "almanac-core",
  "almanac-seal",
  "almanac-service",
+ "almanac-settings",
  "almanac-store",
  "chrono",
  "eventlog",
@@ -78,6 +79,15 @@ dependencies = [
  "tempfile",
  "tokio",
  "toml",
+]
+
+[[package]]
+name = "almanac-host"
+version = "0.1.0"
+dependencies = [
+ "almanac-core",
+ "almanac-settings",
+ "tempfile",
 ]
 
 [[package]]
@@ -98,8 +108,10 @@ dependencies = [
  "almanac-client",
  "almanac-core",
  "almanac-fake",
+ "almanac-host",
  "almanac-seal",
  "almanac-service",
+ "almanac-settings",
  "almanac-store",
  "eventlog",
  "getrandom 0.3.4",
@@ -134,6 +146,7 @@ dependencies = [
  "almanac-core",
  "almanac-fake",
  "almanac-seal",
+ "almanac-settings",
  "almanac-store",
  "blake3",
  "chrono",
@@ -142,9 +155,18 @@ dependencies = [
  "serde",
  "serde_json",
  "tar",
- "tempfile",
  "thiserror",
  "tokio",
+ "toml",
+]
+
+[[package]]
+name = "almanac-settings"
+version = "0.1.0"
+dependencies = [
+ "almanac-core",
+ "serde",
+ "thiserror",
  "toml",
 ]
 
@@ -1051,10 +1073,12 @@ dependencies = [
  "almanac-core",
  "almanac-dbus",
  "almanac-fake",
+ "almanac-host",
  "almanac-keyfile",
  "almanac-local",
  "almanac-seal",
  "almanac-service",
+ "almanac-settings",
  "almanac-store",
  "almanac-watch",
  "atomic-write-file",

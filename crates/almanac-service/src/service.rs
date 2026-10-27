@@ -14,12 +14,12 @@ use crate::quota::Quota;
 use crate::record::Stored;
 use crate::registry::Listing;
 use crate::runtime::SpaceRuntime;
-use crate::settings::MemorySettings;
 use almanac_core::{
     AppName, Caller, ChainHealth, Count, PlanToken, Record, Refusal, RuleSet, RunState, SpaceId,
     SpaceKind, SpaceMeta, SpaceState, SpaceSummary,
 };
 use almanac_seal::{KeyError, KeyStore, Purpose, derive};
+use almanac_settings::MemorySettings;
 use almanac_store::SearchIndex;
 use chrono::{Offset, Utc};
 use memfiles_format::Store;

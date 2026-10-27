@@ -11,6 +11,7 @@ publish.workspace = true
 [dependencies]
 almanac-core = { workspace = true }
 almanac-seal = { workspace = true }
+almanac-host = { workspace = true }
 almanac-service = { workspace = true }
 eventlog = { workspace = true }
 almanac-store = { workspace = true }
@@ -21,6 +22,7 @@ getrandom = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
+almanac-settings = { workspace = true }
 almanac-client = { workspace = true, default-features = false, features = ["in_process"] }
 almanac-fake = { workspace = true }
 tempfile = { workspace = true }

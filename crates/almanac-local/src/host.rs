@@ -3,6 +3,7 @@
 
 use crate::backend::LocalBackend;
 use almanac_core::{ReplicaId, RuleSet, SpaceId, SpaceMeta, VaultKind};
+use almanac_host::{read_config, write_private_atomic};
 use almanac_service::{
     Backend, Clock, ConfigError, Consolidator, MemoryService, SpacesFile, spaces_from_toml,
     spaces_to_toml,
@@ -30,10 +31,9 @@ pub fn open<Clk: Clock, E: Embedder, C: Consolidator>(
     rules: RuleSet,
 ) -> Result<MemoryService<LocalBackend<Clk, E, C>>, LocalError> {
     let path = backend.dirs().spaces_toml();
-    let found = match std::fs::read_to_string(&path) {
-        Ok(text) => spaces_from_toml(&text)?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => SpacesFile::default(),
-        Err(e) => return Err(LocalError::File(e.to_string())),
+    let found = match read_config(&path).map_err(|e| LocalError::File(e.to_string()))? {
+        Some(text) => spaces_from_toml(&text)?,
+        None => SpacesFile::default(),
     };
     let service = MemoryService::new(backend, rules);
     found
@@ -52,7 +52,7 @@ pub fn save_spaces<B: Backend>(
         spaces: service.metas(),
     })?;
     let path = dirs.spaces_toml();
-    almanac_service::write_private_atomic(&path, &text).map_err(|e| LocalError::File(e.to_string()))
+    write_private_atomic(&path, &text).map_err(|e| LocalError::File(e.to_string()))
 }
 
 /// Registers a new Space (created now, with a fresh replica id) and saves `spaces.toml`.

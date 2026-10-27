@@ -17,7 +17,7 @@ fn main() -> ExitCode {
     let Args { write_schema } = Args::parse();
     if let Some(dir) = write_schema {
         let written = std::fs::create_dir_all(&dir).and_then(|()| {
-            std::fs::write(dir.join("almanac.settings.toml"), almanac_service::SCHEMA)
+            std::fs::write(dir.join("almanac.settings.toml"), almanac_settings::SCHEMA)
         });
         return match written {
             Ok(()) => ExitCode::SUCCESS,

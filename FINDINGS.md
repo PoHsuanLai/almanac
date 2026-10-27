@@ -538,7 +538,7 @@ The Settings app (detent) builds its Intelligence page from the schema each daem
 section 9.2). almanac's covers the `memory.*` keys of section 3.28 that memoryd reads, and memoryd
 reads them.
 
-1. **`dist/settings/almanac.settings.toml` has 5 rows**, none `agent = "settable"` (`memory.*` is never
+1. **`crates/almanac-settings/schema/almanac.settings.toml` has 5 rows**, none `agent = "settable"` (`memory.*` is never
    agent-settable). **On the Intelligence page** (section 5, Memory): `memory.files.at_rest` (toggle),
    `memory.consolidation.when` (segmented: nightly, manual, never), `memory.consolidation.apply` (toggle: auto, review). **Advanced:** `memory.retention.
    {search,session}_days` (1..=3650). The unexplained-file keep (7 days), audit body (90), audit header (365)
@@ -549,7 +549,7 @@ reads them.
    - **`memory.join_window_ms`** (Advanced). memoryd does not run the file watch yet (`Watcher` is exported,
      nothing starts it, so `almanac_watch::join` never runs and `JoinWindow::PROPOSED` is used by nobody).
      Closes when memoryd wires the watch: `JoinWindow(ms)` from this setting, 100..=10000.
-3. **The reader is `almanac_service::settings`** (`read(text, base)`, `Locator`, `MemorySettings`). The file is
+3. **The reader is `almanac-settings`** (`read(text, base)`, `MemorySettings`; pure, it reads no file) and **`almanac-host`** finds and reads the file (`Locator`). The file is
    `$XDG_CONFIG_HOME/almanac/settings.toml` (then `$XDG_CONFIG_DIRS`; the first file that reads wins whole). A
    value of the wrong type, out of range or not a word of its key falls back **to the base value of that key**
    (`MemorySettings::default()`, the shipped defaults) and is logged (`memoryd: settings: memory.retention.search_days:
@@ -890,7 +890,7 @@ confirmation is kept where the agent sandbox and the apps cannot write.
   not): key to value pairs under `[confirmed]`, written atomically (temp file, synced, renamed,
   `write_private_atomic`). Only memoryd writes it.
 - Every read (at start, on each file change and after each confirmation) goes through
-  `Locator::read`, which puts back the shipped value of each looser value the store does not hold
+  `almanac_host::Locator::read`, which puts back the shipped value of each looser value the store does not hold
   as exactly that value, and reports it as `Why::NotConfirmed` with a line such as
   "memory.consolidation.apply: auto waits for you to confirm it in Settings". A confirmed value
   applies and is still logged as loosened. A file that later changes the value falls back again

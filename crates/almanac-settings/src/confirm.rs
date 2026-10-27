@@ -5,15 +5,13 @@
 //! the Settings app, which says so to memoryd (`Memory1.ConfirmSettings`). memoryd keeps the
 //! confirmations in `confirmed-settings.toml` in its own data directory, which the agent sandbox
 //! and the apps cannot write. This module is the pure half: the confirmations as a value, their
-//! text, the check of what a confirmation may say and the gate over a read. [`Locator`] reads and
-//! writes the file.
-//!
-//! [`Locator`]: super::Locator
+//! text, the check of what a confirmation may say and the gate over a read. `almanac-host` reads
+//! and writes the file.
 
-use super::MemorySettings;
-use super::keys::{Rule, table};
-use super::loosen::{loose, loosenable, shipped_text};
-use super::read::{Fallback, Loaded, Why};
+use crate::MemorySettings;
+use crate::keys::{Rule, table};
+use crate::loosen::{loose, loosenable, shipped_text};
+use crate::read::{Fallback, Loaded, Why};
 use almanac_core::WaitingSetting;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;

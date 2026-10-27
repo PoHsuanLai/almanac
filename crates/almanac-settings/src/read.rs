@@ -1,8 +1,8 @@
 //! The lenient reader (design/22 section 2): a bad value falls back to the base value for that
 //! key alone, never fails the file, and is reported so the daemon can log it.
 
-use super::MemorySettings;
-use super::keys::{Rule, table};
+use crate::MemorySettings;
+use crate::keys::{Rule, table};
 use std::collections::BTreeSet;
 use std::fmt;
 
@@ -94,7 +94,7 @@ impl Loaded {
             .unknown
             .iter()
             .map(|path| format!("{daemon}: settings: {path}: no such key, ignored"));
-        let loose = super::loosenings(&self.value)
+        let loose = crate::loosenings(&self.value)
             .into_iter()
             .map(|what| format!("{daemon}: settings: loosened from the shipped default: {what}"));
         fell.chain(unknown).chain(loose).collect()

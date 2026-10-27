@@ -1,0 +1,18 @@
+[package]
+name = "almanac-settings"
+description = "What the person can set for memory: the typed memory settings, the schema file the Settings app draws them from, the lenient reader of the settings text, and the confirmation gate for values looser than the shipped defaults. Pure: no files are read here."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+almanac-core = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+toml = { workspace = true }
+
+[lints]
+workspace = true

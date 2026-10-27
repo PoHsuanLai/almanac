@@ -24,7 +24,9 @@ trait), section 5 (what is built), section 6 (copy the recipe).
 | `memfiles-format` | pure: the topic file format (`parse_topic`, `render_topic`, the trailer), `Store` over a `Vault` (from `almanac-store`), `Primer`, `MemfilesError`. No file IO | none |
 | `memfiles` | the vaults on disk: `PlainDir`, `SealedDir`, and `MemoryVault` (feature `testing`). The `Vault` seam and `VaultPath` are in `almanac-store` | the filesystem |
 | `recall` | generic: `VectorIndex`, `Fts5`, `ExactScan`, `Index` (implements `SearchIndex`), `FakeEmbedder` (feature `testing`); re-exports the `Embedder` and document types from `almanac-store`; the vector, card and fusion code (`Vector`, `EmbedderCard`, `fuse_rrf`, `chunk`, `nearest_exact`) lives only there. Knows nothing of almanac's domain | rusqlite |
-| `almanac-service` | memoryd's core over seams: `allowed`, the per-Space request queue (`Claim`), the Space, fact, forget-plan and consolidation machines (with the consolidation prompt and the parse of the model's draft), `changes` (what a reply changed, as the pure `Change` events the daemon turns into bus signals), the removal notes (`Removals` over the `RemovalLedger` seam and the `removals.toml` format), retention, timeline rows, the export writer, the config files, `MemorySettings` and the lenient settings reader (`settings`: the key table held to `dist/settings/almanac.settings.toml`, `Locator`, and the consent gate: `Confirmations` and `loosen` put back the shipped value of any looser-than-shipped value the person has not confirmed), `Backend` and `MemoryService`. Depends on `almanac-store` and `memfiles-format`, never on `eventlog` or `recall`, so it links no SQLite, SQLCipher or OpenSSL | none (seams are passed in) |
+| `almanac-settings` | pure: what the person can set for memory: `MemorySettings`, `ConsolidateWhen`, `ConsolidateApply`, `SCHEMA` (`schema/almanac.settings.toml`, the file the Settings app draws them from; `memoryd --write-schema` writes it), `SETTINGS_FILE`, the lenient reader `read` (`Loaded`, `Fallback`, `Why`), the key table, and the consent gate (`Confirmations`, `gate`, `waiting`, `loosenings`: a value looser than shipped applies only once the person confirmed it). No file is read | none |
+| `almanac-service` | memoryd's core over seams: `allowed`, the per-Space request queue (`Claim`), the Space, fact, forget-plan and consolidation machines (with the consolidation prompt and the parse of the model's draft), `changes` (what a reply changed, as the pure `Change` events the daemon turns into bus signals), the removal notes (`Removals` over the `RemovalLedger` seam and the `removals.toml` format), retention, timeline rows, the export writer, the config file text (`memory.toml`, `spaces.toml`; the files themselves are `almanac-host`'s), `Backend` and `MemoryService`; it takes the person's `MemorySettings` from `almanac-settings`, injected through `apply_settings`, `Backend` and `MemoryService`. Depends on `almanac-store` and `memfiles-format`, never on `eventlog` or `recall`, so it links no SQLite, SQLCipher or OpenSSL | none (seams are passed in) |
+| `almanac-host` | the files memory keeps beside its Spaces: `Locator` (finds `$XDG_CONFIG_HOME/almanac/settings.toml`, then `$XDG_CONFIG_DIRS`; reads it through `almanac-settings` and keeps the confirmations store), `write_private_atomic`, `read_config`. Used by memoryd and `almanac-local` | the filesystem |
 | `almanac-watch` | `FileWatch`, `WatchError`, the pure `join` of observed changes and app-supplied reasons; `InotifyWatch` (notify 8.2) behind the `linux` feature | inotify (feature `linux`) |
 | `almanac-dbus` | `org.quire.Memory1` (`Record`, `Recall`, `Control`) as zbus proxies and skeletons (the introspection source), `MemoryError`, the argument codec (`encode_request`/`decode_request`, `encode_reply`/`decode_reply`), `invoke` (the caller's half) and the served objects over a `Serve` handler (the daemon's half) | zbus |
 | `almanac-client` | the app-facing `Memory` over a `Transport`: `Absent` (no-op on other desktops), `DbusTransport` (feature `dbus`), `InProcess` (feature `in_process`, off by default: only it links `almanac-service`, which links no storage) | through its transport |
@@ -74,15 +76,11 @@ A crate depends on its own tier or a lower one (P < C < A), never up; `dev-depen
 
 | Tier | Crates |
 | --- | --- |
-| P | `almanac-core`, `almanac-seal`, `almanac-store`, `memfiles-format`, `almanac-service` |
-| C | `almanac-keyfile`, `eventlog`, `memfiles`, `recall`, `almanac-watch`, `almanac-dbus`, `almanac-client`, `almanac-fake`, `almanac-local` |
+| P | `almanac-core`, `almanac-seal`, `almanac-store`, `memfiles-format`, `almanac-settings`, `almanac-service` |
+| C | `almanac-keyfile`, `almanac-host`, `eventlog`, `memfiles`, `recall`, `almanac-watch`, `almanac-dbus`, `almanac-client`, `almanac-fake`, `almanac-local` |
 | A | `memoryd` |
 
-The script also reports source files over 500 lines (`--long-files`, report only) and seeds one violation per tier to prove the bans fire (`--self-test`). The `KNOWN` list names each violation that exists today and the plan lane (`~/rs-wt/agent-layers/PLAN.md`) that removes it; a row whose violation is gone fails, so the list only shrinks:
-
-| Crate | Ban | Lane |
-| --- | --- | --- |
-| `almanac-service` | `fs`, `process` (`config.rs`, `settings/locate.rs`) | A3.2 |
+The script also reports source files over 500 lines (`--long-files`, report only) and seeds one violation per tier to prove the bans fire (`--self-test`). The `KNOWN` list names each violation that exists today and the plan lane (`~/rs-wt/agent-layers/PLAN.md`) that removes it; a row whose violation is gone fails, so the list only shrinks. It is empty today.
 
 almanac never depends on stoker, docket or cua: their payloads (policy, consent, computer-use
 steps, sessions) are `EventBody::Area` in their owners' serde form, and `check-boundary.sh`
@@ -108,7 +106,9 @@ may reach `notify` and never `rusqlite`; `almanac-dbus` reaches `tokio` only thr
 | `memfiles-format` | `trailer` < `topic` < `store` |
 | `memfiles` | `memory`, `dirs` |
 | `recall` | `doc`, `state`, `embed` < `fts`, `exact`, `fake` < `index` |
-| `almanac-service` | `clock`, `auth`, `queue` (`Claim`, the line of requests waiting for their Spaces), `retention`, `space`, `fact`, `forget`, `consolidation`, `prompt`, `change`, `removals`, `timeline`, `export`, `config`, `settings`, `marks`, `baseline`, `events` < `backend` < `service` < `open`, `record`, `facts`, `search`, `run`, `hunks`, `edits`, `sweep`, `erase`, `control`, `dispatch` |
+| `almanac-service` | `clock`, `auth`, `queue` (`Claim`, the line of requests waiting for their Spaces), `retention`, `space`, `fact`, `forget`, `consolidation`, `prompt`, `change`, `removals`, `timeline`, `export`, `config`, `marks`, `baseline`, `events` < `backend` < `service` < `open`, `record`, `facts`, `search`, `run`, `hunks`, `edits`, `sweep`, `erase`, `control`, `dispatch` |
+| `almanac-settings` | `keys`, `loosen` < `read` < `confirm` |
+| `almanac-host` | `files` < `locate` |
 | `almanac-watch` | `observed` < `join` < `inotify` |
 | `almanac-dbus` | `names`, `error`, `record`, `recall`, `control` (skeletons and proxies), `codec` (`request`, `reply`), `invoke`, `serve`, `introspect` |
 | `almanac-client` | `transport` < `memory` |

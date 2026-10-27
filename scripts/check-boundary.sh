@@ -26,9 +26,11 @@ LAYERS=(
   "almanac-core: P"
   "almanac-store: P"
   "memfiles-format: P"
+  "almanac-settings: P"
   "almanac-service: P"
   "almanac-seal: P"
   "almanac-keyfile: C"
+  "almanac-host: C"
   "eventlog: C"
   "memfiles: C"
   "recall: C"
@@ -42,12 +44,8 @@ LAYERS=(
 
 # KNOWN: a violation that exists today, with the plan lane (~/rs-wt/agent-layers/PLAN.md) that
 # removes it. "crate: ban: lane". A row whose violation is gone fails, so the list only shrinks.
-# almanac-service reads and writes its config and settings files (config.rs, settings/locate.rs;
-# A3.2 moves them out).
-KNOWN=(
-  "almanac-service: fs: A3.2"
-  "almanac-service: process: A3.2"
-)
+# (none today)
+KNOWN=()
 
 # BANS: "name|tiers|extended regex" over the non-test source of a crate of those tiers. A line
 # that starts with `//` is skipped, and so is everything from the first `#[cfg(test)]` on.
@@ -96,7 +94,9 @@ RULES=(
   "memfiles: $EFFECTS rusqlite notify"
   "memfiles-format: $EFFECTS $STORAGE notify"
   "recall: $EFFECTS notify"
+  "almanac-settings: $EFFECTS $STORAGE notify"
   "almanac-service: $EFFECTS $STORAGE notify"
+  "almanac-host: $EFFECTS $STORAGE notify"
   "almanac-watch: $EFFECTS rusqlite"
   "almanac-dbus: reqwest hyper oo7 ort fastembed rusqlite notify"
   "almanac-client: $EFFECTS rusqlite openssl-sys notify"

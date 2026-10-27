@@ -9,7 +9,9 @@ members = [
   "crates/memfiles",
   "crates/memfiles-format",
   "crates/recall",
+  "crates/almanac-settings",
   "crates/almanac-service",
+  "crates/almanac-host",
   "crates/almanac-watch",
   "crates/almanac-dbus",
   "crates/almanac-client",
@@ -36,7 +38,9 @@ eventlog        = { path = "crates/eventlog" }
 memfiles        = { path = "crates/memfiles" }
 memfiles-format = { path = "crates/memfiles-format" }
 recall          = { path = "crates/recall" }
+almanac-settings = { path = "crates/almanac-settings" }
 almanac-service = { path = "crates/almanac-service" }
+almanac-host    = { path = "crates/almanac-host" }
 almanac-watch   = { path = "crates/almanac-watch" }
 almanac-dbus    = { path = "crates/almanac-dbus" }
 almanac-client  = { path = "crates/almanac-client", default-features = false }

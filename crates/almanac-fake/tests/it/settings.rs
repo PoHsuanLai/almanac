@@ -2,7 +2,8 @@
 
 use almanac_core::*;
 use almanac_fake::*;
-use almanac_service::{ConsolidateWhen, MemoryService, MemorySettings};
+use almanac_service::MemoryService;
+use almanac_settings::{ConsolidateWhen, MemorySettings};
 
 type Service = MemoryService<FakeBackend>;
 

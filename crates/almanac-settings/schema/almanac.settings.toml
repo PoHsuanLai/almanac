@@ -1,7 +1,7 @@
 # almanac's settings schema in the design/22 format (section 9.2). Installed to
 # $XDG_DATA_DIRS/quire/settings/almanac.settings.toml; `memoryd --write-schema <dir>` writes it for a
 # local install. The values live in $XDG_CONFIG_HOME/almanac/settings.toml, for example `[memory.files]`
-# then `at_rest = "plain"`; memoryd reads them live (crates/almanac-service/src/settings). Every row
+# then `at_rest = "plain"`; memoryd reads them live (crates/almanac-settings, crates/almanac-host). Every row
 # is hands-off for an agent (no `agent = "settable"`): memory.* is never agent-settable, so the
 # companion can never loosen what memory keeps or how it is held. The rows design/22 section 5 puts
 # on the Intelligence page are Memory's two; the others (Memory, History) are Advanced. Not here, because nothing

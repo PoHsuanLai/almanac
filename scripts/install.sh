@@ -57,7 +57,7 @@ install_rest() {
   put_unit "$ROOT/dbus/memoryd.service"
   put 644 "$ROOT/dbus/org.quire.Memory1.service" "$SHARE/dbus-1/services/org.quire.Memory1.service" unit
   put 644 "$ROOT/dbus/org.quire.Memory1.xml" "$SHARE/dbus-1/interfaces/org.quire.Memory1.xml" copy
-  put_tree 644 "$ROOT/dist/settings" "$SHARE/quire/settings"
+  put_tree 644 "$ROOT/crates/almanac-settings/schema" "$SHARE/quire/settings"
   install_callers "$ROOT/dbus/memory-callers.toml" memory-callers.toml
 }
 

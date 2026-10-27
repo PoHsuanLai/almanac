@@ -4,7 +4,8 @@
 use crate::support::*;
 use almanac_core::*;
 use almanac_fake::{NOW, ScriptedConsolidator, trusted_label};
-use almanac_service::{Backend, ConsolidateApply, ConsolidateError, Draft, MemorySettings};
+use almanac_service::{Backend, ConsolidateError, Draft};
+use almanac_settings::{ConsolidateApply, MemorySettings};
 use std::sync::Arc;
 
 fn fact_id(n: u8) -> FactId {

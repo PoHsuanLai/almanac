@@ -1,10 +1,12 @@
 //! Where the settings file is: `$XDG_CONFIG_HOME/almanac/settings.toml`, then each of
 //! `$XDG_CONFIG_DIRS` (design/22 section 2). The first file that reads wins.
 
-use super::confirm::{ConfirmError, Confirmations, gate, waiting};
-use super::read::{Fallback, Loaded, Why, read};
-use super::{MemorySettings, SETTINGS_FILE};
+use crate::files::write_private_atomic;
 use almanac_core::WaitingSetting;
+use almanac_settings::{
+    ConfirmError, Confirmations, Fallback, Loaded, MemorySettings, SETTINGS_FILE, Why, gate, read,
+    waiting,
+};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
@@ -116,7 +118,6 @@ impl Locator {
         // never more.
         let (have, _) = self.stored();
         let text = have.with(values)?.to_toml()?;
-        crate::config::write_private_atomic(file, &text)
-            .map_err(|e| ConfirmError::Store(e.to_string()))
+        write_private_atomic(file, &text).map_err(|e| ConfirmError::Store(e.to_string()))
     }
 }

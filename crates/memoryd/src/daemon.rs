@@ -16,9 +16,10 @@ use almanac_core::{
 use almanac_dbus::{
     Call, Confinement, MemoryError, Serve, Signal, decode_request, emit_to, encode_reply,
 };
+use almanac_host::write_private_atomic;
 use almanac_service::{
     Allowed, Backend, LedgerError, MemoryService, Removals, ServiceEvent, SpacesFile, allowed,
-    changes, locked_status, rules_to_toml, spaces_to_toml, write_private_atomic,
+    changes, locked_status, rules_to_toml, spaces_to_toml,
 };
 use porter_core::SpaceChange;
 use std::collections::{BTreeMap, BTreeSet};

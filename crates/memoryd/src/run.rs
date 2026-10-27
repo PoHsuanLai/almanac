@@ -11,10 +11,9 @@ use crate::{
 };
 use almanac_core::{Dirs, RuleSet};
 use almanac_dbus::{Confinement, serve_on};
-use almanac_service::{
-    ConfigError, ConsolidateWhen, Locator, MemoryService, MemorySettings, read_config,
-    rules_from_toml, spaces_from_toml,
-};
+use almanac_host::{Locator, read_config};
+use almanac_service::{ConfigError, MemoryService, rules_from_toml, spaces_from_toml};
+use almanac_settings::{ConsolidateWhen, MemorySettings};
 use porter_client::DbusTransport;
 use porter_daemon::ProcRoot;
 use porter_dbus::CallerTable;

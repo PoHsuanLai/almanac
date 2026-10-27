@@ -70,7 +70,6 @@ mod runfile;
 mod runtime;
 mod search;
 mod service;
-mod settings;
 pub mod space;
 mod sweep;
 mod timeline;
@@ -81,8 +80,7 @@ pub use change::{Change, changes};
 pub use class::{class_from_tag, class_of, class_tag};
 pub use clock::Clock;
 pub use config::{
-    ConfigError, SpacesFile, read_config, rules_from_toml, rules_to_toml, spaces_from_toml,
-    spaces_to_toml, write_private_atomic,
+    ConfigError, SpacesFile, rules_from_toml, rules_to_toml, spaces_from_toml, spaces_to_toml,
 };
 pub use consolidation::{
     CheckedDraft, ConsolidateError, ConsolidationInput, Consolidator, Desktop, Draft, HunkFault,
@@ -106,9 +104,5 @@ pub use removals::{LedgerError, RemovalLedger, Removals, removals_from_toml, rem
 pub use retention::{SourceState, Sweep, header_expired, sweep_body};
 pub use runtime::SpaceRuntime;
 pub use service::MemoryService;
-pub use settings::{
-    CONFIRMED_FILE, ConfirmError, Confirmations, ConsolidateApply, ConsolidateWhen, Fallback,
-    Loaded, Locator, MemorySettings, SCHEMA, SETTINGS_FILE, Why, loosenings, read as read_settings,
-};
 pub use space::{BUFFER_LIMIT, SpaceEffect, SpaceEvent};
 pub use timeline::timeline_entry;
