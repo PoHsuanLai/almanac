@@ -5,6 +5,7 @@
 use crate::support::{SharedKeys, TestBackend, dirs_in, service, space};
 use almanac_core::*;
 use almanac_fake::mail_thread_archived;
+use almanac_service::Caller;
 use almanac_service::spaces_from_toml;
 use almanac_tidy::{RemovalLedger, Removals};
 use memoryd::{Daemon, FileLedger, SHELL_APP, TablePeers};

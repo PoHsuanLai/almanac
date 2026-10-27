@@ -1,17 +1,17 @@
 //! Who is calling memoryd. Derived by the transport, never sent in a request.
 
-use porter_core::AppId;
-use serde::{Deserialize, Serialize};
+use almanac_core::AppId;
 
-/// A caller class. The D-Bus sender is mapped to its `AppId` (porter R12: unsandboxed callers
-/// are advisory); `Router`, `Cuad`, `ShellUi` and `Settings` are fixed `AppName`s configured in
-/// memoryd.
+/// A caller class: the input of the authorisation matrix ([`crate::allowed`]). It is not wire:
+/// no request, reply or stored file carries one. The daemon maps the D-Bus sender to its `AppId`
+/// (porter R12: unsandboxed callers are advisory); `Router`, `Cuad`, `ShellUi` and `Settings` are
+/// fixed `AppName`s configured in memoryd. A library user picks the class when it builds its
+/// transport (`almanac-client`'s `InProcess`).
 ///
 /// The companion has no class of its own: it reads and proposes through the action router
 /// (`org.quire.Memory` is a built-in provider of intentd), which calls as `Router` acting for
 /// `Actor::Companion` with the Space taken from the invocation.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(tag = "kind", content = "v", rename_all = "snake_case")]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Caller {
     /// An app, for its own things.
     App(AppId),

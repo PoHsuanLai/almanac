@@ -3,6 +3,7 @@
 
 use almanac_core::*;
 use almanac_fake::*;
+use almanac_service::Caller;
 use almanac_service::{Backend, MemoryService};
 use std::io::Read;
 

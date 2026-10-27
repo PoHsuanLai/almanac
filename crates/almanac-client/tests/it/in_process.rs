@@ -8,6 +8,7 @@ use almanac_client::{InProcess, Memory, Recorded};
 use almanac_core::*;
 use almanac_fake::*;
 use almanac_seal::{Aad, KeyStore, Nonce, ProvidedKeys, Purpose, SpaceKey, derive, seal, unseal};
+use almanac_service::Caller;
 use std::sync::Arc;
 
 fn work() -> SpaceId {

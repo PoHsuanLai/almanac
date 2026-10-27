@@ -7,7 +7,6 @@
 
 mod admit;
 mod area;
-mod caller;
 mod chain;
 mod dirs;
 mod entries;
@@ -36,7 +35,6 @@ mod views;
 
 pub use admit::{admit, default_retention, glob_matches, is_audit_class, withheld};
 pub use area::{AreaPayload, AreaTag};
-pub use caller::Caller;
 pub use chain::{Break, ChainReport, Checkpoint, Head};
 pub use dirs::Dirs;
 pub use entries::{Ack, EntriesPage, EntriesQuery};

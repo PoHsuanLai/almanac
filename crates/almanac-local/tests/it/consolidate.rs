@@ -5,6 +5,7 @@ use crate::support::*;
 use almanac_core::*;
 use almanac_fake::{NOW, ScriptedConsolidator, trusted_label};
 use almanac_service::Backend;
+use almanac_service::Caller;
 use almanac_settings::{ConsolidateApply, MemorySettings};
 use almanac_tidy::{ConsolidateError, Draft};
 use std::sync::Arc;

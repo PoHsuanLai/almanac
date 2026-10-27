@@ -5,6 +5,7 @@
 //! same Space waits its turn, and `Busy` never reaches a caller for that reason.
 
 use crate::backend::Backend;
+use crate::caller::Caller;
 use crate::clock::Clock;
 use crate::events::ServiceEvent;
 use crate::key_refusal::key_refusal;
@@ -15,8 +16,8 @@ use crate::record::Stored;
 use crate::registry::Listing;
 use crate::runtime::SpaceRuntime;
 use almanac_core::{
-    AppName, Caller, ChainHealth, Count, PlanToken, Record, Refusal, RuleSet, RunState, SpaceId,
-    SpaceKind, SpaceMeta, SpaceState, SpaceSummary,
+    AppName, ChainHealth, Count, PlanToken, Record, Refusal, RuleSet, RunState, SpaceId, SpaceKind,
+    SpaceMeta, SpaceState, SpaceSummary,
 };
 use almanac_seal::{KeyError, KeyStore, Purpose, derive};
 use almanac_settings::MemorySettings;

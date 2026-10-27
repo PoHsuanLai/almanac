@@ -1,11 +1,10 @@
 //! A Space whose stores will not open answers by what is wrong: a key that does not open the
 //! log (or a locked key store) is `SpaceLocked`, never `Invalid`.
 
-use almanac_core::{
-    Caller, MemoryReply, MemoryRequest, Refusal, ReplicaId, RuleSet, SpaceId, SpaceMeta,
-};
+use almanac_core::{MemoryReply, MemoryRequest, Refusal, ReplicaId, RuleSet, SpaceId, SpaceMeta};
 use almanac_fake::{FakeBackend, ScriptedConsolidator, SharedVault, SteppedClock};
 use almanac_seal::{MemoryKeys, SpaceKey};
+use almanac_service::Caller;
 use almanac_service::{Backend, BackendError, MemoryService, ServiceEvent};
 use eventlog::{LogError, MemoryLog};
 use recall::{ExactScan, FakeEmbedder, Index};

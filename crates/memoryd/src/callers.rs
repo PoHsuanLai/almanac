@@ -7,7 +7,7 @@
 //! of almanac's callers. The router, the shell, cuad and the Settings app are the four fixed
 //! callers; every other identified process is an app.
 
-use almanac_core::Caller;
+use almanac_service::Caller;
 use porter_dbus::callers::{CallerRole, CallerTable};
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};

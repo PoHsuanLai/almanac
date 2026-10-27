@@ -11,12 +11,12 @@ use crate::peers::Peers;
 use crate::settings_watch::apply;
 use crate::signals::{Delivery, delivery_of};
 use almanac_core::{
-    Caller, DesktopSpace, Dirs, MemoryReply, MemoryRequest, PlanToken, Refusal, Removal, SpaceId,
-    SpaceKind,
+    DesktopSpace, Dirs, MemoryReply, MemoryRequest, PlanToken, Refusal, Removal, SpaceId, SpaceKind,
 };
 use almanac_dbus::{Call, MemoryError, decode_request, encode_reply};
 use almanac_dbus_serve::{Serve, Signal, emit_to};
 use almanac_host::write_private_atomic;
+use almanac_service::Caller;
 use almanac_service::{
     Allowed, Backend, MemoryService, ServiceEvent, SpacesFile, allowed, locked_status,
     rules_to_toml, spaces_to_toml,

@@ -4,6 +4,7 @@
 use crate::support::{SharedKeys, dirs_in, service};
 use almanac_core::*;
 use almanac_fake::mail_thread_archived;
+use almanac_service::Caller;
 
 fn desktop_record() -> Record {
     Record {

@@ -28,9 +28,10 @@
 //! with the Space of the invocation. Untrusted-labelled proposals always land in `pending/`
 //! (the fact machine), whoever sends them.
 
+use crate::caller::Caller;
 use almanac_core::{
-    Actor, AgentRef, AgentRole, AppName, AreaTag, Caller, EventBody, FileWhyClaim, MemoryRequest,
-    Record, Refusal, SpaceId, SpaceScope,
+    Actor, AgentRef, AgentRole, AppName, AreaTag, EventBody, FileWhyClaim, MemoryRequest, Record,
+    Refusal, SpaceId, SpaceScope,
 };
 
 /// The answer of [`allowed`].

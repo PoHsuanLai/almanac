@@ -7,6 +7,7 @@ use almanac_client::{DbusTransport, Memory};
 use almanac_core::*;
 use almanac_dbus::ControlProxy;
 use almanac_fake::{ScriptedConsolidator, mail_thread_archived};
+use almanac_service::Caller;
 use almanac_service::{Backend, MemoryService, ServiceEvent};
 use almanac_store::{EmbedRole, EmbedderCard, Urgency, Vector};
 use memoryd::{LockChanges, SystemBackend, is_lock_change};

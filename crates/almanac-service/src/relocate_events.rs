@@ -5,11 +5,12 @@
 //! duplicating what it had already moved.
 
 use crate::backend::Backend;
+use crate::caller::Caller;
 use crate::open::{Cx, Open, append_refusal};
 use crate::rehome::{EventMap, rehomed_cause, rehomed_label};
 use crate::relocate::count;
 use crate::service::MemoryService;
-use almanac_core::{Caller, Count, Refusal, SpaceId};
+use almanac_core::{Count, Refusal, SpaceId};
 use almanac_search::docs::event_ref;
 use almanac_store::{BodyState, Entry, LogWrite, NewHeader, body_digest};
 

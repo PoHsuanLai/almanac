@@ -3,12 +3,13 @@
 //! and the helpers every request shares: appending, auditing, the fact snapshot, the index.
 
 use crate::backend::{Backend, BackendError};
+use crate::caller::Caller;
 use crate::clock::Clock;
 use crate::forget::{FactGraph, FactNode};
 use crate::runtime::SpaceRuntime;
 use almanac_core::{
-    Actor, Caller, ChainHealth, Count, Effect, EventBody, EventRef, Fact, FactId, FactState, Label,
-    Link, MemoryOp, Record, Refusal, RuleSet, RunId, RunState, Seq, SpaceId, SystemPart, TopicPath,
+    Actor, ChainHealth, Count, Effect, EventBody, EventRef, Fact, FactId, FactState, Label, Link,
+    MemoryOp, Record, Refusal, RuleSet, RunId, RunState, Seq, SpaceId, SystemPart, TopicPath,
     UnixSeconds,
 };
 use almanac_seal::{KeyError, SubKey};

@@ -4,6 +4,7 @@
 use crate::support::{SharedKeys, TestBackend, backend, dirs_in, service, space};
 use almanac_core::*;
 use almanac_fake::{mail_thread_archived, thing};
+use almanac_service::Caller;
 use almanac_service::{Backend, BackendError, MemoryService, rules_from_toml, spaces_from_toml};
 use eventlog::LogError;
 use memoryd::{Daemon, TablePeers};

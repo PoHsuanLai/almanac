@@ -1013,3 +1013,20 @@ builds; show nothing for it (or treat any unknown word the same way). Not done: 
   answers the wire word (`&'static str`, default `CONFINEMENT_OFF`); the words stay in the XML
   contract. The `as_word` test in `almanac-dbus` went: `memoryd`'s sandbox and bus tests pin the
   same four words.
+
+## Layering lane A3.5: `Caller` is not wire (2026-10-28)
+- Decision: `Caller` moved from `almanac-core` to `almanac-service` (`caller.rs`, beside `auth.rs`,
+  which is its only decider). It is not part of the wire. Evidence: no request, reply, signal,
+  D-Bus argument, memfile or event-log record carries one. The module doc already said "derived by
+  the transport, never sent in a request"; `almanac-dbus` and `almanac-dbus-serve` never name it
+  (`almanac-dbus-serve/src/serve/mod.rs:30` is a comment); `memoryd` builds it from the peer's
+  process identity (`memoryd/src/callers.rs` `caller_for`, `peers.rs`); the only place its serde
+  derives were used was a round-trip test in `almanac-core/tests/it/forms.rs`. Both derives and
+  that test are gone. In-process users pick one when they build `InProcess::new(service, caller)`.
+- Every importer in almanac now takes it from `almanac_service::Caller` (client `InProcess`, fake,
+  local, memoryd, tests). No re-export is left in `almanac-core`.
+- Needs a change at the next re-pin (`use almanac_core::Caller` becomes `use almanac_service::Caller`):
+  docket (`docket-inapp` tests `audit_queue`, `multi`, `seams`; `docket-memory` tests `portable`,
+  `session_log`; `intentd` test support only mentions it in a comment), cua (`cuad` tests
+  `links.rs:102,223`). sill, detent, files, mailo and anyview do not name it. Those users already
+  depend on `almanac-service` for `MemoryService`, since `InProcess` takes one.

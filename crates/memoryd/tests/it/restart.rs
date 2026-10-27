@@ -5,6 +5,7 @@
 use crate::support::{SharedKeys, dirs_in, listed_spaces, space};
 use almanac_core::*;
 use almanac_fake::{ScriptedConsolidator, mail_thread_archived};
+use almanac_service::Caller;
 use almanac_service::MemoryService;
 use almanac_store::{EmbedRole, EmbedderCard, Urgency, Vector};
 use memoryd::SystemBackend;

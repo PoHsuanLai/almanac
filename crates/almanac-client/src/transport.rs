@@ -34,16 +34,17 @@ pub use in_process::InProcess;
 #[cfg(feature = "in_process")]
 mod in_process {
     use super::{Transport, TransportError};
-    use almanac_core::{Caller, MemoryReply, MemoryRequest};
-    use almanac_service::{Backend, MemoryService};
+    use almanac_core::{MemoryReply, MemoryRequest};
+    use almanac_service::{Backend, Caller, MemoryService};
     use std::sync::Arc;
 
     /// The app hosts the service itself (tests, single-process embedders). Feature `in_process`.
     ///
     /// ```
     /// use almanac_client::{InProcess, Memory, Recorded};
-    /// use almanac_core::{AppId, Caller, Isolation};
+    /// use almanac_core::{AppId, Isolation};
     /// use almanac_fake::{ScriptedConsolidator, fake_service, mail, mail_thread_archived};
+    /// use almanac_service::Caller;
     /// use std::sync::Arc;
     ///
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {

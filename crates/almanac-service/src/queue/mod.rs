@@ -17,10 +17,9 @@ pub(crate) use line::Line;
 
 use crate::auth::{Allowed, allowed};
 use crate::backend::Backend;
+use crate::caller::Caller;
 use crate::service::MemoryService;
-use almanac_core::{
-    Caller, ExportOptions, MemoryReply, MemoryRequest, Refusal, SpaceId, SweepReport,
-};
+use almanac_core::{ExportOptions, MemoryReply, MemoryRequest, Refusal, SpaceId, SweepReport};
 use claim::claim_under;
 use std::collections::BTreeSet;
 use std::future::Future;

@@ -3,6 +3,7 @@
 use crate::support::{SharedKeys, dirs_in, service, space};
 use almanac_core::*;
 use almanac_fake::mail_thread_archived;
+use almanac_service::Caller;
 use std::sync::Arc;
 
 fn record_in(space_id: &str, key: &str) -> Record {

@@ -1,7 +1,8 @@
 //! What a request needs exclusive use of.
 
 use crate::auth::{Allowed, allowed};
-use almanac_core::{Caller, EventBody, MemoryRequest, Record, SpaceId};
+use crate::caller::Caller;
+use almanac_core::{EventBody, MemoryRequest, Record, SpaceId};
 use std::collections::BTreeSet;
 
 /// What a request needs exclusive use of.

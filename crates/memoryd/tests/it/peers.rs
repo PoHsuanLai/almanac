@@ -7,6 +7,7 @@ use crate::support::{SharedKeys, TestBackend, connect, dirs_in, service, space};
 use almanac_client::{ClientError, DbusTransport, Memory};
 use almanac_core::*;
 use almanac_dbus_serve::{Signal, serve_on};
+use almanac_service::Caller;
 use almanac_tidy::Change;
 use memoryd::{
     Daemon, Delivery, ProcPeers, caller_for, delivery_of, load_callers, table_from_toml,

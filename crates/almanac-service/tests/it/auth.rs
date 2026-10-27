@@ -2,6 +2,7 @@
 
 use crate::support::*;
 use almanac_core::*;
+use almanac_service::Caller;
 use almanac_service::{Allowed, allowed};
 
 const MAIL: &str = "org.quire.Mail";

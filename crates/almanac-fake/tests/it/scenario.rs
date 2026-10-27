@@ -3,6 +3,7 @@
 
 use almanac_core::*;
 use almanac_fake::*;
+use almanac_service::Caller;
 
 fn work() -> SpaceId {
     SpaceId::parse("work").expect("space")

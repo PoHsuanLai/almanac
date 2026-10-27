@@ -4,12 +4,12 @@
 use crate::support::bus::PrivateBus;
 use crate::support::{SharedKeys, World, dirs_in};
 use almanac_core::{
-    AppId, Caller, DayCount, Isolation, MemoryReply, MemoryRequest, Refusal, VaultKind,
-    WaitingSetting,
+    AppId, DayCount, Isolation, MemoryReply, MemoryRequest, Refusal, VaultKind, WaitingSetting,
 };
 use almanac_dbus::{decode_reply, encode_request, invoke};
 use almanac_fake::{ScriptedConsolidator, fake_service, mail};
 use almanac_host::Locator;
+use almanac_service::Caller;
 use almanac_settings::{ConsolidateWhen, MemorySettings};
 use memoryd::{Consent, SettingsWatch, WatchState, apply, apply_next};
 use std::collections::BTreeMap;

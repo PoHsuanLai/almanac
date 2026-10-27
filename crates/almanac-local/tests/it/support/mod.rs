@@ -7,6 +7,7 @@ use almanac_core::*;
 use almanac_fake::{ScriptedConsolidator, SteppedClock};
 use almanac_local::{LocalBackend, Root, create_space, open};
 use almanac_seal::{ProvidedKeys, SpaceKey};
+use almanac_service::Caller;
 use almanac_service::MemoryService;
 use std::path::Path;
 use std::sync::Arc;

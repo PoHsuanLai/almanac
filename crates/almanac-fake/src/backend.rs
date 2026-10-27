@@ -239,8 +239,9 @@ fn in_memory_index(
 /// A service over a [`FakeBackend`] with the standard rules and the stepped clock (it stands at `NOW` until a test advances it).
 ///
 /// ```
-/// use almanac_core::{Caller, MemoryReply, MemoryRequest};
+/// use almanac_core::{MemoryReply, MemoryRequest};
 /// use almanac_fake::{ScriptedConsolidator, fake_service};
+/// use almanac_service::Caller;
 ///
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// # tokio::runtime::Builder::new_current_thread().build()?.block_on(async {

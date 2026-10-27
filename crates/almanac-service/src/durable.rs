@@ -8,9 +8,10 @@
 //! reply is returned after the log's commit, which `SqliteLog` makes with `synchronous=FULL`.
 
 use crate::backend::Backend;
+use crate::caller::Caller;
 use crate::record::land_in_receiver;
 use crate::service::MemoryService;
-use almanac_core::{Ack, Caller, MemoryReply, Record, Refusal};
+use almanac_core::{Ack, MemoryReply, Record, Refusal};
 
 impl<B: Backend> MemoryService<B> {
     /// One record into its Space, acknowledged only when committed.

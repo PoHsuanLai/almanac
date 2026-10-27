@@ -8,6 +8,7 @@ use almanac_client::{ClientError, DbusTransport, Memory, Recorded, Transport, Tr
 use almanac_core::*;
 use almanac_dbus::{ControlProxy, MEMORY_BUS};
 use almanac_fake::{mail, mail_thread_archived, session_entry, session_thing, thing};
+use almanac_service::Caller;
 use std::pin::Pin;
 use std::time::Duration;
 use zbus::export::futures_core::Stream;

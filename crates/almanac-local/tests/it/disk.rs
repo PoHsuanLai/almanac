@@ -8,6 +8,7 @@ use almanac_fake::{
     ScriptedConsolidator, mail_thread_archived, session_entry, session_thing, thing,
 };
 use almanac_local::{LocalError, create_space};
+use almanac_service::Caller;
 
 fn nothing() -> ScriptedConsolidator {
     ScriptedConsolidator::default()

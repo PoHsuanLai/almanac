@@ -4,6 +4,7 @@
 
 use almanac_core::*;
 use almanac_fake::*;
+use almanac_service::Caller;
 use almanac_service::{MemoryService, ServiceEvent};
 use almanac_settings::{ConsolidateApply, MemorySettings};
 use almanac_store::{Vault, VaultPath};

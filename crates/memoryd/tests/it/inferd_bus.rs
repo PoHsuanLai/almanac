@@ -8,6 +8,7 @@ use crate::support::{SharedKeys, bus::PrivateBus, connect, dirs_in, listed_space
 use almanac_core::*;
 use almanac_fake::{mail_label, mail_thread_archived};
 use almanac_infer::{InferdConsolidator, InferdEmbedder};
+use almanac_service::Caller;
 use almanac_service::MemoryService;
 use almanac_store::{EmbedRole, Urgency};
 use almanac_tidy::{ConsolidateError, ConsolidationInput, Consolidator};

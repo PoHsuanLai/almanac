@@ -9,7 +9,8 @@
 //! processes (porter R12).
 
 use crate::callers::caller_for;
-use almanac_core::{Caller, Refusal};
+use almanac_core::Refusal;
+use almanac_service::Caller;
 use porter_dbus::callers::{Callers, ProcCallers};
 use std::collections::BTreeMap;
 use std::future::Future;

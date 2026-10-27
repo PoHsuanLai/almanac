@@ -6,13 +6,14 @@
 //! finishes the next time it is asked.
 
 use crate::backend::Backend;
+use crate::caller::Caller;
 use crate::events::ServiceEvent;
 use crate::open::{Cx, Open, Stored, failed, files_refusal};
 use crate::rehome::{EventMap, Held, Parcel, rehomed, sort_into_parcels};
 use crate::service::MemoryService;
 use almanac_core::{
-    Caller, Count, FactId, FactState, HistoryFate, MemoryFate, MemoryOp, Refusal, Relocation,
-    Removal, SpaceId, SpaceKind,
+    Count, FactId, FactState, HistoryFate, MemoryFate, MemoryOp, Refusal, Relocation, Removal,
+    SpaceId, SpaceKind,
 };
 use almanac_seal::{KeyError, KeyStore};
 use almanac_search::docs::fact_doc;

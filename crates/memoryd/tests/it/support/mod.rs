@@ -7,10 +7,11 @@
 pub mod bus;
 pub mod inferd;
 
-use almanac_core::{Caller, Dirs, SpaceId};
+use almanac_core::{Dirs, SpaceId};
 use almanac_dbus_serve::serve_on;
 use almanac_fake::ScriptedConsolidator;
 use almanac_seal::{KeyError, KeyStore, MemoryKeys, SpaceKey};
+use almanac_service::Caller;
 use almanac_service::MemoryService;
 use almanac_store::{EmbedRole, EmbedderCard, Urgency, Vector};
 use memoryd::{Confinement, Consent, Daemon, SpaceRegistry, SystemBackend, TablePeers};

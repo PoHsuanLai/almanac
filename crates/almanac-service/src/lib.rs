@@ -10,9 +10,9 @@
 //! machines return effects as values.
 //!
 //! ```
-//! use almanac_core::{Caller, MemoryReply, MemoryRequest, RuleSet};
+//! use almanac_core::{MemoryReply, MemoryRequest, RuleSet};
 //! use almanac_fake::{FakeBackend, ScriptedConsolidator};
-//! use almanac_service::{Backend, MemoryService};
+//! use almanac_service::{Backend, Caller, MemoryService};
 //!
 //! // Generic over the backend: nothing here names a store.
 //! fn serve<B: Backend>(backend: B) -> MemoryService<B> {
@@ -32,6 +32,7 @@
 mod auth;
 mod backend;
 mod baseline;
+mod caller;
 mod clock;
 mod config;
 mod control;
@@ -71,6 +72,7 @@ mod timeline;
 
 pub use auth::{Allowed, allowed};
 pub use backend::{Backend, BackendError};
+pub use caller::Caller;
 pub use clock::Clock;
 pub use config::{
     ConfigError, SpacesFile, rules_from_toml, rules_to_toml, spaces_from_toml, spaces_to_toml,

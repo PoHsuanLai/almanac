@@ -18,10 +18,11 @@ use std::sync::atomic::{AtomicU64, Ordering};
 ///
 /// ```
 /// use almanac_client::{InProcess, Memory, Recorded};
-/// use almanac_core::{AppId, Caller, Isolation, RuleSet, SpaceId, VaultKind};
+/// use almanac_core::{AppId, Isolation, RuleSet, SpaceId, VaultKind};
 /// use almanac_fake::{mail, mail_thread_archived};
 /// use almanac_local::{LocalBackend, Root, SystemClock, create_space, open};
 /// use almanac_seal::{ProvidedKeys, SpaceKey};
+/// use almanac_service::Caller;
 /// use std::sync::Arc;
 ///
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
