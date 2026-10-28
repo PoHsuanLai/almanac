@@ -1,10 +1,11 @@
 //! The search index seam: what the service asks of an index, and nothing about how it stores.
 
-use crate::doc::{Allow, Doc, DocId, Ranked, TopK, TrustTier};
+use crate::doc::{Allow, Doc, DocId, Ranked, TopK};
 use crate::embed::{EmbedError, Embedder};
 use crate::fuse::RrfK;
-use crate::state::IndexState;
 use crate::vector::{EmbedderCard, Urgency, Vector};
+use almanac_core::IndexView;
+use almanac_core::Integrity;
 use std::future::Future;
 
 /// One search.
@@ -42,14 +43,14 @@ pub enum IndexFailure {
 /// multi-threaded runtime.
 pub trait SearchIndex: Send {
     /// Where the index is.
-    fn state(&self) -> IndexState;
+    fn state(&self) -> IndexView;
     /// The reciprocal-rank-fusion constant the index fuses with.
     fn rrf_k(&self) -> RrfK;
     /// The vector space the stored vectors live in.
     fn card(&self) -> &EmbedderCard;
     /// The documents of the given facet kinds and trust tier (`None` is any), as the allow-list
     /// of a search.
-    fn allow_kinds(&self, kinds: &[&str], trust: Option<TrustTier>) -> Result<Allow, IndexFailure>;
+    fn allow_kinds(&self, kinds: &[&str], trust: Option<Integrity>) -> Result<Allow, IndexFailure>;
     /// The lexical half's ranked list for `q`.
     fn lexical(&self, q: &SearchQuery) -> Result<Vec<Ranked>, IndexFailure>;
     /// The `k` documents nearest to `v` among the allowed ones, best first.

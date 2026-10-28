@@ -70,7 +70,7 @@ pub mod space;
 mod sweep;
 mod timeline;
 
-pub use auth::{Allowed, allowed};
+pub use auth::allowed;
 pub use backend::{Backend, BackendError};
 pub use caller::Caller;
 pub use clock::Clock;

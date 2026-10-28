@@ -89,7 +89,7 @@ pub enum DegradedWhy {
     EmbedderRefused,
 }
 
-/// The recall index as the UI shows it (the wire form of `recall::IndexState`).
+/// Where the recall index is: the machine state in `almanac-store` and the form the UI shows.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "v", rename_all = "snake_case")]
 #[non_exhaustive]

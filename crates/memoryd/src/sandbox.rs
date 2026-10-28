@@ -39,17 +39,6 @@ pub struct Policy {
     pub sockets: Vec<PathBuf>,
 }
 
-/// How far the kernel enforced it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Enforcement {
-    /// Every restriction asked for is in force.
-    Full,
-    /// This kernel's Landlock is older than the policy: what it can restrict is restricted.
-    Partial,
-    /// This kernel has no Landlock (or it is not enabled): nothing is restricted.
-    Unsupported,
-}
-
 /// How far the daemon confines itself (its Landlock sandbox), as the stable word the
 /// `Confinement` property of `org.quire.Memory1.Control` carries. The words of
 /// [`Confinement::as_word`] are a public contract: the Settings app reads them.
@@ -74,17 +63,6 @@ impl Confinement {
             Confinement::NotAvailable => "not-available",
             Confinement::Off => "off",
         }
-    }
-}
-
-/// The word the bus carries for how the daemon started: `enforcement` is what `enforce` said,
-/// or `None` when a test build switched the sandbox off (never `Full`: nothing was applied).
-pub fn confinement_of(enforcement: Option<Enforcement>) -> Confinement {
-    match enforcement {
-        Some(Enforcement::Full) => Confinement::Confined,
-        Some(Enforcement::Partial) => Confinement::Partial,
-        Some(Enforcement::Unsupported) => Confinement::NotAvailable,
-        None => Confinement::Off,
     }
 }
 
@@ -155,8 +133,9 @@ pub fn prepare(policy: &Policy) -> std::io::Result<()> {
         .try_for_each(std::fs::create_dir_all)
 }
 
-/// Applies `policy` to the calling thread and the threads it creates later.
-pub fn enforce(policy: &Policy) -> Result<Enforcement, SandboxError> {
+/// Applies `policy` to the calling thread and the threads it creates later. Says how far the
+/// kernel enforced it: never `Off`, which is for a test build that skipped the sandbox.
+pub fn enforce(policy: &Policy) -> Result<Confinement, SandboxError> {
     let all_files = AccessFs::from_all(ABI_TOP);
     let status = Ruleset::default()
         .handle_access(all_files)?
@@ -172,8 +151,8 @@ pub fn enforce(policy: &Policy) -> Result<Enforcement, SandboxError> {
         .add_rules(path_beneath_rules(&policy.sockets, AccessFs::ResolveUnix))?
         .restrict_self()?;
     Ok(match status.ruleset {
-        RulesetStatus::FullyEnforced => Enforcement::Full,
-        RulesetStatus::PartiallyEnforced => Enforcement::Partial,
-        RulesetStatus::NotEnforced => Enforcement::Unsupported,
+        RulesetStatus::FullyEnforced => Confinement::Confined,
+        RulesetStatus::PartiallyEnforced => Confinement::Partial,
+        RulesetStatus::NotEnforced => Confinement::NotAvailable,
     })
 }

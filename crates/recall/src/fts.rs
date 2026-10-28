@@ -1,7 +1,8 @@
 //! Lexical search: FTS5 in `index.db`. One implementation, so a struct and not a trait.
 
-use crate::doc::{Allow, Doc, DocId, Facets, Ranked, StoredDoc, TopK, TrustTier};
+use crate::doc::{Allow, Doc, DocId, Facets, Ranked, StoredDoc, TopK};
 use crate::index::IndexError;
+use almanac_core::Integrity;
 use almanac_store::EmbedderCard;
 use std::collections::BTreeSet;
 
@@ -177,9 +178,9 @@ impl Fts5 {
                     kind: row.get(2)?,
                     app: row.get(3)?,
                     trust: if trust == "trusted" {
-                        TrustTier::Trusted
+                        Integrity::Trusted
                     } else {
-                        TrustTier::Untrusted
+                        Integrity::Untrusted
                     },
                 },
             })
@@ -192,13 +193,13 @@ impl Fts5 {
     pub fn ids_of(
         &self,
         kinds: &[&str],
-        trust: Option<TrustTier>,
+        trust: Option<Integrity>,
     ) -> Result<BTreeSet<DocId>, IndexError> {
         let marks = vec!["?"; kinds.len()].join(",");
         let tier = match trust {
             None => "",
-            Some(TrustTier::Trusted) => " AND trust = 'trusted'",
-            Some(TrustTier::Untrusted) => " AND trust = 'untrusted'",
+            Some(Integrity::Trusted) => " AND trust = 'trusted'",
+            Some(Integrity::Untrusted) => " AND trust = 'untrusted'",
         };
         let sql = format!("SELECT id FROM docs WHERE kind IN ({marks}){tier}");
         let mut statement = self.conn.prepare_cached(&sql)?;
@@ -218,10 +219,10 @@ impl Fts5 {
 /// The `meta.format` of [`SCHEMA_V1`].
 const FORMAT: i64 = 1;
 
-fn trust_slug(trust: TrustTier) -> &'static str {
+fn trust_slug(trust: Integrity) -> &'static str {
     match trust {
-        TrustTier::Trusted => "trusted",
-        TrustTier::Untrusted => "untrusted",
+        Integrity::Trusted => "trusted",
+        Integrity::Untrusted => "untrusted",
     }
 }
 

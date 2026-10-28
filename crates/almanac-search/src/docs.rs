@@ -5,12 +5,10 @@
 //! function of them.
 
 use almanac_core::{
-    AppName, EventBody, EventRef, Fact, FactId, IndexPart, Integrity, Label, Recallable, ReplicaId,
-    Seq, UnixSeconds, decode_lower_hex,
+    AppName, EventBody, EventRef, Fact, FactId, IndexPart, Label, Recallable, ReplicaId, Seq,
+    UnixSeconds, decode_lower_hex,
 };
-use almanac_store::{
-    BodyState, ClassTag, Doc, DocId, Entry, Facets, TrustTier, class_of, class_tag,
-};
+use almanac_store::{BodyState, ClassTag, Doc, DocId, Entry, Facets, class_of, class_tag};
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 
@@ -76,13 +74,6 @@ pub struct EventDoc {
     pub app: Option<AppName>,
 }
 
-fn tier(label: &Label) -> TrustTier {
-    match label.integrity {
-        Integrity::Trusted => TrustTier::Trusted,
-        Integrity::Untrusted => TrustTier::Untrusted,
-    }
-}
-
 impl EventDoc {
     pub fn into_doc(self, at: UnixSeconds) -> Doc {
         Doc {
@@ -92,7 +83,7 @@ impl EventDoc {
             facets: Facets {
                 kind: self.kind.to_owned(),
                 app: self.app.map(|a| a.to_string()),
-                trust: tier(&self.label),
+                trust: self.label.integrity,
             },
             class: tag_of(&self.label),
         }
@@ -191,7 +182,7 @@ pub fn fact_doc(fact: &Fact) -> Doc {
         facets: Facets {
             kind: "fact".to_owned(),
             app: None,
-            trust: tier(&fact.label),
+            trust: fact.label.integrity,
         },
         class: tag_of(&fact.label),
     }

@@ -5,6 +5,19 @@ Open items and standing facts. An entry names the condition that closes it. At t
 watch, almanac-service) removed 53 and the bus and daemon wave (F2 memoryd, below) removed the last
 6, so **0 remain**. No contract test is `#[ignore]`d.
 
+## Type rules and twin removal (2026-10-28)
+
+CONVENTIONS rule 7 is now the shared plain-Rust rule (bool allowed; one fact, one type; `Result`/`Option`
+for two-way outcomes; growing sets are data; newtypes only with a rule); rule 2 allows `Box<dyn Trait>` for
+configuration-picked implementations. Enum audit lane E-A1: done A1 (`SpaceVault` once, in memfiles), A2 (store
+uses core's `IndexView`, `StaleWhy`, `DegradedWhy`, `Count`), A3 (`allowed` returns `Result<(), Refusal>`), A4
+phase 1 (`TrustTier` is `Integrity`), A5 (`HitWhy` is `RecallWhy`), A7 (`Enforcement` is `Confinement`), and P7
+(`desktop_admits` moved from prov to `almanac-core::desktop`, returning `Result<(), DesktopRefusal>`). At the next
+prov re-pin `flow_to(..) == Flow::Denied` in `desktop.rs` becomes `!flow_to(..)`. Skipped: A6, A11-A15 (wire
+shapes, other repos use them, or a prov bump), A8 (`RecordState` is the persisted subset of `RunState`, a rule),
+A9 (the macro states each slug once and tests use `ALL`), A10 (`change_for` branches on `Verb`), A14, A16
+(`Failure::Refused` is a reply, not a transport error: not a twin).
+
 ## Stubs behind frozen interfaces
 
 None. What still waits on other repos is under "Open" below (porter's transports, docket, cua).

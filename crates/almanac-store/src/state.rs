@@ -1,49 +1,6 @@
-//! `IndexState` and its machine (the pure half of memory's section 4.5).
+//! The index machine over core's `IndexView` (the pure half of memory's section 4.5).
 
-use crate::doc::Count;
-
-/// Why an index is out of date.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[non_exhaustive]
-pub enum StaleWhy {
-    /// The configured embedder differs from the one the vectors came from.
-    EmbedderChanged,
-    /// The index format changed.
-    FormatChanged,
-    /// The truth (files, log) is newer than the index.
-    TruthNewer,
-}
-
-/// Why search is lexical only.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[non_exhaustive]
-pub enum DegradedWhy {
-    /// No embedder is reachable.
-    EmbedderUnavailable,
-    /// The embedder refused.
-    EmbedderRefused,
-}
-
-/// Where an index is.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[non_exhaustive]
-pub enum IndexState {
-    /// Not built.
-    Absent,
-    /// Being built.
-    Building {
-        /// Documents done.
-        done: Count,
-        /// Documents in all.
-        total: Count,
-    },
-    /// Up to date.
-    Ready,
-    /// Out of date; rebuild.
-    Stale(StaleWhy),
-    /// Vectors unavailable; lexical search only.
-    LexicalOnly(DegradedWhy),
-}
+use almanac_core::{Count, DegradedWhy, IndexView, StaleWhy};
 
 /// What happened to an index.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -73,31 +30,24 @@ pub enum IndexEvent {
 /// The next state: absent, then building, then ready; ready goes stale or lexical-only;
 /// stale and lexical-only build again when the embedder returns (`Begin`). Events that do not
 /// apply leave the state as it is.
-pub fn step(state: IndexState, event: IndexEvent) -> IndexState {
+pub fn step(state: IndexView, event: IndexEvent) -> IndexView {
     match (state, event) {
         (
-            IndexState::Absent
-            | IndexState::Stale(_)
-            | IndexState::LexicalOnly(_)
-            | IndexState::Ready,
+            IndexView::Absent | IndexView::Stale(_) | IndexView::LexicalOnly(_) | IndexView::Ready,
             IndexEvent::Begin { total },
-        ) => IndexState::Building {
+        ) => IndexView::Building {
             done: Count(0),
             total,
         },
-        (IndexState::Building { total, .. }, IndexEvent::Progress { done }) => {
-            IndexState::Building { done, total }
+        (IndexView::Building { total, .. }, IndexEvent::Progress { done }) => {
+            IndexView::Building { done, total }
         }
-        (IndexState::Building { .. }, IndexEvent::Finished) => IndexState::Ready,
-        (IndexState::Ready, IndexEvent::CardChanged) => {
-            IndexState::Stale(StaleWhy::EmbedderChanged)
-        }
-        (IndexState::Ready, IndexEvent::FormatChanged) => {
-            IndexState::Stale(StaleWhy::FormatChanged)
-        }
-        (IndexState::Ready, IndexEvent::TruthChanged) => IndexState::Stale(StaleWhy::TruthNewer),
-        (IndexState::Ready | IndexState::Building { .. }, IndexEvent::EmbedderLost(why)) => {
-            IndexState::LexicalOnly(why)
+        (IndexView::Building { .. }, IndexEvent::Finished) => IndexView::Ready,
+        (IndexView::Ready, IndexEvent::CardChanged) => IndexView::Stale(StaleWhy::EmbedderChanged),
+        (IndexView::Ready, IndexEvent::FormatChanged) => IndexView::Stale(StaleWhy::FormatChanged),
+        (IndexView::Ready, IndexEvent::TruthChanged) => IndexView::Stale(StaleWhy::TruthNewer),
+        (IndexView::Ready | IndexView::Building { .. }, IndexEvent::EmbedderLost(why)) => {
+            IndexView::LexicalOnly(why)
         }
         (unchanged, _) => unchanged,
     }

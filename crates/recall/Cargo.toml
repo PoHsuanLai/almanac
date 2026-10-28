@@ -9,6 +9,7 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
+almanac-core = { workspace = true }
 almanac-store = { workspace = true }
 rusqlite = { workspace = true }
 thiserror = { workspace = true }

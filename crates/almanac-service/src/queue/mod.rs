@@ -15,7 +15,7 @@ mod line;
 pub use claim::{Claim, claim_for, claim_of};
 pub(crate) use line::Line;
 
-use crate::auth::{Allowed, allowed};
+use crate::auth::allowed;
 use crate::backend::Backend;
 use crate::caller::Caller;
 use crate::service::MemoryService;
@@ -38,8 +38,8 @@ impl<B: Backend> MemoryService<B> {
         async move {
             let _place = self.line.enter(claim).await;
             let result = match verdict {
-                Allowed::No(refusal) => Err(refusal),
-                Allowed::Yes => self.dispatch(caller, request).await,
+                Err(refusal) => Err(refusal),
+                Ok(()) => self.dispatch(caller, request).await,
             };
             result.unwrap_or_else(MemoryReply::Refused)
         }
@@ -90,15 +90,16 @@ impl<B: Backend> MemoryService<B> {
         out: &mut (impl Write + Send),
     ) -> impl Future<Output = MemoryReply> + Send {
         let verdict = allowed(caller, &MemoryRequest::Export(options.clone()));
-        let claim = match &verdict {
-            Allowed::Yes => Claim::Everything,
-            Allowed::No(_) => Claim::Nothing,
+        let claim = if verdict.is_ok() {
+            Claim::Everything
+        } else {
+            Claim::Nothing
         };
         async move {
             let _place = self.line.enter(claim).await;
             let result = match verdict {
-                Allowed::No(refusal) => Err(refusal),
-                Allowed::Yes => self.export_to(caller, options, out).await,
+                Err(refusal) => Err(refusal),
+                Ok(()) => self.export_to(caller, options, out).await,
             };
             result.map_or_else(MemoryReply::Refused, MemoryReply::Exported)
         }

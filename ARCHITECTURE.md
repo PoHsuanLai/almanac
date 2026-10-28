@@ -19,7 +19,7 @@ trait), section 5 (what is built), section 6 (copy the recipe).
 | `almanac-core` | the vocabulary: ids and their grammars (`FactId`, `TopicPath`, `KindTag`, `KindPattern`, `SpacePath`), things (`ThingRef` = `prov::EntityId`), `Record`, `EventBody` (with `Message` and `Episode`), `AreaPayload`, `Episode` and its skeleton, `InjectQuery`/`RecentQuery`, facts, remember rules and the pure `admit`, the wire (`MemoryRequest`, `MemoryReply`, `Refusal`), the timeline, forget-plan, draft and status views, the export manifest, `Dirs`; re-exports the porter and `prov` names the other crates use | none |
 | `almanac-seal` | `SpaceKey`, purpose subkeys (`derive`), `DbKey`, `seal`/`unseal` for files, the `KeyStore` seam, `ProvidedKeys` (Space keys derived from a master key the app provides: the portable key source), `MemoryKeys` (feature `testing`), `Oo7Keys` (feature `oo7`) | none (oo7 behind its feature) |
 | `almanac-keyfile` | `FileKeys`: a `KeyStore` in one sealed file, replaced through `atomic-write-file` (synced); TEST ONLY, reached only through memoryd's `test-keys` feature | the file |
-| `almanac-store` | the seams the service stands on, traits and types only: the log (`LogRead`, `LogWrite`, `Entry`, `Header`, `NewHeader`, `verify_chain`, `LogError`), the vault (`Vault`, `VaultPath`, `VaultError`), the search index (`SearchIndex`, `IndexFailure`, `SearchQuery`, `Doc`, `DocId`, `Allow`, `IndexState`, `Embedder`, `EmbedderCard`, `Vector`, `fuse_rrf`, `chunk`). Each store crate implements them and re-exports the names it used to hold | none |
+| `almanac-store` | the seams the service stands on, traits and types only: the log (`LogRead`, `LogWrite`, `Entry`, `Header`, `NewHeader`, `verify_chain`, `LogError`), the vault (`Vault`, `VaultPath`, `VaultError`), the search index (`SearchIndex`, `IndexFailure`, `SearchQuery`, `Doc`, `DocId`, `Allow`, `IndexView` (core's), `Embedder`, `EmbedderCard`, `Vector`, `fuse_rrf`, `chunk`). Each store crate implements them and re-exports the names it used to hold | none |
 | `eventlog` | `SqliteLog` (SQLCipher), `MemoryLog` (feature `testing`), the schema; re-exports the log seam from `almanac-store` | rusqlite |
 | `memfiles-format` | pure: the topic file format (`parse_topic`, `render_topic`, the trailer), `Store` over a `Vault` (from `almanac-store`), `Primer`, `MemfilesError`. No file IO | none |
 | `memfiles` | the vaults on disk: `PlainDir`, `SealedDir`, and `MemoryVault` (feature `testing`). The `Vault` seam and `VaultPath` are in `almanac-store` | the filesystem |
@@ -216,7 +216,7 @@ pub trait Transport: Send + Sync { fn call(&self, request: MemoryRequest) -> imp
 Closed sets stay enums: `EventBody`, `MemoryOp`, `FileChange`, `RuleScope`, `RememberMode`,
 `Retention`, `Admission`, `DropReason`, `MemoryRequest`/`MemoryReply`/`Refusal`, `almanac-service`'s `Caller`,
 `Link`, `FactState`, `Settlement`, `Hunk`, `RunState`, `SpaceState`, `IndexView`, `Break`,
-`ChainReport`, `ExportedBody`, memoryd's `SpaceVault`.
+`ChainReport`, `ExportedBody`, memfiles' `SpaceVault`.
 
 ## 5. What is frozen, what is built
 
@@ -362,7 +362,7 @@ if it needs `unsafe` or an extension: the rule is no `unsafe` anywhere); the con
 `recall/tests/it/recall.rs`; a `Backend::Vectors` choice in memoryd.
 
 **Add a vault**: a `Vault` implementation, the `vault_contract` test over it, a variant in
-memoryd's `SpaceVault` and in `VaultKind`.
+memfiles' `SpaceVault` and in `VaultKind`.
 
 **Add a state machine step**: a row in that machine's table test first (`machines.rs`); the
 effects are values, so the service applies them and the table needs no I/O.

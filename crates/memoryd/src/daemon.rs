@@ -18,8 +18,8 @@ use almanac_dbus_serve::{Serve, Signal, emit_to};
 use almanac_host::write_private_atomic;
 use almanac_service::Caller;
 use almanac_service::{
-    Allowed, Backend, MemoryService, ServiceEvent, SpacesFile, allowed, locked_status,
-    rules_to_toml, spaces_to_toml,
+    Backend, MemoryService, ServiceEvent, SpacesFile, allowed, locked_status, rules_to_toml,
+    spaces_to_toml,
 };
 use almanac_tidy::{LedgerError, Removals, changes};
 use porter_core::SpaceChange;
@@ -108,7 +108,7 @@ impl<B: Backend, P: Peers> Daemon<B, P> {
 
     /// `PendingSettings`: what waits for the person's confirmation (`allowed` decides who asks).
     fn pending_settings(&self, caller: &Caller, request: &MemoryRequest) -> MemoryReply {
-        if let Allowed::No(refusal) = allowed(caller, request) {
+        if let Err(refusal) = allowed(caller, request) {
             return MemoryReply::Refused(refusal);
         }
         match &self.consent {
@@ -120,7 +120,7 @@ impl<B: Backend, P: Peers> Daemon<B, P> {
     /// `ConfirmSettings`: the Settings app's alone (`allowed` decides, as for every member). The
     /// confirmations are recorded, then the settings are read again and put in force.
     fn confirm_settings(&self, caller: &Caller, request: &MemoryRequest) -> MemoryReply {
-        if let Allowed::No(refusal) = allowed(caller, request) {
+        if let Err(refusal) = allowed(caller, request) {
             return MemoryReply::Refused(refusal);
         }
         let (MemoryRequest::ConfirmSettings(values), Some(consent)) = (request, &self.consent)

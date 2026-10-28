@@ -9,7 +9,7 @@ use almanac_service::{Backend, BackendError, MemoryService, rules_from_toml, spa
 use eventlog::LogError;
 use memoryd::{Daemon, TablePeers};
 use recall::{
-    ClassTag, Doc, DocId, Embedder, Facets, FakeEmbedder, SearchQuery, TopK, TrustTier, VectorIndex,
+    ClassTag, Doc, DocId, Embedder, Facets, FakeEmbedder, SearchQuery, TopK, VectorIndex,
 };
 use std::path::{Path, PathBuf};
 
@@ -395,7 +395,7 @@ fn doc(id: &str, text: &str) -> Doc {
         facets: Facets {
             kind: "fact".to_owned(),
             app: None,
-            trust: TrustTier::Trusted,
+            trust: Integrity::Trusted,
         },
         class: ClassTag::default(),
     }

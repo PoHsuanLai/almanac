@@ -1,15 +1,16 @@
 //! `Index` as the service's search seam (`almanac_store::SearchIndex`): each method is the
 //! inherent one, with its error as the seam's.
 
-use crate::doc::{Allow, Doc, DocId, Ranked, TopK, TrustTier};
+use crate::doc::{Allow, Doc, DocId, Ranked, TopK};
 use crate::embed::Embedder;
 use crate::exact::VectorIndex;
 use crate::index::{Index, SearchQuery};
-use crate::state::IndexState;
+use almanac_core::IndexView;
+use almanac_core::Integrity;
 use almanac_store::{EmbedderCard, IndexFailure, RrfK, SearchIndex, Vector};
 
 impl<V: VectorIndex> SearchIndex for Index<V> {
-    fn state(&self) -> IndexState {
+    fn state(&self) -> IndexView {
         Index::<V>::state(self)
     }
 
@@ -21,7 +22,7 @@ impl<V: VectorIndex> SearchIndex for Index<V> {
         self.parts().1.card()
     }
 
-    fn allow_kinds(&self, kinds: &[&str], trust: Option<TrustTier>) -> Result<Allow, IndexFailure> {
+    fn allow_kinds(&self, kinds: &[&str], trust: Option<Integrity>) -> Result<Allow, IndexFailure> {
         Index::<V>::allow_kinds(self, kinds, trust).map_err(IndexFailure::from)
     }
 

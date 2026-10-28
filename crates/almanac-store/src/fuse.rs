@@ -1,33 +1,12 @@
 //! Reciprocal-rank fusion of ranked lists, and the text chunker. Both pure.
 
 use crate::doc::{Chunk, DocId, Ranked};
+use almanac_core::RecallWhy;
 use std::collections::BTreeMap;
 
 /// The RRF constant (60 is the usual choice).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct RrfK(pub u32);
-
-/// Why a hit matched.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum HitWhy {
-    /// Full-text only.
-    Lexical {
-        /// Its rank in the lexical list.
-        rank: u32,
-    },
-    /// Embedding only.
-    Semantic {
-        /// Its rank in the semantic list.
-        rank: u32,
-    },
-    /// Both lists.
-    Both {
-        /// Its lexical rank.
-        lexical: u32,
-        /// Its semantic rank.
-        semantic: u32,
-    },
-}
 
 /// One fused result.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -38,27 +17,27 @@ pub struct Fused {
     /// is deterministic everywhere.
     pub score_millionths: u32,
     /// Why it matched.
-    pub why: HitWhy,
+    pub why: RecallWhy,
 }
 
 /// Fuses a lexical list (`lists[0]`) and a semantic list (`lists[1]`); lists beyond the second
 /// are ignored. Best first; ties by id.
 pub fn fuse_rrf(lists: &[Vec<Ranked>], k: RrfK) -> Vec<Fused> {
-    let mut by_id: BTreeMap<&DocId, (u32, HitWhy)> = BTreeMap::new();
+    let mut by_id: BTreeMap<&DocId, (u32, RecallWhy)> = BTreeMap::new();
     for (position, list) in lists.iter().take(2).enumerate() {
         for hit in list {
             let share = 1_000_000 / k.0.saturating_add(hit.rank).max(1);
             let own = if position == 0 {
-                HitWhy::Lexical { rank: hit.rank }
+                RecallWhy::Lexical { rank: hit.rank }
             } else {
-                HitWhy::Semantic { rank: hit.rank }
+                RecallWhy::Semantic { rank: hit.rank }
             };
             by_id
                 .entry(&hit.id)
                 .and_modify(|(score, why)| {
                     *score = score.saturating_add(share);
-                    if let HitWhy::Lexical { rank: lexical } = *why {
-                        *why = HitWhy::Both {
+                    if let RecallWhy::Lexical { rank: lexical } = *why {
+                        *why = RecallWhy::Both {
                             lexical,
                             semantic: hit.rank,
                         };

@@ -8,6 +8,7 @@
 mod admit;
 mod area;
 mod chain;
+mod desktop;
 mod dirs;
 mod entries;
 mod episode;
@@ -36,6 +37,7 @@ mod views;
 pub use admit::{admit, default_retention, glob_matches, is_audit_class, withheld};
 pub use area::{AreaPayload, AreaTag};
 pub use chain::{Break, ChainReport, Checkpoint, Head};
+pub use desktop::{DesktopRefusal, desktop_admits};
 pub use dirs::Dirs;
 pub use entries::{Ack, EntriesPage, EntriesQuery};
 pub use episode::{
@@ -99,8 +101,8 @@ pub use porter_core::{
 pub use prov::Fault as MessageFault;
 pub use prov::{
     ActionName, Actor, ActorKind, Address, AgentRef, AgentRole, Channel, ClientName,
-    Confidentiality, ConfirmId, ConfirmReceipt, DesktopVerdict, Effect, Flow, HelperId, InputProof,
-    Integrity, Label, Labelled, Message, MessageId, MessageKind, MessageText, ModelRole,
-    OutcomeRef, Part, ReportStatus, RunId, SenderCheck, SessionId, Source, SystemPart, TaskId,
-    ThreadId, UndoHandle, Witness, declassify, desktop_admits, endorse,
+    Confidentiality, ConfirmId, ConfirmReceipt, Effect, HelperId, InputProof, Integrity, Label,
+    Labelled, Message, MessageId, MessageKind, MessageText, ModelRole, OutcomeRef, Part,
+    ReportStatus, RunId, SenderCheck, SessionId, Source, SystemPart, TaskId, ThreadId, UndoHandle,
+    Witness, declassify, endorse,
 };

@@ -4,10 +4,10 @@
 
 use crate::keysel::{AnyKeys, KEYS_VAR, SANDBOX_VAR, Sandbox, TestKeys, sandbox_choice, select};
 use crate::{
-    CallerFileError, Confinement, Consent, Daemon, Enforcement, KeysError, LockChanges, ProcGate,
-    ProcPeers, SHELL_APP, SandboxError, SettingsWatch, SpaceRegistry, SystemBackend, WatchState,
-    XdgError, apply, apply_next, confinement_of, default_card, dirs_from, enforce, inferd_link,
-    load_callers, policy_for, prepare,
+    CallerFileError, Confinement, Consent, Daemon, KeysError, LockChanges, ProcGate, ProcPeers,
+    SHELL_APP, SandboxError, SettingsWatch, SpaceRegistry, SystemBackend, WatchState, XdgError,
+    apply, apply_next, default_card, dirs_from, enforce, inferd_link, load_callers, policy_for,
+    prepare,
 };
 use almanac_core::{Dirs, RuleSet};
 use almanac_dbus_serve::serve_on;
@@ -274,23 +274,22 @@ pub fn start(env: Env<'_>) -> Result<(), StartError> {
     policy.writable.extend(key_dir);
     prepare(&policy).map_err(StartError::Prepare)?;
     let sandbox = sandbox_choice(env(SANDBOX_VAR).as_deref(), TestKeys::THIS_BUILD);
-    let enforcement = match sandbox {
-        Sandbox::On => Some(enforce(&policy)?),
+    let confinement = match sandbox {
+        Sandbox::On => enforce(&policy)?,
         Sandbox::Off => {
             eprintln!("memoryd: TEST BUILD: the Landlock sandbox is off");
-            None
+            Confinement::Off
         }
     };
-    match enforcement {
-        Some(Enforcement::Full) | None => {}
-        Some(Enforcement::Partial) => eprintln!(
+    match confinement {
+        Confinement::Confined | Confinement::Off => {}
+        Confinement::Partial => eprintln!(
             "memoryd: this kernel's Landlock is older than the policy; part of it is enforced"
         ),
-        Some(Enforcement::Unsupported) => eprintln!(
+        Confinement::NotAvailable => eprintln!(
             "memoryd: this kernel has no Landlock; the unit file's restrictions are all there is"
         ),
     }
-    let confinement = confinement_of(enforcement);
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()

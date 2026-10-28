@@ -1,27 +1,15 @@
 //! What is indexed and what searches return.
 
+use almanac_core::Integrity;
 use std::collections::BTreeSet;
 
 /// A document's id: opaque to recall (almanac uses `f:<fact>` and `e:<replica>:<seq>`).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct DocId(pub String);
 
-/// A count of documents or results.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Count(pub u32);
-
 /// How many results a nearest-neighbour or lexical query returns at most.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct TopK(pub u32);
-
-/// How much a document's source can be trusted, as a facet to filter on.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub enum TrustTier {
-    /// Written by the person or authored by an app.
-    Trusted,
-    /// Written by someone else.
-    Untrusted,
-}
 
 /// A document's data class, as an opaque tag. recall names no porter type, so it carries the tag
 /// from the caller to the embedder untouched and never reads it: the caller that builds the
@@ -39,7 +27,7 @@ pub struct Facets {
     /// The app it is about, if any.
     pub app: Option<String>,
     /// Its trust tier.
-    pub trust: TrustTier,
+    pub trust: Integrity,
 }
 
 /// One indexed document.

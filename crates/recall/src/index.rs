@@ -1,13 +1,15 @@
 //! `Index`: lexical and vector search together, rebuildable from the truth.
 
-use crate::doc::{Allow, ClassTag, Count, Doc, DocId, Ranked, StoredDoc, TrustTier};
+use crate::doc::{Allow, ClassTag, Doc, DocId, Ranked, StoredDoc};
 use crate::embed::{Classed, EmbedError, Embedder, RetryClass};
 use crate::exact::VectorIndex;
 use crate::fts::Fts5;
-use crate::state::{DegradedWhy, IndexEvent, IndexState, step};
+use almanac_core::Integrity;
+use almanac_core::{Count, DegradedWhy, IndexView};
 pub use almanac_store::SearchQuery;
 use almanac_store::{
-    EmbedRole, Fused, IndexFailure, RrfK, SpaceCheck, Urgency, Vector, chunk, fuse_rrf,
+    EmbedRole, Fused, IndexEvent, IndexFailure, RrfK, SpaceCheck, Urgency, Vector, chunk, fuse_rrf,
+    step,
 };
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Mutex;
@@ -52,7 +54,7 @@ impl From<IndexError> for IndexFailure {
 pub struct Index<V: VectorIndex> {
     fts: Fts5,
     vectors: V,
-    state: Mutex<IndexState>,
+    state: Mutex<IndexView>,
     k: RrfK,
 }
 
@@ -62,13 +64,13 @@ impl<V: VectorIndex> Index<V> {
         Self {
             fts,
             vectors,
-            state: Mutex::new(IndexState::Absent),
+            state: Mutex::new(IndexView::Absent),
             k: RrfK(60),
         }
     }
 
     /// Where the index is.
-    pub fn state(&self) -> IndexState {
+    pub fn state(&self) -> IndexView {
         *self.state.lock().unwrap_or_else(|e| e.into_inner())
     }
 
@@ -79,7 +81,7 @@ impl<V: VectorIndex> Index<V> {
 
     /// An index filled by `upsert` alone is built: Absent becomes Ready.
     fn built_by_upserts(&self) {
-        if self.state() == IndexState::Absent {
+        if self.state() == IndexView::Absent {
             self.apply(IndexEvent::Begin { total: Count(0) });
             self.apply(IndexEvent::Finished);
         }
@@ -118,7 +120,7 @@ impl<V: VectorIndex> Index<V> {
     pub fn allow_kinds(
         &self,
         kinds: &[&str],
-        trust: Option<TrustTier>,
+        trust: Option<Integrity>,
     ) -> Result<Allow, IndexError> {
         self.fts.ids_of(kinds, trust).map(Allow::Only)
     }

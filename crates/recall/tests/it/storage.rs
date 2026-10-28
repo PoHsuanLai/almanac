@@ -2,7 +2,9 @@
 //! replacement by id (the newest event wins), separate documents with their own facets,
 //! allow-lists, chunked documents, batching to `max_batch` and card checks.
 
-use almanac_store::{EmbedRole, EmbedderCard, HitWhy, Urgency, Vector};
+use almanac_core::Integrity;
+use almanac_core::{DegradedWhy, IndexView, RecallWhy, StaleWhy};
+use almanac_store::{EmbedRole, EmbedderCard, Urgency, Vector};
 use recall::*;
 use std::collections::BTreeSet;
 use std::sync::Mutex;
@@ -11,7 +13,7 @@ fn id(s: &str) -> DocId {
     DocId(s.to_owned())
 }
 
-fn doc_of(id_text: &str, kind: &str, trust: TrustTier, text: &str) -> Doc {
+fn doc_of(id_text: &str, kind: &str, trust: Integrity, text: &str) -> Doc {
     Doc {
         id: id(id_text),
         text: text.to_owned(),
@@ -26,7 +28,7 @@ fn doc_of(id_text: &str, kind: &str, trust: TrustTier, text: &str) -> Doc {
 }
 
 fn doc(id_text: &str, text: &str) -> Doc {
-    doc_of(id_text, "fact", TrustTier::Trusted, text)
+    doc_of(id_text, "fact", Integrity::Trusted, text)
 }
 
 fn fts() -> Fts5 {
@@ -129,7 +131,7 @@ fn fts_upsert_replaces_by_id_and_remove_counts() {
 #[test]
 fn fts_clear_empties_and_facets_are_stored() {
     let mut f = fts();
-    f.upsert(&[doc_of("n:1", "narrative", TrustTier::Untrusted, "words")])
+    f.upsert(&[doc_of("n:1", "narrative", Integrity::Untrusted, "words")])
         .expect("upsert");
     let (kind, app, trust, at): (String, String, String, i64) = f
         .connection()
@@ -219,11 +221,11 @@ async fn the_newest_upsert_of_an_id_wins_and_parts_keep_their_own_facets() {
     index
         .upsert(
             &[
-                doc_of("e:r:1", "episode", TrustTier::Trusted, "opened the invoice"),
+                doc_of("e:r:1", "episode", Integrity::Trusted, "opened the invoice"),
                 doc_of(
                     "n:r:1",
                     "narrative",
-                    TrustTier::Untrusted,
+                    Integrity::Untrusted,
                     "the person seemed rushed",
                 ),
             ],
@@ -237,7 +239,7 @@ async fn the_newest_upsert_of_an_id_wins_and_parts_keep_their_own_facets() {
             &[doc_of(
                 "e:r:1",
                 "episode",
-                TrustTier::Trusted,
+                Integrity::Trusted,
                 "opened the receipt",
             )],
             &e,
@@ -281,8 +283,8 @@ async fn both_halves_agree_in_the_why() {
         .await
         .expect("upsert");
     let hits = index.search(&query("lisbon", 5), &e).await.expect("search");
-    assert!(matches!(hits[0].why, HitWhy::Both { .. }), "{hits:?}");
-    assert_eq!(index.state(), IndexState::Ready);
+    assert!(matches!(hits[0].why, RecallWhy::Both { .. }), "{hits:?}");
+    assert_eq!(index.state(), IndexView::Ready);
 }
 
 /// Records every call, to check batching and roles; vectors are the fake's.
@@ -335,7 +337,7 @@ async fn rebuild_embeds_documents_in_background_batches_of_max_batch() {
             .iter()
             .all(|c| c.1 == EmbedRole::Document && c.2 == Urgency::Background)
     );
-    assert_eq!(index.state(), IndexState::Ready);
+    assert_eq!(index.state(), IndexView::Ready);
 }
 
 #[tokio::test]
@@ -360,7 +362,7 @@ async fn an_unavailable_embedder_during_upsert_keeps_the_lexical_half() {
         .expect("a retry-class failure is not an error");
     assert_eq!(
         index.state(),
-        IndexState::LexicalOnly(DegradedWhy::EmbedderUnavailable)
+        IndexView::LexicalOnly(DegradedWhy::EmbedderUnavailable)
     );
     assert_eq!(index.lexical(&query("alpha", 5)).expect("lexical").len(), 1);
 }
@@ -379,8 +381,11 @@ async fn another_embedder_space_is_refused_on_write_and_degrades_search() {
         .search(&query("alpha", 5), &other)
         .await
         .expect("search");
-    assert!(hits.iter().all(|h| matches!(h.why, HitWhy::Lexical { .. })));
-    assert_eq!(index.state(), IndexState::Stale(StaleWhy::EmbedderChanged));
+    assert!(
+        hits.iter()
+            .all(|h| matches!(h.why, RecallWhy::Lexical { .. }))
+    );
+    assert_eq!(index.state(), IndexView::Stale(StaleWhy::EmbedderChanged));
 }
 
 #[tokio::test]

@@ -34,19 +34,10 @@ use almanac_core::{
     Refusal, SpaceId, SpaceScope,
 };
 
-/// The answer of [`allowed`].
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Allowed {
-    /// Go ahead.
-    Yes,
-    /// Refuse with this.
-    No(Refusal),
-}
+const NO: Result<(), Refusal> = Err(Refusal::NotAllowed);
 
-const NO: Allowed = Allowed::No(Refusal::NotAllowed);
-
-fn yes_if(ok: bool) -> Allowed {
-    if ok { Allowed::Yes } else { NO }
+fn yes_if(ok: bool) -> Result<(), Refusal> {
+    if ok { Ok(()) } else { NO }
 }
 
 fn is_own_actor(actor: &Actor, app: &AppName) -> bool {
@@ -126,30 +117,28 @@ fn app_may_explain(app: &AppName, claim: &FileWhyClaim) -> bool {
 
 /// May `caller` send `request`? Pure; the transport derived `caller`. A request that reaches
 /// into another app's own Space is `OutsideSpace` before anything else is asked.
-pub fn allowed(caller: &Caller, request: &MemoryRequest) -> Allowed {
-    match space_is_open(caller, request) {
-        Allowed::Yes => by_class(caller, request),
-        refused => refused,
-    }
+pub fn allowed(caller: &Caller, request: &MemoryRequest) -> Result<(), Refusal> {
+    space_is_open(caller, request)?;
+    by_class(caller, request)
 }
 
-fn by_class(caller: &Caller, request: &MemoryRequest) -> Allowed {
+fn by_class(caller: &Caller, request: &MemoryRequest) -> Result<(), Refusal> {
     use MemoryRequest as R;
     let router_or_shell = matches!(caller, Caller::Router | Caller::ShellUi);
     match request {
         R::Record(record) | R::RecordDurable(record) => yes_if(may_record(caller, record)),
         R::RecordBatch(records) if records.is_empty() => {
-            Allowed::No(Refusal::Invalid("empty batch".to_owned()))
+            Err(Refusal::Invalid("empty batch".to_owned()))
         }
         R::RecordBatch(records) => yes_if(records.iter().all(|r| may_record(caller, r))),
         R::ExplainFile(claim) => match caller {
             Caller::App(id) => yes_if(app_may_explain(&id.name, claim)),
-            Caller::Router | Caller::ShellUi => Allowed::Yes,
+            Caller::Router | Caller::ShellUi => Ok(()),
             Caller::Cuad | Caller::Settings => NO,
         },
         R::Mark(mark) => match caller {
             Caller::App(id) => yes_if(mark.thing.app == id.name),
-            Caller::Router | Caller::ShellUi => Allowed::Yes,
+            Caller::Router | Caller::ShellUi => Ok(()),
             Caller::Cuad | Caller::Settings => NO,
         },
         R::Propose(_, draft) => match &draft.on_behalf {
@@ -207,17 +196,18 @@ fn spaces_of(request: &MemoryRequest) -> Vec<&SpaceId> {
 /// Spaces (porter's `SpaceScope::open_to`). The name is the caller's, never read from the id.
 /// Router, cuad, the shell and the Settings app are not apps and act across Spaces (the Settings
 /// app's two members name none, and every other request of it is refused by class).
-fn space_is_open(caller: &Caller, request: &MemoryRequest) -> Allowed {
+fn space_is_open(caller: &Caller, request: &MemoryRequest) -> Result<(), Refusal> {
     match caller {
         Caller::App(id) => {
             let open = spaces_of(request)
                 .into_iter()
                 .all(|space| SpaceScope::Only(space.clone()).open_to(&id.name));
-            match open {
-                true => Allowed::Yes,
-                false => Allowed::No(Refusal::OutsideSpace),
+            if open {
+                Ok(())
+            } else {
+                Err(Refusal::OutsideSpace)
             }
         }
-        Caller::Router | Caller::Cuad | Caller::ShellUi | Caller::Settings => Allowed::Yes,
+        Caller::Router | Caller::Cuad | Caller::ShellUi | Caller::Settings => Ok(()),
     }
 }

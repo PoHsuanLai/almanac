@@ -7,10 +7,9 @@ use almanac_infer::{InferdConsolidator, InferdEmbedder};
 use almanac_local::SystemClock;
 use almanac_seal::{DbKey, KeyStore, Oo7Keys, Purpose, SpaceKey, derive};
 use almanac_service::{Backend, BackendError, Clock, Listing, RegistryError};
-use almanac_store::{Vault, VaultError, VaultPath};
 use almanac_tidy::Consolidator;
 use eventlog::SqliteLog;
-use memfiles::{PlainDir, SealedDir};
+use memfiles::{PlainDir, SealedDir, SpaceVault};
 use porter_client::DbusTransport;
 use recall::{Embedder, ExactScan, Fts5, Index, IndexError};
 use rusqlite::Connection;
@@ -18,45 +17,6 @@ use std::future::Future;
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
-
-/// A Space's vault: sealed or plain, by the Space's choice. A closed set, so an enum.
-#[derive(Debug)]
-pub enum SpaceVault {
-    /// Sealed per file (the default).
-    Sealed(SealedDir),
-    /// Plain markdown.
-    Plain(PlainDir),
-}
-
-impl Vault for SpaceVault {
-    fn list(&self, dir: &VaultPath) -> Result<Vec<VaultPath>, VaultError> {
-        match self {
-            SpaceVault::Sealed(v) => v.list(dir),
-            SpaceVault::Plain(v) => v.list(dir),
-        }
-    }
-
-    fn read(&self, p: &VaultPath) -> Result<Vec<u8>, VaultError> {
-        match self {
-            SpaceVault::Sealed(v) => v.read(p),
-            SpaceVault::Plain(v) => v.read(p),
-        }
-    }
-
-    fn write_atomic(&self, p: &VaultPath, bytes: &[u8]) -> Result<(), VaultError> {
-        match self {
-            SpaceVault::Sealed(v) => v.write_atomic(p, bytes),
-            SpaceVault::Plain(v) => v.write_atomic(p, bytes),
-        }
-    }
-
-    fn remove(&self, p: &VaultPath) -> Result<(), VaultError> {
-        match self {
-            SpaceVault::Sealed(v) => v.remove(p),
-            SpaceVault::Plain(v) => v.remove(p),
-        }
-    }
-}
 
 /// memoryd's seams over the real system: SQLCipher files under `dirs`, sealed or plain vaults,
 /// the OS's randomness and clock. The key store, the embedder and the consolidator are

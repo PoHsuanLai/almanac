@@ -3,13 +3,12 @@
 use crate::index::open_index_file;
 use crate::none::{NoConsolidator, NoEmbedder};
 use crate::root::Root;
-use crate::vault::LocalVault;
 use almanac_core::{Dirs, ReplicaId, SpaceId, SpaceMeta, VaultKind};
 use almanac_seal::{DbKey, ProvidedKeys, Purpose, SpaceKey, derive};
 use almanac_service::{Backend, BackendError, Clock, Listing, RegistryError};
 use almanac_tidy::Consolidator;
 use eventlog::SqliteLog;
-use memfiles::{PlainDir, SealedDir};
+use memfiles::{PlainDir, SealedDir, SpaceVault};
 use recall::{Embedder, ExactScan, Index};
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -132,7 +131,7 @@ impl<Clk: Clock, E: Embedder, C: Consolidator> LocalBackend<Clk, E, C> {
 impl<Clk: Clock, E: Embedder, C: Consolidator> Backend for LocalBackend<Clk, E, C> {
     type Keys = ProvidedKeys;
     type Log = SqliteLog;
-    type Files = LocalVault;
+    type Files = SpaceVault;
     type Index = Index<ExactScan>;
     type Embedder = E;
     type Consolidator = C;
@@ -186,11 +185,11 @@ impl<Clk: Clock, E: Embedder, C: Consolidator> Backend for LocalBackend<Clk, E, 
         )?)
     }
 
-    fn open_files(&self, meta: &SpaceMeta, key: &SpaceKey) -> Result<LocalVault, BackendError> {
+    fn open_files(&self, meta: &SpaceMeta, key: &SpaceKey) -> Result<SpaceVault, BackendError> {
         let plain = PlainDir::new(self.dirs.space(&meta.id));
         Ok(match meta.vault {
-            VaultKind::Plain => LocalVault::Plain(plain),
-            VaultKind::Sealed => LocalVault::Sealed(SealedDir::new(
+            VaultKind::Plain => SpaceVault::Plain(plain),
+            VaultKind::Sealed => SpaceVault::Sealed(SealedDir::new(
                 plain,
                 meta.id.clone(),
                 derive(key, &meta.id, Purpose::Files),

@@ -1,6 +1,8 @@
 //! `Index` over `ExactScan` and `Fts5`: the contract the recall fill must meet.
 
-use almanac_store::{HitWhy, Urgency};
+use almanac_core::Integrity;
+use almanac_core::{DegradedWhy, IndexView, RecallWhy};
+use almanac_store::Urgency;
 use recall::*;
 
 fn id(s: &str) -> DocId {
@@ -15,7 +17,7 @@ fn doc(id_text: &str, text: &str) -> Doc {
         facets: Facets {
             kind: "fact".into(),
             app: None,
-            trust: TrustTier::Trusted,
+            trust: Integrity::Trusted,
         },
         class: ClassTag::default(),
     }
@@ -64,7 +66,7 @@ async fn rebuild_equals_incremental() {
             "{text}"
         );
     }
-    assert_eq!(rebuilt.state(), IndexState::Ready);
+    assert_eq!(rebuilt.state(), IndexView::Ready);
 }
 
 #[tokio::test]
@@ -79,10 +81,13 @@ async fn search_degrades_to_lexical() {
         .await
         .expect("search never fails for a busy embedder");
     assert!(!hits.is_empty());
-    assert!(hits.iter().all(|h| matches!(h.why, HitWhy::Lexical { .. })));
+    assert!(
+        hits.iter()
+            .all(|h| matches!(h.why, RecallWhy::Lexical { .. }))
+    );
     assert_eq!(
         index.state(),
-        IndexState::LexicalOnly(DegradedWhy::EmbedderUnavailable)
+        IndexView::LexicalOnly(DegradedWhy::EmbedderUnavailable)
     );
 }
 

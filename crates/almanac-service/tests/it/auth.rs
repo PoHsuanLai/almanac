@@ -3,7 +3,7 @@
 use crate::support::*;
 use almanac_core::*;
 use almanac_service::Caller;
-use almanac_service::{Allowed, allowed};
+use almanac_service::allowed;
 
 const MAIL: &str = "org.quire.Mail";
 
@@ -16,8 +16,8 @@ fn callers() -> [(&'static str, Caller); 4] {
     ]
 }
 
-fn yes(a: Allowed) -> bool {
-    a == Allowed::Yes
+fn yes(a: Result<(), Refusal>) -> bool {
+    a.is_ok()
 }
 
 #[test]
@@ -118,7 +118,7 @@ fn recording_follows_the_caller_class() {
     }
     assert_eq!(
         allowed(&Caller::Router, &MemoryRequest::RecordBatch(vec![])),
-        Allowed::No(Refusal::Invalid("empty batch".into()))
+        Err(Refusal::Invalid("empty batch".into()))
     );
 }
 
@@ -126,14 +126,14 @@ fn recording_follows_the_caller_class() {
 fn app_cannot_claim_companion_actor() {
     let mail = caller_app(MAIL);
     let forged = MemoryRequest::Record(record(thing_body(MAIL, "k"), planner()));
-    assert_eq!(allowed(&mail, &forged), Allowed::No(Refusal::NotAllowed));
+    assert_eq!(allowed(&mail, &forged), Err(Refusal::NotAllowed));
     let mcp = MemoryRequest::Record(record(
         thing_body(MAIL, "k"),
         Actor::Mcp {
             client: ClientName::parse("x").expect("c"),
         },
     ));
-    assert_eq!(allowed(&mail, &mcp), Allowed::No(Refusal::NotAllowed));
+    assert_eq!(allowed(&mail, &mcp), Err(Refusal::NotAllowed));
 }
 
 #[test]
@@ -469,14 +469,10 @@ fn an_app_reaches_only_the_spaces_open_to_it() {
     let own = "app:org.quire.Mail:0";
     let other = "app:org.quire.Files:0";
     let cases = [
-        ("its own App Space", own, Allowed::Yes),
-        ("a desktop-wide Space", "work", Allowed::Yes),
-        ("outside any Space", "desktop", Allowed::Yes),
-        (
-            "another app's Space",
-            other,
-            Allowed::No(Refusal::OutsideSpace),
-        ),
+        ("its own App Space", own, Ok(())),
+        ("a desktop-wide Space", "work", Ok(())),
+        ("outside any Space", "desktop", Ok(())),
+        ("another app's Space", other, Err(Refusal::OutsideSpace)),
     ];
     for (name, id, want) in cases {
         let request = MemoryRequest::Record(record_in(id));
@@ -497,14 +493,14 @@ fn another_apps_space_is_refused_for_every_request_that_names_one() {
     };
     assert_eq!(
         allowed(&app_caller, &MemoryRequest::Mark(mark)),
-        Allowed::No(Refusal::OutsideSpace)
+        Err(Refusal::OutsideSpace)
     );
     // The router, cuad and the shell are not apps: the Space rule is the app's alone.
     let request = MemoryRequest::Record(record_in("app:org.quire.Files:0"));
-    assert_eq!(allowed(&Caller::Router, &request), Allowed::Yes);
+    assert_eq!(allowed(&Caller::Router, &request), Ok(()));
     assert_eq!(
         allowed(&Caller::ShellUi, &MemoryRequest::Status(other)),
-        Allowed::Yes
+        Ok(())
     );
 }
 

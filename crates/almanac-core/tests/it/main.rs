@@ -1,5 +1,6 @@
 mod admit;
 mod companion;
+mod desktop;
 mod forms;
 mod ids;
 mod involve;

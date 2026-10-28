@@ -78,7 +78,7 @@ pub(crate) struct Open<B: Backend> {
     /// What happened during the request that the bus should hear of (drained by the service).
     pub outbox: Vec<crate::events::ServiceEvent>,
     /// The index state the bus was last told of (or found when the Space opened).
-    pub announced: almanac_store::IndexState,
+    pub announced: almanac_core::IndexView,
     /// What the Space holds, counted at the first record and kept up to date after it; `None`
     /// when it must be counted afresh (a sweep erased bodies).
     pub usage: Option<crate::quota::Usage>,

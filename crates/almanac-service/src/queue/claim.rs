@@ -1,8 +1,8 @@
 //! What a request needs exclusive use of.
 
-use crate::auth::{Allowed, allowed};
+use crate::auth::allowed;
 use crate::caller::Caller;
-use almanac_core::{EventBody, MemoryRequest, Record, SpaceId};
+use almanac_core::{EventBody, MemoryRequest, Record, Refusal, SpaceId};
 use std::collections::BTreeSet;
 
 /// What a request needs exclusive use of.
@@ -66,9 +66,9 @@ pub fn claim_for(caller: &Caller, request: &MemoryRequest) -> Claim {
 }
 
 /// [`claim_for`] once the verdict is known.
-pub(super) fn claim_under(verdict: &Allowed, request: &MemoryRequest) -> Claim {
+pub(super) fn claim_under(verdict: &Result<(), Refusal>, request: &MemoryRequest) -> Claim {
     match verdict {
-        Allowed::Yes => claim_of(request),
-        Allowed::No(_) => Claim::Nothing,
+        Ok(()) => claim_of(request),
+        Err(_) => Claim::Nothing,
     }
 }

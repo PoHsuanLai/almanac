@@ -343,7 +343,7 @@ impl<B: Backend> MemoryService<B> {
             baseline,
             dirty: std::collections::BTreeSet::new(),
             outbox: Vec::new(),
-            announced: almanac_store::IndexState::Absent,
+            announced: almanac_core::IndexView::Absent,
             usage: None,
         };
         let cx = self.cx(caller);

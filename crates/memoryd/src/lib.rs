@@ -20,7 +20,7 @@ mod signals;
 mod xdg;
 
 pub use almanac_watch::InotifyWatch as Watcher;
-pub use backend::{SpaceVault, SystemBackend};
+pub use backend::SystemBackend;
 pub use callers::{
     CallerFileError, ROUTER_APP, SETTINGS_APP, SHELL_APP, caller_for, load_callers,
     table_from_file, table_from_toml,
@@ -34,10 +34,7 @@ pub use peers::{Peers, ProcPeers, TablePeers};
 pub use porter_daemon::{ProcGate, ProcRoot};
 pub use registry::{REGISTRY_WAIT, SpaceRegistry};
 pub use run::{Env, PROC_GATE, PROC_ROOT_VAR, SYSTEM_CALLERS_VAR, StartError, start};
-pub use sandbox::{
-    Confinement, Enforcement, Policy, SandboxError, bus_socket, confinement_of, enforce,
-    policy_for, prepare,
-};
+pub use sandbox::{Confinement, Policy, SandboxError, bus_socket, enforce, policy_for, prepare};
 pub use settings_watch::{DEBOUNCE, SettingsWatch, WatchState, apply, apply_next};
 pub use signals::{Delivery, delivery_of};
 pub use xdg::{XdgError, dirs_from};

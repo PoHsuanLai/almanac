@@ -1,5 +1,6 @@
 //! The embedder card and error contracts: prompt prefixes, batching, vector space, retry class.
 
+use almanac_core::Integrity;
 use almanac_store::{
     EmbedRole, EmbedderCard, MaxBatch, Metric, PromptPrefixes, SpaceCheck, Urgency, Vector,
 };
@@ -157,7 +158,7 @@ fn doc_with_class(id: &str, text: &str, class: &str) -> Doc {
         facets: Facets {
             kind: "fact".into(),
             app: None,
-            trust: TrustTier::Trusted,
+            trust: Integrity::Trusted,
         },
         class: ClassTag(class.into()),
     }

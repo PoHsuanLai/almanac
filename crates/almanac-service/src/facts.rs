@@ -7,9 +7,9 @@ use crate::open::{Cx, Open, Stored, failed, files_refusal};
 use crate::readers::caller_actor;
 use crate::timeline::timeline_entry;
 use almanac_core::{
-    Confidentiality, Count, DesktopVerdict, EventBody, Fact, FactDraft, FactId, FactState,
-    FactView, Integrity, Label, Link, MemoryOp, ModelRole, PENDING_TTL_DAYS, Refusal, Settlement,
-    Source, SourceView, SpaceId, UnixSeconds, UseCount, Validity, desktop_admits,
+    Confidentiality, Count, EventBody, Fact, FactDraft, FactId, FactState, FactView, Integrity,
+    Label, Link, MemoryOp, ModelRole, PENDING_TTL_DAYS, Refusal, Settlement, Source, SourceView,
+    SpaceId, UnixSeconds, UseCount, Validity, desktop_admits,
 };
 use almanac_search::docs::{fact_doc, fact_doc_id};
 use almanac_store::Entry;
@@ -175,11 +175,10 @@ impl<B: Backend> Open<B> {
             .filter_map(|l| link_label(l, &space, &entries, &stored))
             .collect();
         let label = proposal_label(cx.caller, &space, &cited);
-        if space == SpaceId::desktop() {
-            match desktop_admits(&label) {
-                DesktopVerdict::Admit => {}
-                refused => return Err(failed(format!("the desktop scope refuses: {refused:?}"))),
-            }
+        if space == SpaceId::desktop()
+            && let Err(refused) = desktop_admits(&label)
+        {
+            return Err(failed(format!("the desktop scope refuses: {refused:?}")));
         }
         if draft
             .supersedes

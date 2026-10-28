@@ -1,7 +1,9 @@
 //! A restart adopts the index file it finds (no embedding of what is already there), and a
 //! refused data class fails only its own documents.
 
-use almanac_store::{EmbedRole, EmbedderCard, HitWhy, SpaceCheck, Urgency, Vector};
+use almanac_core::Integrity;
+use almanac_core::{DegradedWhy, IndexView, RecallWhy};
+use almanac_store::{EmbedRole, EmbedderCard, SpaceCheck, Urgency, Vector};
 use recall::*;
 use std::collections::BTreeSet;
 use std::path::Path;
@@ -15,7 +17,7 @@ fn doc_in(id: &str, text: &str, class: &str) -> Doc {
         facets: Facets {
             kind: "fact".into(),
             app: None,
-            trust: TrustTier::Trusted,
+            trust: Integrity::Trusted,
         },
         class: ClassTag(class.to_owned()),
     }
@@ -117,13 +119,13 @@ async fn a_restart_adopts_the_index_and_embeds_nothing() {
     let mut index = open(&path, again.card().clone());
     index.sync(docs().into_iter(), &again).await.expect("sync");
     assert_eq!(again.embedded(), 0, "nothing was embedded again");
-    assert_eq!(index.state(), IndexState::Ready);
+    assert_eq!(index.state(), IndexView::Ready);
     assert_eq!(ids_with_vectors(&index).len(), 3);
     let hits = index
         .search(&query("lisbon receipts"), &again)
         .await
         .expect("search");
-    assert!(matches!(hits[0].why, HitWhy::Both { .. }), "{hits:?}");
+    assert!(matches!(hits[0].why, RecallWhy::Both { .. }), "{hits:?}");
 }
 
 #[tokio::test]
@@ -175,7 +177,7 @@ async fn a_changed_facet_alone_is_embedded_again_only_for_that_document() {
     let again = Counting::new(FakeEmbedder::new());
     let mut index = open(&path, again.card().clone());
     let mut truth = docs();
-    truth[0].facets.trust = TrustTier::Untrusted;
+    truth[0].facets.trust = Integrity::Untrusted;
     index.sync(truth.into_iter(), &again).await.expect("sync");
     assert_eq!(again.embedded(), 1);
 }
@@ -242,7 +244,7 @@ async fn documents_that_never_got_a_vector_are_embedded_at_the_next_start() {
     let away = FakeEmbedder::unavailable();
     let mut index = open(&path, away.card().clone());
     index.sync(docs().into_iter(), &away).await.expect("sync");
-    assert!(matches!(index.state(), IndexState::LexicalOnly(_)));
+    assert!(matches!(index.state(), IndexView::LexicalOnly(_)));
     assert!(ids_with_vectors(&index).is_empty());
     drop(index);
 
@@ -250,7 +252,7 @@ async fn documents_that_never_got_a_vector_are_embedded_at_the_next_start() {
     let mut index = open(&path, back.card().clone());
     index.sync(docs().into_iter(), &back).await.expect("sync");
     assert_eq!(back.embedded(), 3);
-    assert_eq!(index.state(), IndexState::Ready);
+    assert_eq!(index.state(), IndexView::Ready);
 }
 
 #[tokio::test]
@@ -345,7 +347,7 @@ async fn a_refused_class_fails_only_its_own_documents_on_upsert() {
         .await
         .expect("search");
     assert_eq!(hits[0].id, DocId("f:1".into()), "still found lexically");
-    assert_eq!(index.state(), IndexState::Ready);
+    assert_eq!(index.state(), IndexView::Ready);
 }
 
 #[tokio::test]
@@ -362,7 +364,7 @@ async fn a_refused_class_fails_only_its_own_documents_on_rebuild_and_sync() {
         ids_with_vectors(&index),
         BTreeSet::from(["f:2".to_owned(), "f:4".to_owned()])
     );
-    assert_eq!(index.state(), IndexState::Ready);
+    assert_eq!(index.state(), IndexView::Ready);
     drop(index);
 
     // The next start retries the refused ones (one batch per class), and embeds none of the rest.
@@ -386,7 +388,7 @@ async fn when_every_document_is_refused_the_index_is_lexical_only() {
     index.upsert(&all_mail, &e).await.expect("upsert");
     assert_eq!(
         index.state(),
-        IndexState::LexicalOnly(DegradedWhy::EmbedderRefused)
+        IndexView::LexicalOnly(DegradedWhy::EmbedderRefused)
     );
     assert!(ids_with_vectors(&index).is_empty());
     let hits = index.search(&query("roadmap"), &e).await.expect("search");

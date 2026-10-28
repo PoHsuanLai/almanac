@@ -7,37 +7,10 @@ use crate::retention::{SourceState, Sweep, sweep_body};
 use crate::space::{SpaceEffect, SpaceEvent, step};
 use crate::timeline::timeline_entry;
 use almanac_core::{
-    Bytes, ChainHealth, ChainReport, Count, Cursor, DegradedWhy, EraseCause, FALLBACK_DAYS,
-    IndexView, MemoryOp, Refusal, Retention, Seq, SpaceStatus, StaleWhy, TimelinePage,
-    TimelineQuery, UnixSeconds,
+    Bytes, ChainHealth, ChainReport, Count, Cursor, EraseCause, FALLBACK_DAYS, MemoryOp, Refusal,
+    Retention, Seq, SpaceStatus, TimelinePage, TimelineQuery, UnixSeconds,
 };
-use almanac_store::{Entry, IndexState, LogRead, SearchIndex, Vault, VaultPath, verify_chain};
-
-fn index_view(state: IndexState) -> IndexView {
-    let n = |c: almanac_store::Count| Count(c.0);
-    match state {
-        IndexState::Absent => IndexView::Absent,
-        IndexState::Building { done, total } => IndexView::Building {
-            done: n(done),
-            total: n(total),
-        },
-        IndexState::Ready => IndexView::Ready,
-        IndexState::Stale(why) => IndexView::Stale(match why {
-            almanac_store::StaleWhy::EmbedderChanged => StaleWhy::EmbedderChanged,
-            almanac_store::StaleWhy::FormatChanged => StaleWhy::FormatChanged,
-            almanac_store::StaleWhy::TruthNewer => StaleWhy::TruthNewer,
-            // Unknown reason: report the one that makes the person re-sync.
-            _ => StaleWhy::TruthNewer,
-        }),
-        IndexState::LexicalOnly(why) => IndexView::LexicalOnly(match why {
-            almanac_store::DegradedWhy::EmbedderUnavailable => DegradedWhy::EmbedderUnavailable,
-            almanac_store::DegradedWhy::EmbedderRefused => DegradedWhy::EmbedderRefused,
-            _ => DegradedWhy::EmbedderUnavailable,
-        }),
-        // An index state this build does not know is not ready: report it absent.
-        _ => IndexView::Absent,
-    }
-}
+use almanac_store::{Entry, LogRead, SearchIndex, Vault, VaultPath, verify_chain};
 
 impl<B: Backend> Open<B> {
     /// Why an erased body is gone: this run knows what it forgot and what was only ever a
@@ -113,7 +86,7 @@ impl<B: Backend> Open<B> {
             .sum::<u64>();
         Ok(SpaceStatus {
             state: self.rt.state,
-            index: index_view(self.rt.index.state()),
+            index: self.rt.index.state(),
             chain: self.chain,
             usage: Bytes(files),
             events: Count(u32::try_from(head.seq.0.saturating_sub(cut.0)).unwrap_or(u32::MAX)),

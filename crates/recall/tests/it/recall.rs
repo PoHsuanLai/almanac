@@ -1,8 +1,9 @@
 //! recall's pure parts and the contracts the fill must meet.
 
+use almanac_core::{Count, DegradedWhy, IndexView, RecallWhy, StaleWhy};
 use almanac_store::{
-    EmbedRole, EmbedderCard, HitWhy, MaxBatch, Metric, PromptPrefixes, RrfK, Urgency, Vector,
-    chunk, fuse_rrf, nearest_exact,
+    EmbedRole, EmbedderCard, MaxBatch, Metric, PromptPrefixes, RrfK, Urgency, Vector, chunk,
+    fuse_rrf, nearest_exact,
 };
 use recall::*;
 
@@ -27,7 +28,7 @@ fn fuse_rrf_table() {
         &'static str,
         Vec<&'static str>,
         Vec<&'static str>,
-        Vec<(&'static str, u32, HitWhy)>,
+        Vec<(&'static str, u32, RecallWhy)>,
     );
     let cases: Vec<Row> = vec![
         ("empty", vec![], vec![], vec![]),
@@ -36,15 +37,15 @@ fn fuse_rrf_table() {
             vec!["a", "b"],
             vec![],
             vec![
-                ("a", 16_393, HitWhy::Lexical { rank: 1 }),
-                ("b", 16_129, HitWhy::Lexical { rank: 2 }),
+                ("a", 16_393, RecallWhy::Lexical { rank: 1 }),
+                ("b", 16_129, RecallWhy::Lexical { rank: 2 }),
             ],
         ),
         (
             "semantic only",
             vec![],
             vec!["x"],
-            vec![("x", 16_393, HitWhy::Semantic { rank: 1 })],
+            vec![("x", 16_393, RecallWhy::Semantic { rank: 1 })],
         ),
         (
             "a hit in both outranks a first place in one",
@@ -54,19 +55,19 @@ fn fuse_rrf_table() {
                 (
                     "b",
                     32_258,
-                    HitWhy::Both {
+                    RecallWhy::Both {
                         lexical: 2,
                         semantic: 2,
                     },
                 ),
-                ("a", 16_393, HitWhy::Lexical { rank: 1 }),
-                ("c", 16_393, HitWhy::Semantic { rank: 1 }),
+                ("a", 16_393, RecallWhy::Lexical { rank: 1 }),
+                ("c", 16_393, RecallWhy::Semantic { rank: 1 }),
             ],
         ),
     ];
     for (name, lexical, semantic, want) in cases {
         let got = fuse_rrf(&[ranked(&lexical), ranked(&semantic)], RrfK(60));
-        let got: Vec<(&str, u32, HitWhy)> = got
+        let got: Vec<(&str, u32, RecallWhy)> = got
             .iter()
             .map(|f| (f.id.0.as_str(), f.score_millionths, f.why))
             .collect();
@@ -168,10 +169,10 @@ fn vectors_round_trip_through_their_blob() {
 
 #[test]
 fn embedder_card_change_marks_stale() {
-    let ready = IndexState::Ready;
+    let ready = IndexView::Ready;
     assert_eq!(
         step(ready, IndexEvent::CardChanged),
-        IndexState::Stale(StaleWhy::EmbedderChanged)
+        IndexView::Stale(StaleWhy::EmbedderChanged)
     );
     let cards = (
         EmbedderCard {
@@ -198,99 +199,99 @@ fn embedder_card_change_marks_stale() {
 fn index_state_table() {
     use DegradedWhy::EmbedderUnavailable as Gone;
     let c = Count;
-    let cases: Vec<(&str, IndexState, IndexEvent, IndexState)> = vec![
+    let cases: Vec<(&str, IndexView, IndexEvent, IndexView)> = vec![
         (
             "absent builds",
-            IndexState::Absent,
+            IndexView::Absent,
             IndexEvent::Begin { total: c(10) },
-            IndexState::Building {
+            IndexView::Building {
                 done: c(0),
                 total: c(10),
             },
         ),
         (
             "progress",
-            IndexState::Building {
+            IndexView::Building {
                 done: c(0),
                 total: c(10),
             },
             IndexEvent::Progress { done: c(4) },
-            IndexState::Building {
+            IndexView::Building {
                 done: c(4),
                 total: c(10),
             },
         ),
         (
             "finished",
-            IndexState::Building {
+            IndexView::Building {
                 done: c(10),
                 total: c(10),
             },
             IndexEvent::Finished,
-            IndexState::Ready,
+            IndexView::Ready,
         ),
         (
             "card changed",
-            IndexState::Ready,
+            IndexView::Ready,
             IndexEvent::CardChanged,
-            IndexState::Stale(StaleWhy::EmbedderChanged),
+            IndexView::Stale(StaleWhy::EmbedderChanged),
         ),
         (
             "format changed",
-            IndexState::Ready,
+            IndexView::Ready,
             IndexEvent::FormatChanged,
-            IndexState::Stale(StaleWhy::FormatChanged),
+            IndexView::Stale(StaleWhy::FormatChanged),
         ),
         (
             "truth changed",
-            IndexState::Ready,
+            IndexView::Ready,
             IndexEvent::TruthChanged,
-            IndexState::Stale(StaleWhy::TruthNewer),
+            IndexView::Stale(StaleWhy::TruthNewer),
         ),
         (
             "embedder lost when ready",
-            IndexState::Ready,
+            IndexView::Ready,
             IndexEvent::EmbedderLost(Gone),
-            IndexState::LexicalOnly(Gone),
+            IndexView::LexicalOnly(Gone),
         ),
         (
             "embedder lost while building",
-            IndexState::Building {
+            IndexView::Building {
                 done: c(1),
                 total: c(2),
             },
             IndexEvent::EmbedderLost(Gone),
-            IndexState::LexicalOnly(Gone),
+            IndexView::LexicalOnly(Gone),
         ),
         (
             "stale rebuilds",
-            IndexState::Stale(StaleWhy::TruthNewer),
+            IndexView::Stale(StaleWhy::TruthNewer),
             IndexEvent::Begin { total: c(3) },
-            IndexState::Building {
+            IndexView::Building {
                 done: c(0),
                 total: c(3),
             },
         ),
         (
             "lexical-only rebuilds when the embedder returns",
-            IndexState::LexicalOnly(Gone),
+            IndexView::LexicalOnly(Gone),
             IndexEvent::Begin { total: c(3) },
-            IndexState::Building {
+            IndexView::Building {
                 done: c(0),
                 total: c(3),
             },
         ),
         (
             "absent ignores a lost embedder",
-            IndexState::Absent,
+            IndexView::Absent,
             IndexEvent::EmbedderLost(Gone),
-            IndexState::Absent,
+            IndexView::Absent,
         ),
         (
             "stale ignores a changed card",
-            IndexState::Stale(StaleWhy::FormatChanged),
+            IndexView::Stale(StaleWhy::FormatChanged),
             IndexEvent::CardChanged,
-            IndexState::Stale(StaleWhy::FormatChanged),
+            IndexView::Stale(StaleWhy::FormatChanged),
         ),
     ];
     for (name, from, event, to) in cases {
@@ -351,7 +352,7 @@ fn a_new_index_is_absent_and_allow_filters() {
         Fts5::new(conn),
         ExactScan::new(rusqlite::Connection::open_in_memory().expect("db"), card),
     );
-    assert_eq!(index.state(), IndexState::Absent);
+    assert_eq!(index.state(), IndexView::Absent);
     let allow = Allow::Only([id("a")].into());
     assert!(
         allow.permits(&id("a")) && !allow.permits(&id("b")) && Allow::Everything.permits(&id("b"))

@@ -2,11 +2,11 @@
 //! a wrong key gives at each seam.
 
 use crate::support::*;
-use almanac_local::LocalVault;
 use almanac_seal::KeyStore;
 use almanac_service::{Backend, BackendError};
 use almanac_store::{Vault, VaultError, VaultPath};
 use eventlog::LogError;
+use memfiles::SpaceVault;
 use std::path::Path;
 
 const NEEDLE: &str = "zebracorp";
@@ -64,7 +64,7 @@ async fn each_seam_gives_a_typed_error_for_the_wrong_key() {
         Err(BackendError::Log(LogError::Locked))
     ));
     assert!(wrong.open_index(&work(), &key).is_err());
-    let LocalVault::Sealed(_) = wrong.open_files(&meta, &key).expect("files") else {
+    let SpaceVault::Sealed(_) = wrong.open_files(&meta, &key).expect("files") else {
         panic!("a sealed Space opens a sealed vault");
     };
     let files = wrong.open_files(&meta, &key).expect("files");

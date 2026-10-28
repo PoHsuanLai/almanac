@@ -3,22 +3,15 @@
 
 use crate::docs::{DocRef, event_docs, present};
 use crate::reader::SpaceReader;
+use almanac_core::Integrity;
 use almanac_core::{
-    Fact, InjectQuery, Link, MemoryItem, RecallHit, RecallOver, RecallQuery, RecallWhy, Refusal,
-    TrustFilter, UserText, estimate_tokens, fit_budget,
+    Fact, InjectQuery, Link, MemoryItem, RecallHit, RecallOver, RecallQuery, Refusal, TrustFilter,
+    UserText, estimate_tokens, fit_budget,
 };
 use almanac_store::{
-    Allow, EmbedRole, Embedder, EmbedderCard, Fused, HitWhy, Ranked, SearchIndex, SearchQuery,
-    SpaceCheck, TopK, TrustTier, Urgency, Vector, chunk, fuse_rrf,
+    Allow, EmbedRole, Embedder, EmbedderCard, Fused, Ranked, SearchIndex, SearchQuery, SpaceCheck,
+    TopK, Urgency, Vector, chunk, fuse_rrf,
 };
-
-fn why_of(why: HitWhy) -> RecallWhy {
-    match why {
-        HitWhy::Lexical { rank } => RecallWhy::Lexical { rank },
-        HitWhy::Semantic { rank } => RecallWhy::Semantic { rank },
-        HitWhy::Both { lexical, semantic } => RecallWhy::Both { lexical, semantic },
-    }
-}
 
 fn failed(e: impl std::fmt::Display) -> Refusal {
     Refusal::Invalid(e.to_string())
@@ -42,8 +35,8 @@ pub async fn embed_query(card: &EmbedderCard, e: &impl Embedder, text: &str) -> 
 fn allow<R: SpaceReader>(r: &R, over: RecallOver, trust: TrustFilter) -> Result<Allow, Refusal> {
     let trust = match trust {
         TrustFilter::Any => None,
-        TrustFilter::TrustedOnly => Some(TrustTier::Trusted),
-        TrustFilter::UntrustedOnly => Some(TrustTier::Untrusted),
+        TrustFilter::TrustedOnly => Some(Integrity::Trusted),
+        TrustFilter::UntrustedOnly => Some(Integrity::Untrusted),
     };
     r.index()
         .allow_kinds(over.facet_kinds(), trust)
@@ -89,7 +82,7 @@ fn resolve<R: SpaceReader>(r: &R, fused: &Fused, facts: &[Fact]) -> Option<Recal
                 at: fact.recorded,
                 label: fact.label.clone(),
                 links: fact.links.clone(),
-                why: why_of(fused.why),
+                why: fused.why,
             })
         }
         DocRef::Event { seq, .. } => {
@@ -105,7 +98,7 @@ fn resolve<R: SpaceReader>(r: &R, fused: &Fused, facts: &[Fact]) -> Option<Recal
                 at: entry.header.occurred,
                 label: doc.label,
                 links: vec![Link::Event(event)],
-                why: why_of(fused.why),
+                why: fused.why,
             })
         }
     }

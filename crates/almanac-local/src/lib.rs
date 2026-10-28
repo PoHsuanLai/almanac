@@ -17,11 +17,9 @@ mod host;
 mod index;
 mod none;
 mod root;
-mod vault;
 
 pub use backend::LocalBackend;
 pub use clock::SystemClock;
 pub use host::{LocalError, create_space, open, save_spaces};
 pub use none::{NoConsolidator, NoEmbedder};
 pub use root::Root;
-pub use vault::LocalVault;

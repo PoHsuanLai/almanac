@@ -18,8 +18,9 @@ What almanac adds or decides differently, each with its reason:
    belong to the UI that draws them (sill, detent): memoryd never sends prose.
 2. **Async seams use `-> impl Future<Output = ...> + Send`** (return-position `impl Trait`),
    so implementations write `async fn` and every future can cross a multi-threaded runtime.
-   Closed sets of implementations are enums implementing the trait (memoryd's `SpaceVault`),
-   or a `Backend` trait's associated types; never `dyn`.
+   Closed sets of implementations are enums implementing the trait (memfiles' `SpaceVault`),
+   or a `Backend` trait's associated types. `Box<dyn Trait>` is fine when the implementation is
+   picked from configuration at run time.
 3. **`todo!()` bodies exist only while an interface is frozen and its behaviour is not
    built.** Each one is listed in `FINDINGS.md` with the work that removes it. This departs
    from the shared rule "no `todo!()` stub on master"; the freeze decides when it lands.
@@ -34,8 +35,19 @@ What almanac adds or decides differently, each with its reason:
    the plan digest) has a golden test; changing one is a format bump, not a refactor.
 6. **User text never shows in `Debug`.** `UserText`, `FactText`, `ThingView` and key types
    redact; tests assert it.
-7. **No `bool` in state.** A field that says "yes or no" is an enum (`Lock`, `Desktop`, `Power`,
-   `SourceState`, `VerificationKey`); two-state machines are enums with names.
+7. **Plain Rust types.** A `bool` is fine for a field, a return value, a local or a private
+   function. Use an enum instead only when a public function would read as `f(true, false)`, a
+   third state is realistic, or the value is written to disk or the bus where a named word reads
+   better (`Lock`, `Desktop`, `Power`, `SourceState`, `VerificationKey`).
+   * **One fact, one type.** No mirror enums across crates (`X`/`XKind`/`XWire`/`XState`); the
+     lower crate owns the type and the others import it. A field-less view of an enum is a
+     method, not a second declaration.
+   * **Two-way outcomes are `Result` or `Option`**, not a two-arm enum. "Absent or one real
+     thing" is `Option<T>`.
+   * **Growing sets are data:** a string id or a shipped file, not a variant list. Enums are for
+     closed sets the code branches on.
+   * **Newtypes only with a rule:** parsed or validated, a unit, or an id that must not be mixed
+     with another. Otherwise the plain type. A single-variant enum is not a type.
 8. **One integration-test executable per crate.** Cargo links every file directly under `tests/`
    into its own executable, and each one statically links the crate's whole dependency graph
    (SQLCipher, zbus, tokio and the rest), so a build directory grows with the number of files.

@@ -2,7 +2,7 @@
 //!
 //! * the event log: [`LogRead`], [`LogWrite`], [`Entry`], [`Header`] and the chain check,
 //! * the file vault: [`Vault`] and [`VaultPath`],
-//! * the search index: [`SearchIndex`], with the documents, vectors and [`IndexState`] it speaks
+//! * the search index: [`SearchIndex`], with the documents, vectors and [`IndexView`] it speaks
 //!   in, and the [`Embedder`] it is fed by.
 //!
 //! Each store crate implements them: `eventlog` (`SqliteLog`), `memfiles` (`PlainDir`,
@@ -47,17 +47,15 @@ mod vector;
 
 pub use chain::{BodyState, Entry, verify_chain};
 pub use class::{class_from_tag, class_of, class_tag};
-pub use doc::{
-    Allow, Chunk, ClassTag, Count, Doc, DocId, Facets, Ranked, StoredDoc, TopK, TrustTier,
-};
+pub use doc::{Allow, Chunk, ClassTag, Doc, DocId, Facets, Ranked, StoredDoc, TopK};
 pub use embed::{Classed, EmbedError, Embedder, RetryClass};
-pub use fuse::{CHARS_PER_TOKEN, Fused, HitWhy, RrfK, chunk, fuse_rrf};
+pub use fuse::{CHARS_PER_TOKEN, Fused, RrfK, chunk, fuse_rrf};
 pub use header::{
     GENESIS_CONTEXT, HEADER_MAGIC, Header, NewHeader, body_digest, genesis_link, header_bytes, link,
 };
 pub use log::{LogError, LogRead, LogWrite, PageQuery, RoleFilter};
 pub use search::{IndexFailure, SearchIndex, SearchQuery};
-pub use state::{DegradedWhy, IndexEvent, IndexState, StaleWhy, step};
+pub use state::{IndexEvent, step};
 pub use vault::{FACTS_DIR, PENDING_DIR, PROCEDURES_DIR, Vault, VaultError, VaultPath};
 pub use vector::{
     EmbedRole, EmbedderCard, MaxBatch, Metric, PromptPrefixes, SpaceCheck, Urgency, Vector,

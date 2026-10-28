@@ -3,7 +3,7 @@
 //! reaches for what it may and may not have. A kernel without Landlock skips the second half.
 
 use almanac_core::Dirs;
-use memoryd::{Enforcement, Policy, bus_socket, confinement_of, enforce, policy_for, prepare};
+use memoryd::{Confinement, Policy, bus_socket, enforce, policy_for, prepare};
 use std::io::{ErrorKind, Write};
 use std::net::{TcpListener, TcpStream};
 use std::os::unix::net::{UnixListener, UnixStream};
@@ -92,7 +92,7 @@ fn prepare_makes_the_directories_the_policy_names() {
 /// What the restricted thread found.
 #[derive(Debug)]
 struct Found {
-    enforcement: Enforcement,
+    enforcement: Confinement,
     write_inside: std::io::Result<()>,
     read_inside: std::io::Result<Vec<u8>>,
     write_outside: std::io::Result<()>,
@@ -160,7 +160,7 @@ fn the_sandbox_confines_the_thread_that_applies_it() {
         "landlock enforcement on this kernel: {:?}",
         found.enforcement
     );
-    if found.enforcement == Enforcement::Unsupported {
+    if found.enforcement == Confinement::NotAvailable {
         eprintln!("skipped: this kernel has no Landlock");
         assert!(found.read_outside.is_ok(), "and nothing was restricted");
         return;
@@ -191,7 +191,7 @@ fn the_sandbox_confines_the_thread_that_applies_it() {
     );
     assert!(found.proc_exe.is_err(), "{found:?}");
     // The rights that need a newer kernel are asserted when this kernel is full strength.
-    if found.enforcement == Enforcement::Full {
+    if found.enforcement == Confinement::Confined {
         assert!(
             found.bus.is_ok(),
             "the session bus stays reachable: {found:?}"
@@ -209,22 +209,4 @@ fn the_sandbox_confines_the_thread_that_applies_it() {
     }
     // This thread was never restricted.
     assert!(std::fs::read(root.join("elsewhere/secret")).is_ok());
-}
-
-#[test]
-fn the_confinement_word_follows_what_the_kernel_enforced() {
-    let rows = [
-        (Some(Enforcement::Full), "confined"),
-        (Some(Enforcement::Partial), "partial"),
-        (Some(Enforcement::Unsupported), "not-available"),
-        // A test build with the sandbox switched off is not "confined".
-        (None, "off"),
-    ];
-    for (enforcement, word) in rows {
-        assert_eq!(
-            confinement_of(enforcement).as_word(),
-            word,
-            "{enforcement:?}"
-        );
-    }
 }
