@@ -17,7 +17,7 @@ test-keys = ["dep:almanac-keyfile"]
 # `/proc/<pid>/cgroup`, so an acceptance run can present its test processes as units. TEST ONLY:
 # off by default, never in a release or dist build (check-boundary.sh fails if a default build
 # has it); without it the variable is ignored.
-test-proc-root = ["porter-dbus/test-proc-root"]
+test-proc-root = ["porter-callers/test-proc-root"]
 
 [dependencies]
 almanac-core = { workspace = true }
@@ -38,6 +38,7 @@ atomic-write-file = { workspace = true }
 almanac-dbus = { workspace = true }
 almanac-dbus-serve = { workspace = true }
 porter-core = { workspace = true }
+porter-callers = { workspace = true }
 porter-daemon = { workspace = true }
 porter-dbus = { workspace = true }
 porter-client = { workspace = true, features = ["dbus"] }

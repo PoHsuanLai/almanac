@@ -31,7 +31,7 @@ pub use keyring::{LockChanges, is_lock_change};
 pub use keysel::KeysError;
 pub use ledger::FileLedger;
 pub use peers::{Peers, ProcPeers, TablePeers};
-pub use porter_daemon::ProcRoot;
+pub use porter_callers::ProcRoot;
 pub use registry::{REGISTRY_WAIT, SpaceRegistry};
 pub use run::{Env, HONOURS_PROC_ROOT, PROC_ROOT_VAR, SYSTEM_CALLERS_VAR, StartError, start};
 pub use sandbox::{Confinement, Policy, SandboxError, bus_socket, enforce, policy_for, prepare};

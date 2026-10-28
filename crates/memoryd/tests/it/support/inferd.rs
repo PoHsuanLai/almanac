@@ -5,8 +5,8 @@
 
 use porter_capability::{Locality, ModelId};
 use porter_core::AccountId;
-use porter_dbus::names::{INFERENCE_BUS, INFERENCE_PATH};
-use porter_dbus::{Details, NeedArg};
+use porter_dbus::Details;
+use porter_dbus::inference::{INFERENCE_BUS, INFERENCE_PATH, NeedArg};
 use porter_ids::Tokens;
 use porter_infer::{
     ChatReply, ClientFrame, EmbedReply, EmbedVector, InferEvent, InferRefusal, InferReply,

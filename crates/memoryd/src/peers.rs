@@ -11,7 +11,7 @@
 use crate::callers::caller_for;
 use almanac_core::Refusal;
 use almanac_service::Caller;
-use porter_dbus::callers::{Callers, ProcCallers};
+use porter_callers::{Callers, ProcCallers};
 use std::collections::BTreeMap;
 use std::future::Future;
 
@@ -48,7 +48,7 @@ pub struct ProcPeers {
 
 impl ProcPeers {
     /// Resolves senders on `connection` through `table`, reading the system's `/proc`.
-    pub fn new(connection: zbus::Connection, table: porter_dbus::callers::CallerTable) -> Self {
+    pub fn new(connection: zbus::Connection, table: porter_callers::CallerTable) -> Self {
         Self::over(ProcCallers::new(connection, table))
     }
 
@@ -57,7 +57,7 @@ impl ProcPeers {
     #[cfg(feature = "test-proc-root")]
     pub fn with_proc_root(
         connection: zbus::Connection,
-        table: porter_dbus::callers::CallerTable,
+        table: porter_callers::CallerTable,
         proc_root: std::path::PathBuf,
     ) -> Self {
         Self::over(ProcCallers::with_proc_root(connection, table, proc_root))
