@@ -628,7 +628,7 @@ dependencies = [
 [[package]]
 name = "cua-action"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/stoker?rev=f30d2808a9f05901a952c1fac6db2c6479a1bfe2#f30d2808a9f05901a952c1fac6db2c6479a1bfe2"
+source = "git+https://github.com/PoHsuanLai/stoker?rev=521a920898856001860ac4edafd3d57b7e1ccb6e#521a920898856001860ac4edafd3d57b7e1ccb6e"
 dependencies = [
  "keyboard-types",
  "serde",
@@ -1453,6 +1453,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "percent-encoding"
+version = "2.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
+
+[[package]]
 name = "pin-project-lite"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1478,7 +1484,7 @@ dependencies = [
 [[package]]
 name = "porter-client"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=fc6b55aba646377c296f5ccf0e086b83e3c139ae#fc6b55aba646377c296f5ccf0e086b83e3c139ae"
+source = "git+https://github.com/PoHsuanLai/porter?rev=f7e47a71ac30ab46dd0629fc8c2b2ae9cfcae261#f7e47a71ac30ab46dd0629fc8c2b2ae9cfcae261"
 dependencies = [
  "porter-core",
  "porter-dbus",
@@ -1495,11 +1501,15 @@ dependencies = [
 [[package]]
 name = "porter-core"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=fc6b55aba646377c296f5ccf0e086b83e3c139ae#fc6b55aba646377c296f5ccf0e086b83e3c139ae"
+source = "git+https://github.com/PoHsuanLai/porter?rev=f7e47a71ac30ab46dd0629fc8c2b2ae9cfcae261#f7e47a71ac30ab46dd0629fc8c2b2ae9cfcae261"
 dependencies = [
+ "chrono",
  "peephole-core",
+ "percent-encoding",
+ "secrecy",
  "serde",
  "serde_json",
+ "subtle",
  "thiserror",
  "zeroize",
 ]
@@ -1507,7 +1517,7 @@ dependencies = [
 [[package]]
 name = "porter-daemon"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=fc6b55aba646377c296f5ccf0e086b83e3c139ae#fc6b55aba646377c296f5ccf0e086b83e3c139ae"
+source = "git+https://github.com/PoHsuanLai/porter?rev=f7e47a71ac30ab46dd0629fc8c2b2ae9cfcae261#f7e47a71ac30ab46dd0629fc8c2b2ae9cfcae261"
 dependencies = [
  "notify",
  "thiserror",
@@ -1516,7 +1526,7 @@ dependencies = [
 [[package]]
 name = "porter-dbus"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=fc6b55aba646377c296f5ccf0e086b83e3c139ae#fc6b55aba646377c296f5ccf0e086b83e3c139ae"
+source = "git+https://github.com/PoHsuanLai/porter?rev=f7e47a71ac30ab46dd0629fc8c2b2ae9cfcae261#f7e47a71ac30ab46dd0629fc8c2b2ae9cfcae261"
 dependencies = [
  "peephole",
  "peephole-bus",
@@ -1532,7 +1542,7 @@ dependencies = [
 [[package]]
 name = "porter-infer"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=fc6b55aba646377c296f5ccf0e086b83e3c139ae#fc6b55aba646377c296f5ccf0e086b83e3c139ae"
+source = "git+https://github.com/PoHsuanLai/porter?rev=f7e47a71ac30ab46dd0629fc8c2b2ae9cfcae261#f7e47a71ac30ab46dd0629fc8c2b2ae9cfcae261"
 dependencies = [
  "base64",
  "cua-action",
@@ -1591,7 +1601,7 @@ dependencies = [
 [[package]]
 name = "prov"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/prov?rev=44dc456c04bc4d414e03385b17be2cf6ddab0436#44dc456c04bc4d414e03385b17be2cf6ddab0436"
+source = "git+https://github.com/PoHsuanLai/prov?rev=e1e9725126c44b369086fdb0ce7f8da2e3048b8c#e1e9725126c44b369086fdb0ce7f8da2e3048b8c"
 dependencies = [
  "porter-core",
  "serde",
@@ -1770,6 +1780,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "93fc1dc3aaa9bfed95e02e6eadabb4baf7e3078b0bd1b4d7b6b0b68378900502"
 dependencies = [
  "winapi-util",
+]
+
+[[package]]
+name = "secrecy"
+version = "0.10.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e891af845473308773346dc847b2c23ee78fe442e0472ac50e22a18a93d3ae5a"
+dependencies = [
+ "serde",
+ "zeroize",
 ]
 
 [[package]]
