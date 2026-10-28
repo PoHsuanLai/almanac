@@ -21,10 +21,7 @@ mod xdg;
 
 pub use almanac_watch::InotifyWatch as Watcher;
 pub use backend::SystemBackend;
-pub use callers::{
-    CallerFileError, ROUTER_APP, SETTINGS_APP, SHELL_APP, caller_for, load_callers,
-    table_from_file, table_from_toml,
-};
+pub use callers::{ROUTER_APP, SETTINGS_APP, SHELL_APP, caller_for};
 pub use consent::Consent;
 pub use daemon::Daemon;
 pub use keyring::{LockChanges, is_lock_change};

@@ -9,10 +9,8 @@ use almanac_core::*;
 use almanac_dbus_serve::{Signal, serve_on};
 use almanac_service::Caller;
 use almanac_tidy::Change;
-use memoryd::{
-    Daemon, Delivery, ProcPeers, caller_for, delivery_of, load_callers, table_from_toml,
-};
-use porter_callers::{CallerTable, ProcCallers};
+use memoryd::{Daemon, Delivery, ProcPeers, caller_for, delivery_of};
+use porter_callers::{CallerTable, ProcCallers, load_callers, table_from_toml};
 use std::path::Path;
 use std::sync::Arc;
 

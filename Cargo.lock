@@ -1241,7 +1241,6 @@ dependencies = [
  "tempfile",
  "thiserror",
  "tokio",
- "toml",
  "zbus",
 ]
 
@@ -1574,6 +1573,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+ "toml",
  "zbus",
 ]
 
