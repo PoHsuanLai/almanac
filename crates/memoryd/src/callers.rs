@@ -37,6 +37,7 @@ pub fn caller_for(found: porter_callers::Caller) -> Caller {
         | CallerRole::Settings
         | CallerRole::SheetHost
         | CallerRole::PorterDaemon
+        | CallerRole::AiBroker
         | CallerRole::AgentLauncher
         | CallerRole::Agent => Caller::App(found.app),
         // The compositor, or a role a later porter adds: its own app's access, no fixed standing.
