@@ -4,10 +4,9 @@
 
 use crate::keysel::{AnyKeys, KEYS_VAR, SANDBOX_VAR, Sandbox, TestKeys, sandbox_choice, select};
 use crate::{
-    CallerFileError, Confinement, Consent, Daemon, KeysError, LockChanges, ProcGate, ProcPeers,
-    SHELL_APP, SandboxError, SettingsWatch, SpaceRegistry, SystemBackend, WatchState, XdgError,
-    apply, apply_next, default_card, dirs_from, enforce, inferd_link, load_callers, policy_for,
-    prepare,
+    CallerFileError, Confinement, Consent, Daemon, KeysError, LockChanges, ProcPeers, SHELL_APP,
+    SandboxError, SettingsWatch, SpaceRegistry, SystemBackend, WatchState, XdgError, apply,
+    apply_next, default_card, dirs_from, enforce, inferd_link, load_callers, policy_for, prepare,
 };
 use almanac_core::{Dirs, RuleSet};
 use almanac_dbus_serve::serve_on;
@@ -16,7 +15,7 @@ use almanac_infer::{InferdConsolidator, InferdEmbedder};
 use almanac_service::{ConfigError, MemoryService, rules_from_toml, spaces_from_toml};
 use almanac_settings::{ConsolidateWhen, MemorySettings};
 use porter_client::DbusTransport;
-use porter_daemon::ProcRoot;
+use porter_daemon::{ProcRoot, choose_proc_root, proc_notice};
 use porter_dbus::callers::CallerTable;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
@@ -31,11 +30,7 @@ pub const PROC_ROOT_VAR: &str = "MEMORYD_PROC_ROOT";
 
 /// Whether this build honours [`PROC_ROOT_VAR`]: only one built with the `test-proc-root` feature.
 /// A release build ignores the variable and says so.
-pub const PROC_GATE: ProcGate = if cfg!(feature = "test-proc-root") {
-    ProcGate::Honour
-} else {
-    ProcGate::Ignore
-};
+pub const HONOURS_PROC_ROOT: bool = cfg!(feature = "test-proc-root");
 
 /// Why the daemon did not start, or stopped.
 #[derive(Debug, thiserror::Error)]
@@ -97,9 +92,9 @@ pub const SYSTEM_CALLERS_VAR: &str = "MEMORYD_SYSTEM_CALLERS";
 
 /// The system callers file this build reads: [`SYSTEM_CALLERS`], or the variable's file in a
 /// `test-proc-root` build.
-fn system_callers(gate: ProcGate, env: Env<'_>) -> PathBuf {
-    match (gate, env(SYSTEM_CALLERS_VAR)) {
-        (ProcGate::Honour, Some(file)) if !file.is_empty() => PathBuf::from(file),
+fn system_callers(honour: bool, env: Env<'_>) -> PathBuf {
+    match (honour, env(SYSTEM_CALLERS_VAR)) {
+        (true, Some(file)) if !file.is_empty() => PathBuf::from(file),
         _ => PathBuf::from(SYSTEM_CALLERS),
     }
 }
@@ -178,7 +173,7 @@ async fn run(
     // porter reads a fixture tree only in a test build; everywhere else it asks /proc and the
     // user manager, which a fixture tree has no stand-in for.
     let table = read_callers(&system, &dirs)?;
-    let peers = match proc_root.fixture() {
+    let peers = match proc_root.honoured() {
         #[cfg(feature = "test-proc-root")]
         Some(dir) => ProcPeers::with_proc_root(connection.clone(), table, dir.to_path_buf()),
         _ => ProcPeers::new(connection.clone(), table),
@@ -250,19 +245,19 @@ pub fn start(env: Env<'_>) -> Result<(), StartError> {
     if let Some(line) = said {
         eprintln!("memoryd: {line}");
     }
-    let proc_root = ProcRoot::choose(PROC_GATE, PROC_ROOT_VAR, |name| {
+    let proc_root = choose_proc_root(HONOURS_PROC_ROOT, PROC_ROOT_VAR, |name| {
         env(name).map(OsString::from)
     });
-    if let Some(line) = proc_root.notice("memoryd", PROC_ROOT_VAR) {
+    if let Some(line) = proc_notice(&proc_root, "memoryd", PROC_ROOT_VAR) {
         eprintln!("{line}");
     }
     let bus = env("DBUS_SESSION_BUS_ADDRESS");
     let mut policy = policy_for(&dirs, bus.as_deref());
     // A fixture /proc is read like /proc is: files only.
-    if let Some(dir) = proc_root.fixture() {
+    if let Some(dir) = proc_root.honoured() {
         policy.read_files.push(dir.to_path_buf());
     }
-    let system = system_callers(PROC_GATE, env);
+    let system = system_callers(HONOURS_PROC_ROOT, env);
     if system != Path::new(SYSTEM_CALLERS) {
         eprintln!(
             "memoryd: TEST BUILD: the system callers file is {}",
@@ -308,14 +303,18 @@ mod tests {
             |name: &str| (name == SYSTEM_CALLERS_VAR).then(|| "/scratch/system.toml".to_owned());
         let empty = |name: &str| (name == SYSTEM_CALLERS_VAR).then(String::new);
         let unset = |_: &str| None;
-        let rows: [(ProcGate, Env<'_>, &str); 4] = [
-            (ProcGate::Honour, &set, "/scratch/system.toml"),
-            (ProcGate::Ignore, &set, SYSTEM_CALLERS),
-            (ProcGate::Honour, &empty, SYSTEM_CALLERS),
-            (ProcGate::Honour, &unset, SYSTEM_CALLERS),
+        let rows: [(bool, Env<'_>, &str); 4] = [
+            (true, &set, "/scratch/system.toml"),
+            (false, &set, SYSTEM_CALLERS),
+            (true, &empty, SYSTEM_CALLERS),
+            (true, &unset, SYSTEM_CALLERS),
         ];
-        for (gate, env, want) in rows {
-            assert_eq!(system_callers(gate, env), PathBuf::from(want), "{gate:?}");
+        for (honour, env, want) in rows {
+            assert_eq!(
+                system_callers(honour, env),
+                PathBuf::from(want),
+                "{honour:?}"
+            );
         }
     }
 }

@@ -1564,7 +1564,7 @@ dependencies = [
 [[package]]
 name = "porter-capability"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=31799cfa9a355df8f57af99a2f060a65c980601d#31799cfa9a355df8f57af99a2f060a65c980601d"
+source = "git+https://github.com/PoHsuanLai/porter?rev=0b68a6a94cd274363f5db357e5e0b43276725c82#0b68a6a94cd274363f5db357e5e0b43276725c82"
 dependencies = [
  "porter-ids",
  "serde",
@@ -1573,7 +1573,7 @@ dependencies = [
 [[package]]
 name = "porter-client"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=31799cfa9a355df8f57af99a2f060a65c980601d#31799cfa9a355df8f57af99a2f060a65c980601d"
+source = "git+https://github.com/PoHsuanLai/porter?rev=0b68a6a94cd274363f5db357e5e0b43276725c82#0b68a6a94cd274363f5db357e5e0b43276725c82"
 dependencies = [
  "porter-capability",
  "porter-core",
@@ -1596,7 +1596,7 @@ dependencies = [
 [[package]]
 name = "porter-core"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=31799cfa9a355df8f57af99a2f060a65c980601d#31799cfa9a355df8f57af99a2f060a65c980601d"
+source = "git+https://github.com/PoHsuanLai/porter?rev=0b68a6a94cd274363f5db357e5e0b43276725c82#0b68a6a94cd274363f5db357e5e0b43276725c82"
 dependencies = [
  "peephole-core",
  "porter-capability",
@@ -1612,7 +1612,7 @@ dependencies = [
 [[package]]
 name = "porter-daemon"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=31799cfa9a355df8f57af99a2f060a65c980601d#31799cfa9a355df8f57af99a2f060a65c980601d"
+source = "git+https://github.com/PoHsuanLai/porter?rev=0b68a6a94cd274363f5db357e5e0b43276725c82#0b68a6a94cd274363f5db357e5e0b43276725c82"
 dependencies = [
  "notify",
  "thiserror",
@@ -1621,7 +1621,7 @@ dependencies = [
 [[package]]
 name = "porter-dbus"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=31799cfa9a355df8f57af99a2f060a65c980601d#31799cfa9a355df8f57af99a2f060a65c980601d"
+source = "git+https://github.com/PoHsuanLai/porter?rev=0b68a6a94cd274363f5db357e5e0b43276725c82#0b68a6a94cd274363f5db357e5e0b43276725c82"
 dependencies = [
  "peephole",
  "peephole-bus",
@@ -1641,7 +1641,7 @@ dependencies = [
 [[package]]
 name = "porter-ids"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=31799cfa9a355df8f57af99a2f060a65c980601d#31799cfa9a355df8f57af99a2f060a65c980601d"
+source = "git+https://github.com/PoHsuanLai/porter?rev=0b68a6a94cd274363f5db357e5e0b43276725c82#0b68a6a94cd274363f5db357e5e0b43276725c82"
 dependencies = [
  "chrono",
  "percent-encoding",
@@ -1652,7 +1652,7 @@ dependencies = [
 [[package]]
 name = "porter-infer"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=31799cfa9a355df8f57af99a2f060a65c980601d#31799cfa9a355df8f57af99a2f060a65c980601d"
+source = "git+https://github.com/PoHsuanLai/porter?rev=0b68a6a94cd274363f5db357e5e0b43276725c82#0b68a6a94cd274363f5db357e5e0b43276725c82"
 dependencies = [
  "base64",
  "cua-action",
@@ -1670,7 +1670,7 @@ dependencies = [
 [[package]]
 name = "porter-match"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=31799cfa9a355df8f57af99a2f060a65c980601d#31799cfa9a355df8f57af99a2f060a65c980601d"
+source = "git+https://github.com/PoHsuanLai/porter?rev=0b68a6a94cd274363f5db357e5e0b43276725c82#0b68a6a94cd274363f5db357e5e0b43276725c82"
 dependencies = [
  "porter-capability",
  "porter-ids",
@@ -1680,7 +1680,7 @@ dependencies = [
 [[package]]
 name = "porter-tailnet"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=31799cfa9a355df8f57af99a2f060a65c980601d#31799cfa9a355df8f57af99a2f060a65c980601d"
+source = "git+https://github.com/PoHsuanLai/porter?rev=0b68a6a94cd274363f5db357e5e0b43276725c82#0b68a6a94cd274363f5db357e5e0b43276725c82"
 dependencies = [
  "porter-ids",
  "porter-tailscale",
@@ -1692,7 +1692,7 @@ dependencies = [
 [[package]]
 name = "porter-tailscale"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=31799cfa9a355df8f57af99a2f060a65c980601d#31799cfa9a355df8f57af99a2f060a65c980601d"
+source = "git+https://github.com/PoHsuanLai/porter?rev=0b68a6a94cd274363f5db357e5e0b43276725c82#0b68a6a94cd274363f5db357e5e0b43276725c82"
 dependencies = [
  "porter-ids",
  "serde",
@@ -1703,7 +1703,7 @@ dependencies = [
 [[package]]
 name = "porter-wire"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=31799cfa9a355df8f57af99a2f060a65c980601d#31799cfa9a355df8f57af99a2f060a65c980601d"
+source = "git+https://github.com/PoHsuanLai/porter?rev=0b68a6a94cd274363f5db357e5e0b43276725c82#0b68a6a94cd274363f5db357e5e0b43276725c82"
 dependencies = [
  "porter-capability",
  "porter-core",
@@ -1762,7 +1762,7 @@ dependencies = [
 [[package]]
 name = "prov"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/prov?rev=628083b3b2a1f09d68a12d3d4bc256ad8c4a09cb#628083b3b2a1f09d68a12d3d4bc256ad8c4a09cb"
+source = "git+https://github.com/PoHsuanLai/prov?rev=be51a59f70e137362803dbece7e0574a802cb3be#be51a59f70e137362803dbece7e0574a802cb3be"
 dependencies = [
  "porter-capability",
  "porter-core",

@@ -12,7 +12,7 @@ use porter_infer::{
     ChatReply, ClientFrame, EmbedReply, EmbedVector, InferEvent, InferRefusal, InferReply,
     InferRequest, ServedBy, StopReason, TokenUsage,
 };
-use porter_wire::{FrameRead, decode_frame, encode_frame};
+use porter_wire::{decode_frame, encode_frame};
 use recall::FakeEmbedder;
 use std::os::unix::net::UnixStream as StdStream;
 use std::sync::{Arc, Mutex};
@@ -142,7 +142,7 @@ async fn serve_session(
     let mut buffer = Vec::new();
     let mut chunk = [0_u8; 4096];
     loop {
-        while let Ok(FrameRead::Complete(envelope, used)) = decode_frame::<ClientFrame>(&buffer) {
+        while let Ok(Some((envelope, used))) = decode_frame::<ClientFrame>(&buffer) {
             buffer.drain(..used);
             if let ClientFrame::Request(request) = envelope.body {
                 for event in answer(&class, request, &seen, &draft) {

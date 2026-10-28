@@ -379,13 +379,3 @@ fn what_a_change_makes_the_bus_say() {
         Some(Delivery::StatusChanged(space("work")))
     );
 }
-
-#[test]
-fn the_proc_gate_follows_the_test_proc_root_feature() {
-    let expected = if cfg!(feature = "test-proc-root") {
-        memoryd::ProcGate::Honour
-    } else {
-        memoryd::ProcGate::Ignore
-    };
-    assert_eq!(memoryd::PROC_GATE, expected);
-}
