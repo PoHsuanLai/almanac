@@ -54,6 +54,9 @@ serde_json = { workspace = true }
 blake3 = { workspace = true }
 
 [dev-dependencies]
+porter-wire = { workspace = true }
+porter-capability = { workspace = true }
+porter-ids = { workspace = true }
 porter-infer = { workspace = true }
 # The tests present their processes as a fixture tree, which porter reads only in a test build.
 memoryd = { path = ".", features = ["test-proc-root"] }

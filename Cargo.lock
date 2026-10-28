@@ -43,6 +43,7 @@ version = "0.1.0"
 dependencies = [
  "const-hex",
  "porter-core",
+ "porter-ids",
  "prov",
  "serde",
  "serde_json",
@@ -112,9 +113,13 @@ dependencies = [
  "almanac-fake",
  "almanac-store",
  "almanac-tidy",
+ "porter-capability",
  "porter-client",
  "porter-core",
+ "porter-ids",
  "porter-infer",
+ "porter-match",
+ "porter-wire",
  "recall",
  "thiserror",
  "tokio",
@@ -435,6 +440,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "borsh"
+version = "1.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "553c5d846a6ba5150c65e3b1b8ec073bcf1abc20f9b7220de384a4443ea4e20a"
+dependencies = [
+ "borsh-derive",
+ "bytes",
+ "cfg_aliases",
+]
+
+[[package]]
+name = "borsh-derive"
+version = "1.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "12cdfe656708a01f89b451a7d36466e6fe6c414de0aa18fc54f864f6f9ca9f56"
+dependencies = [
+ "once_cell",
+ "proc-macro-crate",
+ "proc-macro2",
+ "quote",
+ "syn 3.0.6",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.20.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -628,7 +657,7 @@ dependencies = [
 [[package]]
 name = "cua-action"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/stoker?rev=521a920898856001860ac4edafd3d57b7e1ccb6e#521a920898856001860ac4edafd3d57b7e1ccb6e"
+source = "git+https://github.com/PoHsuanLai/stoker?rev=c8fed624534867659448ac417992bac4f0f47e28#c8fed624534867659448ac417992bac4f0f47e28"
 dependencies = [
  "keyboard-types",
  "serde",
@@ -843,6 +872,11 @@ dependencies = [
 ]
 
 [[package]]
+name = "genai-names"
+version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/stoker?rev=c8fed624534867659448ac417992bac4f0f47e28#c8fed624534867659448ac417992bac4f0f47e28"
+
+[[package]]
 name = "generic-array"
 version = "0.14.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -991,6 +1025,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a6cb138bb79a146c1bd460005623e142ef0181e3d0219cb493e02f7d08a35695"
 
 [[package]]
+name = "iso_country"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "20633e788d3948ea7336861fdb09ec247f5dae4267e8f0743fa97de26c28624d"
+dependencies = [
+ "lazy_static",
+]
+
+[[package]]
+name = "iso_currency"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "52d721074ff687a7ac523217a2bedb8277ac81d83dc10216ffc2a19128ca3dd5"
+dependencies = [
+ "iso_country",
+ "proc-macro2",
+ "quote",
+ "serde",
+]
+
+[[package]]
 name = "itoa"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1048,6 +1103,12 @@ dependencies = [
  "libc",
  "thiserror",
 ]
+
+[[package]]
+name = "lazy_static"
+version = "1.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "20870f649af7073d53e38067b2a84312175d56ea15217e1b15bc83506ec50afb"
 
 [[package]]
 name = "libc"
@@ -1163,11 +1224,14 @@ dependencies = [
  "landlock",
  "memfiles",
  "memoryd",
+ "porter-capability",
  "porter-client",
  "porter-core",
  "porter-daemon",
  "porter-dbus",
+ "porter-ids",
  "porter-infer",
+ "porter-wire",
  "recall",
  "rusqlite",
  "serde",
@@ -1190,6 +1254,22 @@ dependencies = [
  "log",
  "wasi",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "model-provider"
+version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/stoker?rev=c8fed624534867659448ac417992bac4f0f47e28#c8fed624534867659448ac417992bac4f0f47e28"
+dependencies = [
+ "base64",
+ "cua-action",
+ "genai-names",
+ "iso_currency",
+ "rust_decimal",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "vision-prep",
 ]
 
 [[package]]
@@ -1482,13 +1562,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "porter-capability"
+version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/porter?rev=31799cfa9a355df8f57af99a2f060a65c980601d#31799cfa9a355df8f57af99a2f060a65c980601d"
+dependencies = [
+ "porter-ids",
+ "serde",
+]
+
+[[package]]
 name = "porter-client"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=f7e47a71ac30ab46dd0629fc8c2b2ae9cfcae261#f7e47a71ac30ab46dd0629fc8c2b2ae9cfcae261"
+source = "git+https://github.com/PoHsuanLai/porter?rev=31799cfa9a355df8f57af99a2f060a65c980601d#31799cfa9a355df8f57af99a2f060a65c980601d"
 dependencies = [
+ "porter-capability",
  "porter-core",
  "porter-dbus",
+ "porter-ids",
  "porter-infer",
+ "porter-match",
+ "porter-tailnet",
+ "porter-tailscale",
+ "porter-wire",
  "rustix",
  "serde",
  "serde_json",
@@ -1501,11 +1596,11 @@ dependencies = [
 [[package]]
 name = "porter-core"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=f7e47a71ac30ab46dd0629fc8c2b2ae9cfcae261#f7e47a71ac30ab46dd0629fc8c2b2ae9cfcae261"
+source = "git+https://github.com/PoHsuanLai/porter?rev=31799cfa9a355df8f57af99a2f060a65c980601d#31799cfa9a355df8f57af99a2f060a65c980601d"
 dependencies = [
- "chrono",
  "peephole-core",
- "percent-encoding",
+ "porter-capability",
+ "porter-ids",
  "secrecy",
  "serde",
  "serde_json",
@@ -1517,7 +1612,7 @@ dependencies = [
 [[package]]
 name = "porter-daemon"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=f7e47a71ac30ab46dd0629fc8c2b2ae9cfcae261#f7e47a71ac30ab46dd0629fc8c2b2ae9cfcae261"
+source = "git+https://github.com/PoHsuanLai/porter?rev=31799cfa9a355df8f57af99a2f060a65c980601d#31799cfa9a355df8f57af99a2f060a65c980601d"
 dependencies = [
  "notify",
  "thiserror",
@@ -1526,12 +1621,16 @@ dependencies = [
 [[package]]
 name = "porter-dbus"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=f7e47a71ac30ab46dd0629fc8c2b2ae9cfcae261#f7e47a71ac30ab46dd0629fc8c2b2ae9cfcae261"
+source = "git+https://github.com/PoHsuanLai/porter?rev=31799cfa9a355df8f57af99a2f060a65c980601d#31799cfa9a355df8f57af99a2f060a65c980601d"
 dependencies = [
  "peephole",
  "peephole-bus",
  "peephole-core",
  "porter-core",
+ "porter-ids",
+ "porter-match",
+ "porter-tailscale",
+ "porter-wire",
  "serde",
  "serde_json",
  "thiserror",
@@ -1540,13 +1639,75 @@ dependencies = [
 ]
 
 [[package]]
+name = "porter-ids"
+version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/porter?rev=31799cfa9a355df8f57af99a2f060a65c980601d#31799cfa9a355df8f57af99a2f060a65c980601d"
+dependencies = [
+ "chrono",
+ "percent-encoding",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
 name = "porter-infer"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=f7e47a71ac30ab46dd0629fc8c2b2ae9cfcae261#f7e47a71ac30ab46dd0629fc8c2b2ae9cfcae261"
+source = "git+https://github.com/PoHsuanLai/porter?rev=31799cfa9a355df8f57af99a2f060a65c980601d#31799cfa9a355df8f57af99a2f060a65c980601d"
 dependencies = [
  "base64",
  "cua-action",
+ "model-provider",
+ "porter-capability",
  "porter-core",
+ "porter-ids",
+ "porter-match",
+ "rust_decimal",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "porter-match"
+version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/porter?rev=31799cfa9a355df8f57af99a2f060a65c980601d#31799cfa9a355df8f57af99a2f060a65c980601d"
+dependencies = [
+ "porter-capability",
+ "porter-ids",
+ "serde",
+]
+
+[[package]]
+name = "porter-tailnet"
+version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/porter?rev=31799cfa9a355df8f57af99a2f060a65c980601d#31799cfa9a355df8f57af99a2f060a65c980601d"
+dependencies = [
+ "porter-ids",
+ "porter-tailscale",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "porter-tailscale"
+version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/porter?rev=31799cfa9a355df8f57af99a2f060a65c980601d#31799cfa9a355df8f57af99a2f060a65c980601d"
+dependencies = [
+ "porter-ids",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "porter-wire"
+version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/porter?rev=31799cfa9a355df8f57af99a2f060a65c980601d#31799cfa9a355df8f57af99a2f060a65c980601d"
+dependencies = [
+ "porter-capability",
+ "porter-core",
+ "porter-match",
  "serde",
  "serde_json",
  "thiserror",
@@ -1590,7 +1751,7 @@ dependencies = [
  "bitflags",
  "num-traits",
  "rand 0.9.5",
- "rand_chacha",
+ "rand_chacha 0.9.0",
  "rand_xorshift",
  "regex-syntax",
  "rusty-fork",
@@ -1601,9 +1762,11 @@ dependencies = [
 [[package]]
 name = "prov"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/prov?rev=e1e9725126c44b369086fdb0ce7f8da2e3048b8c#e1e9725126c44b369086fdb0ce7f8da2e3048b8c"
+source = "git+https://github.com/PoHsuanLai/prov?rev=628083b3b2a1f09d68a12d3d4bc256ad8c4a09cb#628083b3b2a1f09d68a12d3d4bc256ad8c4a09cb"
 dependencies = [
+ "porter-capability",
  "porter-core",
+ "porter-ids",
  "serde",
  "thiserror",
 ]
@@ -1637,11 +1800,22 @@ checksum = "f8dcc9c7d52a811697d2151c701e0d08956f92b0e24136cf4cf27b57a6a0d9bf"
 
 [[package]]
 name = "rand"
+version = "0.8.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e058c7de0b26af77780c769414d6257830bb240f3c38477dbc2c16e5f54d6d4c"
+dependencies = [
+ "libc",
+ "rand_chacha 0.3.1",
+ "rand_core 0.6.4",
+]
+
+[[package]]
+name = "rand"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b9ef1d0d795eb7d84685bca4f72f3649f064e6641543d3a8c415898726a57b41"
 dependencies = [
- "rand_chacha",
+ "rand_chacha 0.9.0",
  "rand_core 0.9.5",
 ]
 
@@ -1654,6 +1828,16 @@ dependencies = [
  "chacha20 0.10.2",
  "getrandom 0.4.3",
  "rand_core 0.10.1",
+]
+
+[[package]]
+name = "rand_chacha"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e6c10a63a0fa32252be49d21e7709d4d4baf8d231c2dbce1eaa8141b9b127d88"
+dependencies = [
+ "ppv-lite86",
+ "rand_core 0.6.4",
 ]
 
 [[package]]
@@ -1741,6 +1925,23 @@ dependencies = [
  "libsqlite3-sys",
  "smallvec",
  "sqlite-wasm-rs",
+]
+
+[[package]]
+name = "rust_decimal"
+version = "1.43.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7653272e75dcac41dc199fbea6f5797633994fafd339943c06c9af16bf29cd3a"
+dependencies = [
+ "arrayvec",
+ "borsh",
+ "bytes",
+ "num-traits",
+ "rand 0.8.8",
+ "rand 0.9.5",
+ "serde",
+ "serde_json",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -2199,6 +2400,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
+name = "vision-prep"
+version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/stoker?rev=c8fed624534867659448ac417992bac4f0f47e28#c8fed624534867659448ac417992bac4f0f47e28"
+dependencies = [
+ "cua-action",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
 name = "wait-timeout"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2241,6 +2452,7 @@ dependencies = [
  "cfg-if",
  "once_cell",
  "rustversion",
+ "serde",
  "wasm-bindgen-macro",
  "wasm-bindgen-shared",
 ]

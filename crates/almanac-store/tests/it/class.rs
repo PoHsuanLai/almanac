@@ -48,40 +48,24 @@ fn the_class_of_a_request_is_the_most_sensitive_of_its_labels() {
 
 #[test]
 fn a_class_tag_is_the_slug_and_every_class_round_trips() {
-    // The exhaustive match makes a new class a compile error here, so it gets a row.
-    let slug = |class: DataClass| match class {
-        DataClass::AppOwn => "app_own",
-        DataClass::Mail => "mail",
-        DataClass::Calendar => "calendar",
-        DataClass::Tasks => "tasks",
-        DataClass::Contacts => "contacts",
-        DataClass::Notes => "notes",
-        DataClass::Files => "files",
-        DataClass::Photos => "photos",
-        DataClass::Clipboard => "clipboard",
-        DataClass::Screen => "screen",
-        DataClass::Voice => "voice",
-        DataClass::Prompt => "prompt",
-        DataClass::Public => "public",
-    };
     let all = [
-        DataClass::AppOwn,
-        DataClass::Mail,
-        DataClass::Calendar,
-        DataClass::Tasks,
-        DataClass::Contacts,
-        DataClass::Notes,
-        DataClass::Files,
-        DataClass::Photos,
-        DataClass::Clipboard,
-        DataClass::Screen,
-        DataClass::Voice,
-        DataClass::Prompt,
-        DataClass::Public,
+        (DataClass::AppOwn, "app_own"),
+        (DataClass::Mail, "mail"),
+        (DataClass::Calendar, "calendar"),
+        (DataClass::Tasks, "tasks"),
+        (DataClass::Contacts, "contacts"),
+        (DataClass::Notes, "notes"),
+        (DataClass::Files, "files"),
+        (DataClass::Photos, "photos"),
+        (DataClass::Clipboard, "clipboard"),
+        (DataClass::Screen, "screen"),
+        (DataClass::Voice, "voice"),
+        (DataClass::Prompt, "prompt"),
+        (DataClass::Public, "public"),
     ];
-    for class in all {
+    for (class, slug) in all {
         let tag = class_tag(class);
-        assert_eq!(tag.0, slug(class));
+        assert_eq!(tag.0, slug);
         assert_eq!(class_from_tag(&tag), Some(class));
     }
     assert_eq!(class_from_tag(&ClassTag::default()), None);

@@ -93,9 +93,9 @@ pub const MEMORY_WIRE_VERSION: u32 = 1;
 /// The other crates of this repo reach porter and `prov` through almanac-core, so the allowed
 /// edges stay exactly the crate map's.
 pub use porter_core::{
-    AppId, AppName, Bytes, Count, DataClass, DesktopSpace, Isolation, LocalSpace, SpaceId,
-    SpaceKind, SpaceScope, Tokens, UnixSeconds,
+    AppId, AppName, DataClass, DesktopSpace, Isolation, LocalSpace, SpaceId, SpaceKind, SpaceScope,
 };
+pub use porter_ids::{Bytes, Count, Tokens, UnixSeconds};
 /// Why a message is malformed (`prov::Fault`): the service refuses a `Record` whose message
 /// fails `Message::check`.
 pub use prov::Fault as MessageFault;

@@ -2,7 +2,7 @@
 //! names, style). The rule is almanac's, so it lives here and not in the shared vocabulary.
 
 use porter_core::SpaceId;
-use prov::{Confidentiality, Flow, Integrity, Label, Source};
+use prov::{Confidentiality, Integrity, Label, Source};
 
 /// Why the desktop scope will not hold a labelled value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -27,7 +27,7 @@ pub fn desktop_admits(label: &Label) -> Result<(), DesktopRefusal> {
         Err(DesktopRefusal::Untrusted)
     } else if !only_user {
         Err(DesktopRefusal::NotUserStated)
-    } else if label.confidentiality.flow_to(&SpaceId::desktop()) == Flow::Denied {
+    } else if !label.confidentiality.flow_to(&SpaceId::desktop()) {
         Err(DesktopRefusal::SpaceBound)
     } else {
         Ok(())

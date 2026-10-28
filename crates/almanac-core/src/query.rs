@@ -4,7 +4,8 @@ use crate::ids::{SpacePath, TopicPath};
 use crate::slug::slug_enum;
 use crate::text::{ContentDigest, UserText};
 use crate::thing::{ThingRef, Verb};
-use porter_core::{Count, SpaceId};
+use porter_core::SpaceId;
+use porter_ids::Count;
 use prov::Actor;
 use serde::{Deserialize, Serialize};
 

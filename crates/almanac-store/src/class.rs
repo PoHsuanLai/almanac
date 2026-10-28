@@ -27,12 +27,19 @@ const BY_SENSITIVITY: [DataClass; 13] = [
     DataClass::Public,
 ];
 
-/// The class a request over `labels` is sent as.
+/// The class a request over `labels` is sent as. A class this build has no place for (porter
+/// added it after this list was written) counts as the most sensitive, so it is never sent as
+/// the app's own data.
 pub fn class_of<'a>(labels: impl IntoIterator<Item = &'a Label>) -> DataClass {
     let present: Vec<&Label> = labels.into_iter().collect();
-    BY_SENSITIVITY
-        .into_iter()
-        .find(|class| present.iter().any(|l| l.classes.contains(class)))
+    let classes = || present.iter().flat_map(|l| l.classes.iter().copied());
+    classes()
+        .find(|class| !BY_SENSITIVITY.contains(class))
+        .or_else(|| {
+            BY_SENSITIVITY
+                .into_iter()
+                .find(|class| classes().any(|c| c == *class))
+        })
         .unwrap_or(DataClass::AppOwn)
 }
 
@@ -49,37 +56,4 @@ pub fn class_tag(class: DataClass) -> ClassTag {
 /// index written by a newer build), which an embedder treats as its own strictest pin.
 pub fn class_from_tag(tag: &ClassTag) -> Option<DataClass> {
     serde_json::from_value(serde_json::Value::String(tag.0.clone())).ok()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// Each class's place in [`BY_SENSITIVITY`]. The match is exhaustive, so a class porter adds
-    /// is a compile error here until it is given a place, and the test below fails until the
-    /// list holds it there: a new class is never silently classed as the app's own.
-    fn rank(class: DataClass) -> usize {
-        match class {
-            DataClass::Voice => 0,
-            DataClass::Prompt => 1,
-            DataClass::Mail => 2,
-            DataClass::Contacts => 3,
-            DataClass::Calendar => 4,
-            DataClass::Tasks => 5,
-            DataClass::Notes => 6,
-            DataClass::Files => 7,
-            DataClass::Photos => 8,
-            DataClass::Clipboard => 9,
-            DataClass::Screen => 10,
-            DataClass::AppOwn => 11,
-            DataClass::Public => 12,
-        }
-    }
-
-    #[test]
-    fn every_class_has_its_place_in_the_sensitivity_order() {
-        for (place, class) in BY_SENSITIVITY.into_iter().enumerate() {
-            assert_eq!(rank(class), place, "{class:?}");
-        }
-    }
 }

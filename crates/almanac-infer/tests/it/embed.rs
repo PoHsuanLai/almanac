@@ -5,14 +5,16 @@ use crate::support::{Scripted, card, embed_reply, served, texts, usage, vector_o
 use almanac_core::DataClass;
 use almanac_infer::InferdEmbedder;
 use almanac_store::{EmbedError, EmbedRole, Embedder, RetryClass, Urgency};
-use porter_core::capability::Modality;
+use porter_capability::Modality;
+use porter_capability::Tier;
 use porter_core::consent::Usage;
-use porter_core::need::DimsNeed;
-use porter_core::{Dims, Need, Tier};
+use porter_ids::Dims;
 use porter_infer::{
     ChatReply, ClientFrame, InferEvent, InferRefusal, InferReply, InferRequest, ModelError,
     StopReason,
 };
+use porter_match::DimsNeed;
+use porter_match::Need;
 
 #[tokio::test]
 async fn the_embedder_asks_for_the_cards_model_and_returns_one_vector_per_text() {

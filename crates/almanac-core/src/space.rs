@@ -3,7 +3,8 @@
 use crate::chain::ChainReport;
 use crate::ids::ReplicaId;
 use crate::slug::slug_enum;
-use porter_core::{Bytes, Count, SpaceId, UnixSeconds};
+use porter_core::SpaceId;
+use porter_ids::{Bytes, Count, UnixSeconds};
 use prov::RunId;
 use serde::{Deserialize, Serialize};
 

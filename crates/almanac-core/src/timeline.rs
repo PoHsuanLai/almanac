@@ -4,7 +4,8 @@ use crate::event::EventRef;
 use crate::ids::{Cursor, KindPattern, KindTag};
 use crate::slug::slug_enum;
 use crate::thing::ThingView;
-use porter_core::{AppName, Count, UnixSeconds};
+use porter_core::AppName;
+use porter_ids::{Count, UnixSeconds};
 use prov::{Actor, Effect, Label};
 use serde::{Deserialize, Serialize};
 

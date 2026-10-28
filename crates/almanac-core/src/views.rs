@@ -10,7 +10,7 @@ use crate::slug::slug_enum;
 use crate::text::UserText;
 use crate::thing::ThingView;
 use crate::timeline::TimelineEntry;
-use porter_core::{Count, UnixSeconds};
+use porter_ids::{Count, UnixSeconds};
 use prov::{Actor, RunId};
 use serde::{Deserialize, Serialize};
 

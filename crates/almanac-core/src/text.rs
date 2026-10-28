@@ -201,7 +201,7 @@ impl JsonText {
     pub fn parse(text: &str) -> Result<Self, CoreError> {
         match serde_json::from_str::<serde::de::IgnoredAny>(text) {
             Ok(_) => Ok(Self(text.to_owned())),
-            Err(e) => Err(CoreError::MalformedFrame(format!("not JSON: {e}"))),
+            Err(e) => Err(CoreError::MalformedValue(format!("not JSON: {e}"))),
         }
     }
 

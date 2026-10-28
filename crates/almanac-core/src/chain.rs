@@ -2,7 +2,7 @@
 
 use crate::ids::Seq;
 use crate::text::Link32;
-use porter_core::Count;
+use porter_ids::Count;
 use serde::{Deserialize, Serialize};
 
 /// The newest entry of a log.

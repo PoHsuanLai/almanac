@@ -6,10 +6,11 @@ use almanac_core::DataClass;
 use almanac_fake::{consolidation_event_link, consolidation_input};
 use almanac_infer::InferdConsolidator;
 use almanac_tidy::{ConsolidateError, Consolidator, render_prompt};
-use porter_core::capability::LlmFeature;
+use porter_capability::LlmFeature;
+use porter_capability::Tier;
 use porter_core::consent::Usage;
-use porter_core::{Need, Tier};
 use porter_infer::{ClientFrame, InferRefusal, InferReply, InferRequest, ModelError, Task};
+use porter_match::Need;
 
 #[tokio::test]
 async fn the_consolidator_sends_the_prompt_as_a_background_extract_task() {

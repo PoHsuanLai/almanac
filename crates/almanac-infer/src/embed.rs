@@ -5,15 +5,18 @@ use almanac_store::{
     Classed, EmbedError, EmbedRole, Embedder, EmbedderCard, RetryClass, Urgency, Vector,
     class_from_tag,
 };
+use porter_capability::Modality;
+use porter_capability::Tier;
 use porter_client::{Transport, TransportError};
-use porter_core::capability::Modality;
+use porter_core::DataClass;
 use porter_core::consent::Usage;
-use porter_core::need::{DimsNeed, EmbedNeed};
-use porter_core::{DataClass, Dims, Need, Tier};
+use porter_ids::Dims;
 use porter_infer::{
     EmbedReply, EmbedRequest, EmbedRole as WireRole, InferRefusal, InferReply, InferRequest,
     ModelError,
 };
+use porter_match::Need;
+use porter_match::{DimsNeed, EmbedNeed};
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 

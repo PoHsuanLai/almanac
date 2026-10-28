@@ -5,12 +5,14 @@ use almanac_store::class_of;
 use almanac_tidy::{
     ConsolidateError, ConsolidationInput, Consolidator, Draft, parse_draft, render_prompt,
 };
+use porter_capability::LlmFeature;
+use porter_capability::Tier;
 use porter_client::Transport;
-use porter_core::capability::LlmFeature;
 use porter_core::consent::Usage;
-use porter_core::need::LlmNeed;
-use porter_core::{Need, Tier, Tokens};
+use porter_ids::Tokens;
 use porter_infer::{InferRefusal, InferReply, InferRequest, ModelError, Task, TaskRequest};
+use porter_match::LlmNeed;
+use porter_match::Need;
 use std::collections::BTreeSet;
 use std::sync::Arc;
 

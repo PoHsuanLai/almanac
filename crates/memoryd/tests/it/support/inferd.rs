@@ -3,14 +3,16 @@
 //! with a fixed text, and remembering the class of every session and request. It speaks the
 //! real frames (`porter_core::wire`), so memoryd's own client code runs unchanged against it.
 
-use porter_core::wire::{FrameRead, decode_frame, encode_frame};
-use porter_core::{AccountId, Locality, ModelId, Tokens};
+use porter_capability::{Locality, ModelId};
+use porter_core::AccountId;
 use porter_dbus::names::{INFERENCE_BUS, INFERENCE_PATH};
 use porter_dbus::{Details, NeedArg};
+use porter_ids::Tokens;
 use porter_infer::{
     ChatReply, ClientFrame, EmbedReply, EmbedVector, InferEvent, InferRefusal, InferReply,
     InferRequest, ServedBy, StopReason, TokenUsage,
 };
+use porter_wire::{FrameRead, decode_frame, encode_frame};
 use recall::FakeEmbedder;
 use std::os::unix::net::UnixStream as StdStream;
 use std::sync::{Arc, Mutex};
@@ -99,6 +101,7 @@ fn usage() -> TokenUsage {
         input: Tokens(1),
         output: Tokens(0),
         cached: Tokens(0),
+        charge: None,
     }
 }
 

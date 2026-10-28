@@ -277,12 +277,18 @@ for rule in "${RULES[@]}"; do
 done
 
 # Nothing of almanac's reaches another area's repo.
-for banned in docket-core docket-router intentd cua-run cua-bus cuad companion-wire model-provider; do
+for banned in docket-core docket-router intentd cua-run cua-bus cuad companion-wire; do
   if cargo tree --workspace -i "$banned" -e normal,build,dev 2>/dev/null | grep -q .; then
     echo "LEAK: the workspace depends on $banned (almanac stores other areas' payloads opaquely)"
     fail=1
   fi
 done
+# model-provider comes in under porter-infer (a reply's `charge` is its `Money`; owner 2026-10-28),
+# so only a direct edge from one of almanac's own crates is a leak: almanac never names a model payload.
+if cargo tree --workspace -i model-provider -e normal,build,dev --depth 1 2>/dev/null | grep -q "($PWD/"; then
+  echo "LEAK: an almanac crate depends on model-provider directly (almanac stores model payloads opaquely)"
+  fail=1
+fi
 
 # The portable core (ARCHITECTURE.md section 1a) is checked by its own script: no-default-features
 # builds, no platform dependency in the tree, cross-target checks. It needs no network.

@@ -8,7 +8,8 @@ use crate::ids::{KindTag, ReplicaId, Seq};
 use crate::op::MemoryOp;
 use crate::text::UserText;
 use crate::thing::{ThingRef, ThingRole, ThingView, Verb};
-use porter_core::{AppName, Count, SpaceId, UnixSeconds};
+use porter_core::{AppName, SpaceId};
+use porter_ids::{Count, UnixSeconds};
 use prov::{Actor, Effect, Label, Message, Part, SessionId};
 use serde::{Deserialize, Serialize};
 

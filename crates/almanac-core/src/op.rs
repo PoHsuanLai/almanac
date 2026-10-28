@@ -4,7 +4,8 @@ use crate::chain::Head;
 use crate::ids::{FactId, RuleId, Seq, TopicPath};
 use crate::rules::DropReason;
 use crate::text::{Link32, PlanDigest};
-use porter_core::{Count, SpaceId, UnixSeconds};
+use porter_core::SpaceId;
+use porter_ids::{Count, UnixSeconds};
 use prov::{Actor, RunId};
 use serde::{Deserialize, Serialize};
 

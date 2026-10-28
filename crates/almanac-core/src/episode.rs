@@ -15,7 +15,8 @@
 use crate::slug::slug_enum;
 use crate::text::{UserText, text_id};
 use crate::thing::{ThingRef, ThingRole, ThingView};
-use porter_core::{Count, SpaceId, UnixSeconds, is_id};
+use porter_core::SpaceId;
+use porter_ids::{Count, UnixSeconds, is_id};
 use prov::{ActionName, AgentRef, Effect, Label, MessageText, ModelRole, OutcomeRef, UndoHandle};
 use serde::{Deserialize, Serialize};
 

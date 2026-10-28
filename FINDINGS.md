@@ -1062,3 +1062,8 @@ builds; show nothing for it (or treat any unknown word the same way). Not done: 
   `almanac_core::hex_of` or `from_hex` (detent has its own unrelated `detent-ui` `hex_of`). docket's
   own `format!("{b:02x}")` copies are the docket lane's.
 - Licences: MIT and MIT OR Apache-2.0 are in deny.toml's list. `ulid` pulls `web-time` only on wasm.
+
+## Round B re-pin (2026-10-28)
+- porter 31799cfa (step 3 + spending), stoker c8fed624 (via porter-infer), prov 628083b3. Paths per ~/rs-wt/step3-core/PATHMAP.md and ~/rs-wt/spending/PATHMAP.md: ids from `porter-ids`, model kinds and needs from `porter-capability`/`porter-match`, the accounts frame from `porter-wire`; `porter_core::consent::Usage`; `CoreError::MalformedValue` for a JSON text that is not JSON; `TokenUsage.charge`; `flow_to` is a bool.
+- `DataClass` is `#[non_exhaustive]` now, so a class porter adds is no longer a compile error here. `class_of` instead counts a class it has no place for as the most sensitive, never as the app's own data; the order test that relied on the exhaustive match is gone, and the tag test is a table.
+- model-provider now reaches almanac under porter-infer (`TokenUsage.charge` is its `Money`). The owner relaxed the boundary rule (2026-10-28): only a direct dependency of an almanac crate on model-provider is a leak; the other area bans stay whole-tree.

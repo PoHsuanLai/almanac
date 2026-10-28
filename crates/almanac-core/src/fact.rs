@@ -3,7 +3,7 @@
 use crate::event::EventRef;
 use crate::ids::{FactId, FactText, TopicPath};
 use crate::thing::ThingRef;
-use porter_core::UnixSeconds;
+use porter_ids::UnixSeconds;
 use prov::{Actor, Label, RunId};
 use serde::{Deserialize, Serialize};
 

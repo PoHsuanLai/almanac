@@ -15,7 +15,7 @@ use crate::text::PlanDigest;
 use crate::text::UserText;
 use crate::timeline::TimelinePage;
 use crate::views::{DraftView, EventSummary, FactView, FileProvenance, ForgetPlanView};
-use porter_core::{Count, UnixSeconds};
+use porter_ids::{Count, UnixSeconds};
 use prov::Label;
 use serde::{Deserialize, Serialize};
 

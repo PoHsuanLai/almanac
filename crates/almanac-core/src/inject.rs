@@ -7,7 +7,8 @@ use crate::slug::slug_enum;
 use crate::text::{JsonText, UserText};
 use crate::timeline::TrustFilter;
 use crate::views::EventSummary;
-use porter_core::{Count, SpaceId, Tokens, UnixSeconds};
+use porter_core::SpaceId;
+use porter_ids::{Count, Tokens, UnixSeconds};
 use prov::{Effect, Label};
 use serde::{Deserialize, Serialize};
 
