@@ -407,7 +407,7 @@ impl<B: Backend, P: Peers> Daemon<B, P> {
 
     /// The registry's changes, until the stream ends: each removal is settled. The list is
     /// read after subscribing, so a removal in between is caught by [`Daemon::reconcile`].
-    pub async fn follow_spaces(&self, spaces: porter_client::Spaces) {
+    pub async fn follow_spaces(&self, spaces: porter_client::Spaces<porter_client_dbus::Bus>) {
         let Ok(mut changes) = spaces.watch().await else {
             return;
         };
@@ -419,11 +419,7 @@ impl<B: Backend, P: Peers> Daemon<B, P> {
                 }
             }
         }
-        while let Some(item) = std::future::poll_fn(|cx| {
-            porter_dbus::BusStream::poll_next(std::pin::Pin::new(&mut changes), cx)
-        })
-        .await
-        {
+        while let Some(item) = changes.next().await {
             if let Ok((space, change)) = item {
                 self.on_change(&space, change).await;
             }

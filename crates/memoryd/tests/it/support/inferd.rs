@@ -6,16 +6,17 @@
 use porter_capability::{Locality, ModelId};
 use porter_core::AccountId;
 use porter_dbus::Details;
-use porter_dbus::inference::{INFERENCE_BUS, INFERENCE_PATH, NeedArg};
 use porter_ids::Tokens;
 use porter_infer::{
     ChatReply, ClientFrame, EmbedReply, EmbedVector, InferEvent, InferRefusal, InferReply,
     InferRequest, ServedBy, StopReason, TokenUsage,
 };
+use porter_wire::names::{INFERENCE_BUS, INFERENCE_PATH};
 use porter_wire::{decode_frame, encode_frame};
 use recall::FakeEmbedder;
 use std::os::unix::net::UnixStream as StdStream;
 use std::sync::{Arc, Mutex};
+use steward_dbus::inference::NeedArg;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::UnixStream;
 use zbus::fdo;

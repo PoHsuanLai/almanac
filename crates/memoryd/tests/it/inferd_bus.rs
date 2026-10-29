@@ -18,8 +18,8 @@ use std::sync::{Arc, Mutex};
 
 type LiveBackend = SystemBackend<
     SharedKeys,
-    InferdEmbedder<porter_client::DbusTransport>,
-    InferdConsolidator<porter_client::DbusTransport>,
+    InferdEmbedder<inferd_client::DbusTransport>,
+    InferdConsolidator<inferd_client::DbusTransport>,
 >;
 
 struct Rig {
@@ -27,7 +27,7 @@ struct Rig {
     _bus: PrivateBus,
     _inferd: Option<zbus::Connection>,
     seen: Arc<Mutex<Seen>>,
-    link: Arc<porter_client::DbusTransport>,
+    link: Arc<inferd_client::DbusTransport>,
     service: MemoryService<LiveBackend>,
 }
 

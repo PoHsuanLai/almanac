@@ -3,15 +3,14 @@
 
 use almanac_core::DataClass;
 use almanac_store::{Embedder, EmbedderCard};
+use inferd_client::{Transport, TransportError};
 use porter_capability::{Locality, ModelId, Tier};
-use porter_client::{Transport, TransportError};
 use porter_core::AccountId;
 use porter_infer::{
     ChatReply, ClientFrame, EmbedReply, EmbedVector, InferEvent, InferReply, InferSession,
     OpenOptions, ServedBy, SessionError, StopReason, TokenUsage,
 };
 use porter_match::Need;
-use porter_wire::{AccountsReply, AccountsRequest};
 use recall::FakeEmbedder;
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
@@ -102,10 +101,6 @@ impl InferSession for Session {
 
 impl Transport for Scripted {
     type Session = Session;
-
-    async fn call(&self, _request: AccountsRequest) -> Result<AccountsReply, TransportError> {
-        Err(TransportError::Unreachable)
-    }
 
     async fn open_with(
         &self,

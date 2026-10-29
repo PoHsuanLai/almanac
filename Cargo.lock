@@ -113,13 +113,12 @@ dependencies = [
  "almanac-fake",
  "almanac-store",
  "almanac-tidy",
+ "inferd-client",
  "porter-capability",
- "porter-client",
  "porter-core",
  "porter-ids",
  "porter-infer",
  "porter-match",
- "porter-wire",
  "recall",
  "thiserror",
  "tokio",
@@ -657,7 +656,7 @@ dependencies = [
 [[package]]
 name = "cua-action"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/stoker?rev=c8fed624534867659448ac417992bac4f0f47e28#c8fed624534867659448ac417992bac4f0f47e28"
+source = "git+https://github.com/PoHsuanLai/stoker?rev=98621a2f3730ea1c3e0b8abce00f8e4fe91fe7d7#98621a2f3730ea1c3e0b8abce00f8e4fe91fe7d7"
 dependencies = [
  "keyboard-types",
  "serde",
@@ -874,7 +873,7 @@ dependencies = [
 [[package]]
 name = "genai-names"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/stoker?rev=c8fed624534867659448ac417992bac4f0f47e28#c8fed624534867659448ac417992bac4f0f47e28"
+source = "git+https://github.com/PoHsuanLai/stoker?rev=98621a2f3730ea1c3e0b8abce00f8e4fe91fe7d7#98621a2f3730ea1c3e0b8abce00f8e4fe91fe7d7"
 
 [[package]]
 name = "generic-array"
@@ -986,6 +985,30 @@ checksum = "cc4e190f5d26ca7051642629da2c52fc03bde85a03197c99408dcd291734c855"
 dependencies = [
  "equivalent",
  "hashbrown 0.17.1",
+]
+
+[[package]]
+name = "inferd-client"
+version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/steward?rev=832ad19cf361930aa2264f493d6393493969df05#832ad19cf361930aa2264f493d6393493969df05"
+dependencies = [
+ "porter-callers",
+ "porter-capability",
+ "porter-core",
+ "porter-dbus",
+ "porter-ids",
+ "porter-infer",
+ "porter-match",
+ "porter-tailnet",
+ "porter-tailscale",
+ "porter-wire",
+ "rustix",
+ "serde",
+ "serde_json",
+ "steward-dbus",
+ "thiserror",
+ "tokio",
+ "zbus",
 ]
 
 [[package]]
@@ -1221,12 +1244,14 @@ dependencies = [
  "clap",
  "eventlog",
  "getrandom 0.3.4",
+ "inferd-client",
  "landlock",
  "memfiles",
  "memoryd",
  "porter-callers",
  "porter-capability",
  "porter-client",
+ "porter-client-dbus",
  "porter-core",
  "porter-daemon",
  "porter-dbus",
@@ -1237,6 +1262,7 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
+ "steward-dbus",
  "tar",
  "tempfile",
  "thiserror",
@@ -1259,7 +1285,7 @@ dependencies = [
 [[package]]
 name = "model-provider"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/stoker?rev=c8fed624534867659448ac417992bac4f0f47e28#c8fed624534867659448ac417992bac4f0f47e28"
+source = "git+https://github.com/PoHsuanLai/stoker?rev=98621a2f3730ea1c3e0b8abce00f8e4fe91fe7d7#98621a2f3730ea1c3e0b8abce00f8e4fe91fe7d7"
 dependencies = [
  "base64",
  "cua-action",
@@ -1564,7 +1590,7 @@ dependencies = [
 [[package]]
 name = "porter-callers"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=ad54ea46a9d6ef23039371f5f12c1ed8fccb4cb7#ad54ea46a9d6ef23039371f5f12c1ed8fccb4cb7"
+source = "git+https://github.com/PoHsuanLai/porter?rev=c718d2036daad7e052e1d89f1fe0ca4679168427#c718d2036daad7e052e1d89f1fe0ca4679168427"
 dependencies = [
  "peephole",
  "peephole-bus",
@@ -1580,7 +1606,7 @@ dependencies = [
 [[package]]
 name = "porter-capability"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=ad54ea46a9d6ef23039371f5f12c1ed8fccb4cb7#ad54ea46a9d6ef23039371f5f12c1ed8fccb4cb7"
+source = "git+https://github.com/PoHsuanLai/porter?rev=c718d2036daad7e052e1d89f1fe0ca4679168427#c718d2036daad7e052e1d89f1fe0ca4679168427"
 dependencies = [
  "porter-ids",
  "serde",
@@ -1589,23 +1615,34 @@ dependencies = [
 [[package]]
 name = "porter-client"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=ad54ea46a9d6ef23039371f5f12c1ed8fccb4cb7#ad54ea46a9d6ef23039371f5f12c1ed8fccb4cb7"
+source = "git+https://github.com/PoHsuanLai/porter?rev=c718d2036daad7e052e1d89f1fe0ca4679168427#c718d2036daad7e052e1d89f1fe0ca4679168427"
 dependencies = [
- "porter-callers",
+ "futures-core",
+ "futures-util",
  "porter-capability",
+ "porter-core",
+ "porter-ids",
+ "porter-match",
+ "porter-tailscale",
+ "porter-wire",
+ "thiserror",
+]
+
+[[package]]
+name = "porter-client-dbus"
+version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/porter?rev=c718d2036daad7e052e1d89f1fe0ca4679168427#c718d2036daad7e052e1d89f1fe0ca4679168427"
+dependencies = [
+ "futures-util",
+ "porter-capability",
+ "porter-client",
  "porter-core",
  "porter-dbus",
  "porter-ids",
- "porter-infer",
- "porter-match",
- "porter-tailnet",
  "porter-tailscale",
  "porter-wire",
- "rustix",
- "serde",
  "serde_json",
  "thiserror",
- "tokio",
  "zbus",
  "zeroize",
 ]
@@ -1613,7 +1650,7 @@ dependencies = [
 [[package]]
 name = "porter-core"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=ad54ea46a9d6ef23039371f5f12c1ed8fccb4cb7#ad54ea46a9d6ef23039371f5f12c1ed8fccb4cb7"
+source = "git+https://github.com/PoHsuanLai/porter?rev=c718d2036daad7e052e1d89f1fe0ca4679168427#c718d2036daad7e052e1d89f1fe0ca4679168427"
 dependencies = [
  "peephole-core",
  "porter-capability",
@@ -1629,7 +1666,7 @@ dependencies = [
 [[package]]
 name = "porter-daemon"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=ad54ea46a9d6ef23039371f5f12c1ed8fccb4cb7#ad54ea46a9d6ef23039371f5f12c1ed8fccb4cb7"
+source = "git+https://github.com/PoHsuanLai/porter?rev=c718d2036daad7e052e1d89f1fe0ca4679168427#c718d2036daad7e052e1d89f1fe0ca4679168427"
 dependencies = [
  "notify",
  "thiserror",
@@ -1638,12 +1675,11 @@ dependencies = [
 [[package]]
 name = "porter-dbus"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=ad54ea46a9d6ef23039371f5f12c1ed8fccb4cb7#ad54ea46a9d6ef23039371f5f12c1ed8fccb4cb7"
+source = "git+https://github.com/PoHsuanLai/porter?rev=c718d2036daad7e052e1d89f1fe0ca4679168427#c718d2036daad7e052e1d89f1fe0ca4679168427"
 dependencies = [
  "porter-core",
  "porter-dbus-macros",
  "porter-ids",
- "porter-match",
  "porter-tailscale",
  "porter-wire",
  "serde",
@@ -1656,7 +1692,7 @@ dependencies = [
 [[package]]
 name = "porter-dbus-macros"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=ad54ea46a9d6ef23039371f5f12c1ed8fccb4cb7#ad54ea46a9d6ef23039371f5f12c1ed8fccb4cb7"
+source = "git+https://github.com/PoHsuanLai/porter?rev=c718d2036daad7e052e1d89f1fe0ca4679168427#c718d2036daad7e052e1d89f1fe0ca4679168427"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1666,7 +1702,7 @@ dependencies = [
 [[package]]
 name = "porter-ids"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=ad54ea46a9d6ef23039371f5f12c1ed8fccb4cb7#ad54ea46a9d6ef23039371f5f12c1ed8fccb4cb7"
+source = "git+https://github.com/PoHsuanLai/porter?rev=c718d2036daad7e052e1d89f1fe0ca4679168427#c718d2036daad7e052e1d89f1fe0ca4679168427"
 dependencies = [
  "chrono",
  "percent-encoding",
@@ -1677,7 +1713,7 @@ dependencies = [
 [[package]]
 name = "porter-infer"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=ad54ea46a9d6ef23039371f5f12c1ed8fccb4cb7#ad54ea46a9d6ef23039371f5f12c1ed8fccb4cb7"
+source = "git+https://github.com/PoHsuanLai/steward?rev=832ad19cf361930aa2264f493d6393493969df05#832ad19cf361930aa2264f493d6393493969df05"
 dependencies = [
  "base64",
  "cua-action",
@@ -1695,7 +1731,7 @@ dependencies = [
 [[package]]
 name = "porter-match"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=ad54ea46a9d6ef23039371f5f12c1ed8fccb4cb7#ad54ea46a9d6ef23039371f5f12c1ed8fccb4cb7"
+source = "git+https://github.com/PoHsuanLai/porter?rev=c718d2036daad7e052e1d89f1fe0ca4679168427#c718d2036daad7e052e1d89f1fe0ca4679168427"
 dependencies = [
  "porter-capability",
  "porter-ids",
@@ -1705,7 +1741,7 @@ dependencies = [
 [[package]]
 name = "porter-tailnet"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=ad54ea46a9d6ef23039371f5f12c1ed8fccb4cb7#ad54ea46a9d6ef23039371f5f12c1ed8fccb4cb7"
+source = "git+https://github.com/PoHsuanLai/steward?rev=832ad19cf361930aa2264f493d6393493969df05#832ad19cf361930aa2264f493d6393493969df05"
 dependencies = [
  "porter-ids",
  "porter-tailscale",
@@ -1717,7 +1753,7 @@ dependencies = [
 [[package]]
 name = "porter-tailscale"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=ad54ea46a9d6ef23039371f5f12c1ed8fccb4cb7#ad54ea46a9d6ef23039371f5f12c1ed8fccb4cb7"
+source = "git+https://github.com/PoHsuanLai/porter?rev=c718d2036daad7e052e1d89f1fe0ca4679168427#c718d2036daad7e052e1d89f1fe0ca4679168427"
 dependencies = [
  "porter-ids",
  "serde",
@@ -1728,7 +1764,7 @@ dependencies = [
 [[package]]
 name = "porter-wire"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=ad54ea46a9d6ef23039371f5f12c1ed8fccb4cb7#ad54ea46a9d6ef23039371f5f12c1ed8fccb4cb7"
+source = "git+https://github.com/PoHsuanLai/porter?rev=c718d2036daad7e052e1d89f1fe0ca4679168427#c718d2036daad7e052e1d89f1fe0ca4679168427"
 dependencies = [
  "porter-capability",
  "porter-core",
@@ -1787,7 +1823,7 @@ dependencies = [
 [[package]]
 name = "prov"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/prov?rev=f6cc175c4c6d815b6faa3d58b7875ca00def836d#f6cc175c4c6d815b6faa3d58b7875ca00def836d"
+source = "git+https://github.com/PoHsuanLai/prov?rev=336086056fa18dd014f7853c7179de8587a25792#336086056fa18dd014f7853c7179de8587a25792"
 dependencies = [
  "porter-capability",
  "porter-core",
@@ -2154,6 +2190,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "steward-dbus"
+version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/steward?rev=832ad19cf361930aa2264f493d6393493969df05#832ad19cf361930aa2264f493d6393493969df05"
+dependencies = [
+ "porter-core",
+ "porter-dbus",
+ "porter-dbus-macros",
+ "porter-ids",
+ "porter-match",
+ "porter-wire",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "zbus",
+]
+
+[[package]]
 name = "strsim"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2427,7 +2480,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 [[package]]
 name = "vision-prep"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/stoker?rev=c8fed624534867659448ac417992bac4f0f47e28#c8fed624534867659448ac417992bac4f0f47e28"
+source = "git+https://github.com/PoHsuanLai/stoker?rev=98621a2f3730ea1c3e0b8abce00f8e4fe91fe7d7#98621a2f3730ea1c3e0b8abce00f8e4fe91fe7d7"
 dependencies = [
  "cua-action",
  "serde",

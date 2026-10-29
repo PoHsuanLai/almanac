@@ -36,10 +36,10 @@ pub use settings_watch::{DEBOUNCE, SettingsWatch, WatchState, apply, apply_next}
 pub use signals::{Delivery, delivery_of};
 pub use xdg::{XdgError, dirs_from};
 
-use porter_client::DbusTransport;
+use inferd_client::DbusTransport;
 use std::sync::Arc;
 
-/// The link to inferd: the session bus connection `connection`, as porter-client's D-Bus
+/// The link to inferd: the session bus connection `connection`, as inferd-client's D-Bus
 /// transport. Nothing is called here: inferd is found (and started by activation) at the first
 /// `open`, so a daemon that starts before inferd, or without it, still starts and degrades as
 /// designed (lexical-only recall, no consolidation) until inferd answers.

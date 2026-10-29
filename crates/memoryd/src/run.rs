@@ -17,7 +17,8 @@ use almanac_settings::{ConsolidateWhen, MemorySettings};
 use porter_callers::{
     CallerFileError, CallerTable, ProcRoot, choose_proc_root, load_callers, proc_notice,
 };
-use porter_client::DbusTransport;
+use porter_client::Porter;
+use porter_client_dbus::Bus;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -139,11 +140,8 @@ async fn run(
     };
     let connection = builder.build().await?;
     let inferd = inferd_link(&connection);
-    let spaces = DbusTransport::over(connection.clone()).spaces().await;
-    let registry = match &spaces {
-        Ok(spaces) => SpaceRegistry::Porter(spaces.clone()),
-        Err(_) => SpaceRegistry::Closed,
-    };
+    let spaces = Porter::over(Bus::over(connection.clone())).spaces();
+    let registry = SpaceRegistry::Porter(spaces.clone());
     let backend = SystemBackend::with(
         dirs.clone(),
         keys,
@@ -200,10 +198,8 @@ async fn run(
             .is_some()
         {}
     });
-    if let Ok(spaces) = spaces {
-        let removed = daemon.clone();
-        tokio::spawn(async move { removed.follow_spaces(spaces).await });
-    }
+    let removed = daemon.clone();
+    tokio::spawn(async move { removed.follow_spaces(spaces).await });
     let consolidator = daemon.clone();
     tokio::spawn(async move {
         tokio::time::sleep(FIRST_CONSOLIDATION).await;

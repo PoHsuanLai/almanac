@@ -5,9 +5,9 @@ use almanac_store::{
     Classed, EmbedError, EmbedRole, Embedder, EmbedderCard, RetryClass, Urgency, Vector,
     class_from_tag,
 };
+use inferd_client::{Transport, TransportError};
 use porter_capability::Modality;
 use porter_capability::Tier;
-use porter_client::{Transport, TransportError};
 use porter_core::DataClass;
 use porter_core::consent::Usage;
 use porter_ids::Dims;

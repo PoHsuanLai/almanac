@@ -104,7 +104,7 @@ RULES=(
   "almanac-service: $EFFECTS $STORAGE notify"
   "almanac-host: $EFFECTS $STORAGE notify"
   "almanac-watch: $EFFECTS rusqlite"
-  # The inferd adapters reach inferd through porter-client's Transport only: no bus, no HTTP, no
+  # The inferd adapters reach inferd through inferd-client's Transport only: no bus, no HTTP, no
   # keyring, no embedding runtime and no storage, so an app other than memoryd can use them.
   "almanac-infer: zbus zvariant reqwest hyper oo7 ort fastembed $STORAGE notify"
   "almanac-dbus: reqwest hyper oo7 ort fastembed rusqlite notify"

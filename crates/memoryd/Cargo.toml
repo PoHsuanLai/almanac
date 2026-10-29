@@ -40,8 +40,9 @@ almanac-dbus-serve = { workspace = true }
 porter-core = { workspace = true }
 porter-callers = { workspace = true, features = ["file"] }
 porter-daemon = { workspace = true }
-porter-dbus = { workspace = true }
-porter-client = { workspace = true, features = ["dbus"] }
+porter-client = { workspace = true }
+porter-client-dbus = { workspace = true }
+inferd-client = { workspace = true, features = ["dbus"] }
 clap = { workspace = true }
 getrandom = { workspace = true }
 landlock = { workspace = true }
@@ -58,6 +59,8 @@ porter-wire = { workspace = true }
 porter-capability = { workspace = true }
 porter-ids = { workspace = true }
 porter-infer = { workspace = true }
+porter-dbus = { workspace = true }
+steward-dbus = { workspace = true }
 # The tests present their processes as a fixture tree, which porter reads only in a test build.
 memoryd = { path = ".", features = ["test-proc-root"] }
 almanac-client = { workspace = true, features = ["dbus"] }

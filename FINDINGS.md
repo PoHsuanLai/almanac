@@ -206,7 +206,8 @@ Nothing below is built; the interfaces it will use are.
     `Export` is `(s options, h out) -> s manifest`; `RecordBatch` and `Propose` have two out
     arguments.
   - `memoryd` does not link `almanac-client` (it has no use for it); its porter edges are
-    `porter-core`, `porter-infer` and `porter-client` (`InferdEmbedder` and `InferdConsolidator`).
+    `porter-core`, `porter-infer` and `inferd-client` (`InferdEmbedder` and `InferdConsolidator`), and
+    `porter-client` with `porter-client-dbus` (the Spaces registry).
   - `sqlite-vec` is not a dependency: exact scan is the default (QUESTIONS P5, no `unsafe`);
     file capture is inotify on Space roots (P4); fanotify is later.
 - **Answered questions this freeze applies** (QUESTIONS Rec column): Me1 sealed per file by default
@@ -222,8 +223,9 @@ Nothing below is built; the interfaces it will use are.
   (memory.md conflict 2).
 - **porter's `prov::Label` constructors and `Label::join` are stubs** until porter's fill, so
   almanac's tests build labels from their fields and `check_draft` is a stub with them.
-- **Cross-repo dependencies are git deps at pinned revs** (`porter-core`, `prov`, `porter-infer`,
-  `porter-client`, `porter-dbus` from `https://github.com/PoHsuanLai/porter`), so a plain `git clone`
+- **Cross-repo dependencies are git deps at pinned revs** (`porter-core`, `prov`, `porter-client`,
+  `porter-client-dbus`, `porter-dbus` from `https://github.com/PoHsuanLai/porter`; `porter-infer`,
+  `inferd-client`, `steward-dbus` from `https://github.com/PoHsuanLai/steward`), so a plain `git clone`
   builds with no sibling checkout (quire `CONSUMING.md` section 1). The URL spelling and the rev
   match porter's own pins of stoker and quire, so cargo sees one copy of each crate. For work that
   spans repos, override the pin locally with a `[patch]` that is never committed: put it in a
@@ -366,7 +368,7 @@ and the activation file. (Landlock came with the w4 fill, below.)
 
 **The inferd link is `AnyTransport::Dbus(DbusTransport::over(connection))`** (`memoryd::inferd_link`,
 asks 71 and 80 closed). `main` builds the session-bus connection first and gives the same
-transport to the embedder and the consolidator; porter-client is built with its `dbus` feature.
+transport to the embedder and the consolidator; inferd-client is built with its `dbus` feature.
 Nothing is called at start: inferd is found, and started by activation, at the first `open`, so a
 daemon that starts before inferd or without it still starts. While inferd is unreachable `open`
 answers `Unreachable`: the embedder answers `Unavailable` (recall is lexical-only and the index
@@ -995,7 +997,7 @@ builds; show nothing for it (or treat any unknown word the same way). Not done: 
 
 ## Layering lanes A3.3 and A3.6 (2026-10-28)
 - `almanac-infer` (tier C) holds the inferd embedder and consolidator and their deadlines, over
-  porter-client's `Transport` and nothing else, so an app that is not memoryd can use them. The
+  inferd-client's `Transport` and nothing else, so an app that is not memoryd can use them. The
   prompt and its parse were already in the service (A0.3); they moved on into `almanac-tidy`.
 - `almanac-tidy` (tier P) holds the fact and consolidation machines, the prompt and parse,
   `tidy_is_acceptable`, `Change`/`changes` and the removal notes (`RemovalLedger`, `Removals`).
