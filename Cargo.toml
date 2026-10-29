@@ -60,20 +60,20 @@ almanac-fake    = { path = "crates/almanac-fake" }
 # is no cycle. memoryd reaches inferd through inferd-client (from steward, by git; its tests serve a fake
 # inferd with steward-dbus) and porter's registry of Spaces through porter-client over porter-client-dbus;
 # almanac never names stoker itself (porter-infer does, by its own git rev).
-porter-core     = { git = "https://github.com/PoHsuanLai/porter", rev = "c718d2036daad7e052e1d89f1fe0ca4679168427" }
-porter-ids      = { git = "https://github.com/PoHsuanLai/porter", rev = "c718d2036daad7e052e1d89f1fe0ca4679168427" }
-porter-capability = { git = "https://github.com/PoHsuanLai/porter", rev = "c718d2036daad7e052e1d89f1fe0ca4679168427" }
-porter-match    = { git = "https://github.com/PoHsuanLai/porter", rev = "c718d2036daad7e052e1d89f1fe0ca4679168427" }
-porter-wire     = { git = "https://github.com/PoHsuanLai/porter", rev = "c718d2036daad7e052e1d89f1fe0ca4679168427" }
-prov            = { git = "https://github.com/PoHsuanLai/prov", rev = "336086056fa18dd014f7853c7179de8587a25792" }
-porter-infer    = { git = "https://github.com/PoHsuanLai/steward", rev = "832ad19cf361930aa2264f493d6393493969df05" }
-inferd-client   = { git = "https://github.com/PoHsuanLai/steward", rev = "832ad19cf361930aa2264f493d6393493969df05" }
-steward-dbus    = { git = "https://github.com/PoHsuanLai/steward", rev = "832ad19cf361930aa2264f493d6393493969df05" }
-porter-client   = { git = "https://github.com/PoHsuanLai/porter", rev = "c718d2036daad7e052e1d89f1fe0ca4679168427" }
-porter-client-dbus = { git = "https://github.com/PoHsuanLai/porter", rev = "c718d2036daad7e052e1d89f1fe0ca4679168427" }
-porter-dbus     = { git = "https://github.com/PoHsuanLai/porter", rev = "c718d2036daad7e052e1d89f1fe0ca4679168427" }
-porter-daemon   = { git = "https://github.com/PoHsuanLai/porter", rev = "c718d2036daad7e052e1d89f1fe0ca4679168427" }
-porter-callers  = { git = "https://github.com/PoHsuanLai/porter", rev = "c718d2036daad7e052e1d89f1fe0ca4679168427" }
+porter-core     = { git = "https://github.com/PoHsuanLai/porter", rev = "f406782b90b67f62f0f14ec5e78aec8992b5d709" }
+porter-ids      = { git = "https://github.com/PoHsuanLai/porter", rev = "f406782b90b67f62f0f14ec5e78aec8992b5d709" }
+porter-capability = { git = "https://github.com/PoHsuanLai/porter", rev = "f406782b90b67f62f0f14ec5e78aec8992b5d709" }
+porter-match    = { git = "https://github.com/PoHsuanLai/porter", rev = "f406782b90b67f62f0f14ec5e78aec8992b5d709" }
+porter-wire     = { git = "https://github.com/PoHsuanLai/porter", rev = "f406782b90b67f62f0f14ec5e78aec8992b5d709" }
+prov            = { git = "https://github.com/PoHsuanLai/prov", rev = "03c855eb4c80779522cf712075dead4a761adc4f" }
+porter-infer    = { git = "https://github.com/PoHsuanLai/steward", rev = "baedbb000103c7dcc3c73d5f2871c7a1e9dfd33e" }
+inferd-client   = { git = "https://github.com/PoHsuanLai/steward", rev = "baedbb000103c7dcc3c73d5f2871c7a1e9dfd33e" }
+steward-dbus    = { git = "https://github.com/PoHsuanLai/steward", rev = "baedbb000103c7dcc3c73d5f2871c7a1e9dfd33e" }
+porter-client   = { git = "https://github.com/PoHsuanLai/porter", rev = "f406782b90b67f62f0f14ec5e78aec8992b5d709" }
+porter-client-dbus = { git = "https://github.com/PoHsuanLai/porter", rev = "f406782b90b67f62f0f14ec5e78aec8992b5d709" }
+porter-dbus     = { git = "https://github.com/PoHsuanLai/porter", rev = "f406782b90b67f62f0f14ec5e78aec8992b5d709" }
+porter-daemon   = { git = "https://github.com/PoHsuanLai/porter", rev = "f406782b90b67f62f0f14ec5e78aec8992b5d709" }
+porter-callers  = { git = "https://github.com/PoHsuanLai/porter", rev = "f406782b90b67f62f0f14ec5e78aec8992b5d709" }
 
 # From quire's pinned block (`docs/workspace-deps.toml`), copied verbatim: only the lines almanac
 # names itself.
